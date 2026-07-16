@@ -1,0 +1,19 @@
+schema_version = "1.0.0"
+
+id = "dual_addon_search"
+version = "3.0.0"
+name = "插件双搜索"
+tagline = "增强插件管理面板：双搜索、星标、标签、批量操作、快捷键搜索"
+maintainer = "CYX"
+type = "add-on"
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+copyright = ["2025 CYX"]
+
+[permissions]
+clipboard = "COPY"
+files = "Write boot profiler patch to scripts/startup"
+
+tags = "UI, Development"
