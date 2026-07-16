@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
 // @namespace    https://github.com/hero8152/Infinite-Canvas
-// @version      1.5
-// @description  性能优化 · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · 提示词模板 · 模板变量 · 主题(画布配色DIY)
+// @version      1.6
+// @description  性能优化 · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 I标签 ?帮助 · AI增强 · 标签 · 提示词模板 · 模板变量 · 主题(画布配色DIY)
 // @match        *://*.iblib.tv/canvas*
 // @match        *://*.liblib.tv/canvas*
 // @run-at       document-idle
 // @grant        GM_registerMenuCommand
+// @grant        unsafeWindow
 // ==/UserScript==
 
 (function(){
@@ -323,6 +324,53 @@
         /* 画布主题覆盖 — 仅覆盖节点/连线的颜色，不动画布背景（保留站点原生网格） */
         '.react-flow__node { background: var(--node-bg) !important; border-color: var(--border-color) !important; }',
         '.react-flow__edge-path { stroke: var(--edge-color) !important; }',
+
+        /* 标签系统 */
+        '.lt-tag-menu { position:fixed; z-index:100000; width:320px; max-height:340px; background:rgba(15,15,20,0.92); backdrop-filter:blur(24px) saturate(1.3); -webkit-backdrop-filter:blur(24px) saturate(1.3); border:1px solid rgba(129,140,248,0.2); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.6),0 0 0 1px rgba(129,140,248,0.08); }',
+        '.lt-tag-head { display:flex; align-items:center; justify-content:space-between; padding:10px 14px 8px; border-bottom:1px solid rgba(129,140,248,0.1); font-size:12px; color:#e0e7ff; font-weight:600; flex-shrink:0; letter-spacing:0.03em; }',
+        '.lt-tag-close { cursor:pointer; font-size:14px; color:rgba(255,255,255,0.2); transition:color .15s; line-height:1; }',
+        '.lt-tag-close:hover { color:#818cf8; }',
+        '.lt-tag-tabs { display:flex; gap:2px; padding:6px 10px 0; border-bottom:1px solid rgba(129,140,248,0.08); flex-shrink:0; overflow-x:auto; }',
+        '.lt-tag-tab { padding:6px 12px 8px; cursor:pointer; font-size:11px; color:rgba(255,255,255,0.3); border-bottom:1.5px solid transparent; transition:all .15s; user-select:none; white-space:nowrap; letter-spacing:0.02em; }',
+        '.lt-tag-tab:hover { color:rgba(224,231,255,0.6); }',
+        '.lt-tag-tab.active { color:#818cf8; border-bottom-color:#818cf8; text-shadow:0 0 8px rgba(129,140,248,0.4); }',
+        '.lt-tag-body { flex:1; overflow-y:auto; padding:8px 10px; display:flex; flex-wrap:wrap; align-content:flex-start; gap:6px; }',
+        '.lt-tag-item { padding:5px 12px; border-radius:16px; font-size:11px; color:rgba(255,255,255,0.7); background:rgba(129,140,248,0.08); border:1px solid rgba(129,140,248,0.12); cursor:pointer; transition:all .12s; user-select:none; line-height:1.4; }',
+        '.lt-tag-item:hover { background:rgba(129,140,248,0.2); color:#c7d2fe; border-color:rgba(129,140,248,0.3); box-shadow:0 0 10px rgba(129,140,248,0.15); }',
+        '.lt-tag-foot { padding:6px 10px 8px; border-top:1px solid rgba(129,140,248,0.08); flex-shrink:0; text-align:center; }',
+        '.lt-tag-mgr { background:none; border:none; font-size:11px; color:rgba(255,255,255,0.25); cursor:pointer; padding:2px 8px; transition:color .15s; }',
+        '.lt-tag-mgr:hover { color:#818cf8; }',
+        /* 管理面板 */
+        '.lt-mgr-overlay { position:fixed; inset:0; z-index:100001; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px); }',
+        '.lt-mgr-panel { width:400px; max-width:88vw; max-height:70vh; background:rgba(15,15,20,0.95); backdrop-filter:blur(32px) saturate(1.3); -webkit-backdrop-filter:blur(32px) saturate(1.3); border:1px solid rgba(129,140,248,0.2); border-radius:14px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 16px 48px rgba(0,0,0,0.6); }',
+        '.lt-mgr-head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; border-bottom:1px solid rgba(129,140,248,0.1); font-size:13px; color:#e0e7ff; font-weight:600; flex-shrink:0; }',
+        '.lt-mgr-body { flex:1; overflow-y:auto; padding:12px 16px; }',
+        '.lt-mgr-foot { padding:10px 16px 14px; border-top:1px solid rgba(129,140,248,0.08); flex-shrink:0; }',
+        '.lt-mgr-group { margin-bottom:14px; border:1px solid rgba(129,140,248,0.1); border-radius:8px; padding:10px 12px; background:rgba(129,140,248,0.03); }',
+        '.lt-mgr-ghead { display:flex; align-items:center; gap:8px; margin-bottom:8px; }',
+        '.lt-mgr-gname { flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(129,140,248,0.12); border-radius:5px; padding:4px 8px; font:12px/1.5 -apple-system,sans-serif; color:#d4d4d8; outline:none; transition:border-color .12s; }',
+        '.lt-mgr-gname:focus { border-color:#818cf8; }',
+        '.lt-tag-delg { background:none; border:none; color:rgba(239,68,68,0.5); cursor:pointer; font-size:10px; padding:2px 6px; border-radius:4px; transition:all .12s; }',
+        '.lt-tag-delg:hover { background:rgba(239,68,68,0.15); color:#f87171; }',
+        '.lt-mgr-item { display:flex; align-items:center; gap:6px; margin:4px 0; }',
+        '.lt-mgr-itext { flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(129,140,248,0.1); border-radius:4px; padding:3px 8px; font:11px/1.5 -apple-system,sans-serif; color:#d4d4d8; outline:none; }',
+        '.lt-mgr-itext:focus { border-color:#818cf8; }',
+        '.lt-tag-deli { background:none; border:none; color:rgba(239,68,68,0.4); cursor:pointer; font-size:9px; padding:2px 4px; border-radius:3px; }',
+        '.lt-tag-deli:hover { background:rgba(239,68,68,0.12); color:#f87171; }',
+        '.lt-mgr-add-item { margin-top:4px; }',
+
+        /* 标签栏 — 吸附在输入框右侧 */
+        '.lt-tag-bar { display:flex; flex-direction:column; gap:2px; flex-shrink:0; padding:4px 2px; justify-content:center; align-items:stretch; min-width:50px; }',
+        '.lt-tag-bar-item { padding:1px 6px; border-radius:8px; font-size:10px; color:rgba(255,255,255,0.45); background:rgba(129,140,248,0.04); border:1px solid rgba(129,140,248,0.06); cursor:pointer; transition:all .12s; user-select:none; white-space:nowrap; line-height:1.7; text-align:center; }',
+        '.lt-tag-bar-item:hover { background:rgba(129,140,248,0.12); color:#c7d2fe; border-color:rgba(129,140,248,0.2); }',
+        '.lt-tag-bar-expand { font-size:8px; color:rgba(255,255,255,0.15); cursor:pointer; text-align:center; padding:1px 0 0; transition:color .12s; line-height:1.4; }',
+        '.lt-tag-bar-expand:hover { color:#818cf8; }',
+        '.lt-tag-bar-nav { display:flex; align-items:center; justify-content:center; gap:2px; margin-bottom:2px; }',
+        '.lt-tag-bar-arrow { font-size:10px; color:rgba(255,255,255,0.25); cursor:pointer; padding:0 2px; user-select:none; transition:color .12s; line-height:1; }',
+        '.lt-tag-bar-arrow:hover { color:#818cf8; }',
+        '.lt-tag-bar-gname { font-size:8px; color:rgba(255,255,255,0.2); white-space:nowrap; letter-spacing:0.02em; }',
+        '.lt-tag-bar-head { text-align:center; cursor:pointer; padding:1px 0 2px; opacity:0.35; color:#fff; transition:opacity .15s; line-height:1; }',
+        '.lt-tag-bar-head:hover { opacity:0.7; }',
     ].join('\n');
     document.head.appendChild(style);
 
@@ -336,7 +384,7 @@
 
     var helpEl = document.createElement('div');
     helpEl.id = 'libtv-help';
-    helpEl.textContent = 'G网格  T性能  H隐藏  L连线  C全链  F搜索  P提示词  X专注  R直角  ?帮助';
+    helpEl.textContent = 'G网格  T性能  H隐藏  L连线  C全链  F搜索  P提示词  X专注  R直角  I标签  ?帮助';
     document.body.appendChild(helpEl);
 
     var _fc = 0, _lastT = performance.now(), _fps = 0;
@@ -556,6 +604,7 @@
         '  }',
         '  function _ltInvalidateGraph(){_ltGraphCache=null;}',
         '  document.addEventListener("click",function(e){',
+        '    _ltInvalidateGraph();',
         '    if(!_ltAutoChain) return;',
         '    if(!e.target.closest(".react-flow__node")){',
         '      _ltClearChain(); return;',
@@ -734,7 +783,7 @@
         '          var candidates=[],best=null;',
         '          document.querySelectorAll("textarea").forEach(function(t){if(t.offsetParent!==null)candidates.push({el:t,val:t.value});});',
         '          document.querySelectorAll("input[type=text]").forEach(function(t){if(t.offsetParent!==null)candidates.push({el:t,val:t.value});});',
-        '          document.querySelectorAll("div[contenteditable=true]").forEach(function(t){if(t.offsetParent!==null)candidates.push({el:t,val:t.textContent||""});});',
+        '          document.querySelectorAll("[contenteditable=true]").forEach(function(t){if(t.offsetParent!==null)candidates.push({el:t,val:t.textContent||""});});',
         '          candidates.forEach(function(c){if(c.val.trim()&&(!best||c.val.length>best.val.length))best=c;});',
         '          document.getElementById("ltp-ai-input").value=best?best.val:"";',
         '          _ltAISource=best?best.el:null;',
@@ -757,7 +806,7 @@
 '              document.getElementById("ltp-ai-result").onclick=function(){',
 '                try{',
 '                  if(_ltAISource.tagName==="TEXTAREA"||_ltAISource.tagName==="INPUT"){_ltAISource.value=result;_ltAISource.dispatchEvent(new Event("input",{bubbles:true}));}',
-'                  else if(_ltAISource.getAttribute("contenteditable")==="true"){_ltAISource.textContent=result;_ltAISource.dispatchEvent(new Event("input",{bubbles:true}));}',
+'                  else if(_ltAISource.isContentEditable){_ltAISource.textContent=result;_ltAISource.dispatchEvent(new Event("input",{bubbles:true}));}',
 '                  document.getElementById("ltp-ai-status").textContent="✅ ✅ 已写回节点";',
 '                }catch(ex){document.getElementById("ltp-ai-status").textContent="❌ 写入失败: "+ex.message;}',
 '              };',
@@ -942,6 +991,221 @@
         '    div.querySelectorAll(".ltp-tab").forEach(function(t){t.onclick=function(){_ltPActiveTab=this.getAttribute("data-tab");div.querySelectorAll(".ltp-tab").forEach(function(x){x.classList.toggle("active",x===t);});renderBody();};});',
         '  }',
 
+        /* ———— 标签系统 ———— */
+        '  var _ltTagGroups=JSON.parse(localStorage.getItem("_lt_tags")||"[]");',
+        '  if(!_ltTagGroups.length){',
+        '    _ltTagGroups=[',
+        '      {id:"tg_quality",name:"\\u8d28\\u91cf",items:[',
+        '        {id:"tq1",text:"masterpiece"},{id:"tq2",text:"high quality"},{id:"tq3",text:"8K"},{id:"tq4",text:"highly detailed"},{id:"tq5",text:"sharp focus"},{id:"tq6",text:"best quality"},{id:"tq7",text:"ultra-detailed"},{id:"tq8",text:"4K"}',
+        '      ]},',
+        '      {id:"tg_style",name:"\\u98ce\\u683c",items:[',
+        '        {id:"ts1",text:"photorealistic"},{id:"ts2",text:"cinematic"},{id:"ts3",text:"anime"},{id:"ts4",text:"concept art"},{id:"ts5",text:"digital painting"},{id:"ts6",text:"3D render"},{id:"ts7",text:"oil painting"},{id:"ts8",text:"watercolor"}',
+        '      ]},',
+        '      {id:"tg_light",name:"\\u5149\\u7167",items:[',
+        '        {id:"tl1",text:"studio lighting"},{id:"tl2",text:"dramatic lighting"},{id:"tl3",text:"soft light"},{id:"tl4",text:"golden hour"},{id:"tl5",text:"neon lighting"},{id:"tl6",text:"rim light"},{id:"tl7",text:"volumetric lighting"},{id:"tl8",text:"cinematic lighting"}',
+        '      ]},',
+        '      {id:"tg_compose",name:"\\u6784\\u56fe",items:[',
+        '        {id:"tc1",text:"close-up"},{id:"tc2",text:"wide angle"},{id:"tc3",text:"aerial view"},{id:"tc4",text:"low angle"},{id:"tc5",text:"bird\'s eye view"},{id:"tc6",text:"macro"},{id:"tc7",text:"symmetrical composition"},{id:"tc8",text:"rule of thirds"}',
+        '      ]},',
+        '    ];',
+        '    localStorage.setItem("_lt_tags",JSON.stringify(_ltTagGroups));',
+        '  }',
+        '  var _ltTagActiveGroup=0;',
+        '  var _ltTagMenuEl=null,_ltTagInputEl=null;',
+        '  function _ltInsertTagAtCursor(tagText){',
+        '    var ta=_ltTagInputEl; if(!ta)return;',
+        '    if(ta.tagName==="TEXTAREA"||(ta.tagName==="INPUT"&&ta.type==="text")){',
+        '      var start=ta.selectionStart,end=ta.selectionEnd,val=ta.value;',
+        '      var ins=tagText+(val.length>0&&start>0&&val[start-1]!==" "?" ":"");',
+        '      var newVal=val.slice(0,start)+ins+val.slice(end);',
+        '      var proto=ta.tagName==="TEXTAREA"?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;',
+        '      var nativeSetter=Object.getOwnPropertyDescriptor(proto,"value").set;',
+        '      nativeSetter.call(ta,newVal);',
+        '      var pos=start+ins.length;',
+        '      ta.setSelectionRange(pos,pos);',
+        '      ta.dispatchEvent(new Event("input",{bubbles:true}));',
+        '    }else if(ta.isContentEditable){',
+        '      var sel=window.getSelection();',
+        '      if(!sel||!sel.rangeCount){ta.appendChild(document.createTextNode(tagText));}',
+        '      else{',
+        '        var r=sel.getRangeAt(0);',
+        '        r.deleteContents();',
+        '        r.insertNode(document.createTextNode(tagText));',
+        '        r.collapse(false);',
+        '        sel.removeAllRanges();sel.addRange(r);',
+        '      }',
+        '      ta.dispatchEvent(new Event("input",{bubbles:true}));',
+        '    }',
+        '    ta.focus();',
+        '  }',
+        '  function _ltRenderTagMenu(){',
+        '    if(!_ltTagMenuEl)return;',
+        '    var group=_ltTagGroups[_ltTagActiveGroup]; if(!group)return;',
+        '    var body=_ltTagMenuEl.querySelector(".lt-tag-body"); if(!body)return;',
+        '    var h="";',
+        '    group.items.forEach(function(it){',
+        '      h+="<div class=\\"lt-tag-item\\" data-text=\\""+it.text.replace(/"/g,"&quot;")+"\\">"+it.text+"</div>";',
+        '    });',
+        '    body.innerHTML=h;',
+        '    body.querySelectorAll(".lt-tag-item").forEach(function(el){',
+        '      el.addEventListener("click",function(){_ltInsertTagAtCursor(this.getAttribute("data-text"));_ltCloseTagMenu();});',
+        '    });',
+        '    _ltTagMenuEl.querySelector(".lt-tag-tabs").innerHTML=_ltTagGroups.map(function(g,i){',
+        '      return "<span class=\\"lt-tag-tab"+(i===_ltTagActiveGroup?" active":"")+"\\" data-idx=\\""+i+"\\">"+g.name+"</span>";',
+        '    }).join("");',
+        '    _ltTagMenuEl.querySelectorAll(".lt-tag-tab").forEach(function(tab){',
+        '      tab.addEventListener("click",function(){_ltTagActiveGroup=parseInt(this.getAttribute("data-idx"));_ltRenderTagMenu();_ltRefreshTagBars();});',
+        '    });',
+        '  }',
+        '  function _ltPosTagMenu(){',
+        '    if(!_ltTagMenuEl||!_ltTagInputEl)return;',
+        '    var r=_ltTagInputEl.getBoundingClientRect(),mw=_ltTagMenuEl.offsetWidth||320,mh=_ltTagMenuEl.offsetHeight||300;',
+        '    var l=Math.max(8,r.left+r.width-mw-4); if(l+mw>window.innerWidth-8)l=window.innerWidth-mw-8;',
+        '    var t=r.top-mh-6; if(t<8)t=r.bottom+6;',
+        '    _ltTagMenuEl.style.left=l+"px";_ltTagMenuEl.style.top=t+"px";',
+        '  }',
+        '  function _ltShowTagMenu(ta){',
+        '    _ltCloseTagMenu();',
+        '    _ltTagInputEl=ta;',
+        '    var div=document.createElement("div");div.className="lt-tag-menu";div.id="lt-tag-menu";',
+        '    div.innerHTML="<div class=\\"lt-tag-head\\"><span>\\u6807\\u7b7e</span><span class=\\"lt-tag-close\\" id=\\"lt-tag-close\\">\\u2715</span></div>"',
+        '      +"<div class=\\"lt-tag-tabs\\"></div>"',
+        '      +"<div class=\\"lt-tag-body\\"></div>"',
+        '      +"<div class=\\"lt-tag-foot\\"><button class=\\"lt-tag-mgr\\" id=\\"lt-tag-mgr\\">+ \\u7ba1\\u7406\\u5206\\u7ec4</button></div>";',
+        '    document.body.appendChild(div);',
+        '    _ltTagMenuEl=div;',
+        '    _ltRenderTagMenu();',
+        '    _ltPosTagMenu();',
+        '    var close=document.getElementById("lt-tag-close");',
+        '    if(close)close.onclick=_ltCloseTagMenu;',
+        '    var mgr=document.getElementById("lt-tag-mgr");',
+        '    if(mgr)mgr.onclick=_ltManageTags;',
+        '  }',
+        '  function _ltCloseTagMenu(){',
+        '    var el=document.getElementById("lt-tag-menu");if(el)el.remove();',
+        '    _ltTagMenuEl=null;_ltTagInputEl=null;',
+        '  }',
+        '  function _ltSaveTags(){localStorage.setItem("_lt_tags",JSON.stringify(_ltTagGroups));}',
+        '  function _ltManageTags(){',
+        '    var h="<div class=\\"lt-mgr-overlay\\" id=\\"lt-mgr-overlay\\">"',
+        '      +"<div class=\\"lt-mgr-panel\\"><div class=\\"lt-mgr-head\\"><span>\\u7ba1\\u7406\\u5206\\u7ec4</span><span class=\\"lt-tag-close\\" id=\\"lt-mgr-close\\">\\u2715</span></div>"',
+        '      +"<div class=\\"lt-mgr-body\\" id=\\"lt-mgr-body\\"></div>"',
+        '      +"<div class=\\"lt-mgr-foot\\"><button class=\\"ltp-btn ltp-btn-primary\\" id=\\"lt-mgr-add-group\\">+ \\u65b0\\u5efa\\u5206\\u7ec4</button></div></div></div>";',
+        '    var ov=document.createElement("div");ov.innerHTML=h;document.body.appendChild(ov.firstElementChild);',
+        '    var body=document.getElementById("lt-mgr-body");',
+        '    function renderMgr(){',
+        '      body.innerHTML=_ltTagGroups.map(function(g,gi){',
+        '        var gh="<div class=\\"lt-mgr-group\\"><div class=\\"lt-mgr-ghead\\"><input class=\\"lt-mgr-gname\\" value=\\""+g.name.replace(/"/g,"&quot;")+"\\" data-idx=\\""+gi+"\\"><button class=\\"lt-tag-delg\\" data-idx=\\""+gi+"\\">\\u2715 \\u5220\\u9664</button></div>";',
+        '        gh+=g.items.map(function(it,ii){',
+        '          return "<div class=\\"lt-mgr-item\\"><input class=\\"lt-mgr-itext\\" value=\\""+it.text.replace(/"/g,"&quot;")+"\\" data-g=\\""+gi+"\\" data-i=\\""+ii+"\\"><button class=\\"lt-tag-deli\\" data-g=\\""+gi+"\\" data-i=\\""+ii+"\\">\\u2715</button></div>";',
+        '        }).join("");',
+        '        gh+="<button class=\\"ltp-btn ltp-btn-ghost ltp-btn-sm lt-mgr-add-item\\" data-idx=\\""+gi+"\\">+ \\u6dfb\\u52a0\\u6807\\u7b7e</button></div>";',
+        '        return gh;',
+        '      }).join("");',
+        '      body.querySelectorAll(".lt-mgr-gname").forEach(function(inp){inp.addEventListener("change",function(){var idx=parseInt(this.getAttribute("data-idx"));if(_ltTagGroups[idx])_ltTagGroups[idx].name=this.value;_ltSaveTags();});});',
+        '      body.querySelectorAll(".lt-mgr-itext").forEach(function(inp){inp.addEventListener("change",function(){var g=parseInt(this.getAttribute("data-g")),i=parseInt(this.getAttribute("data-i"));if(_ltTagGroups[g]&&_ltTagGroups[g].items[i])_ltTagGroups[g].items[i].text=this.value;_ltSaveTags();});});',
+        '      body.querySelectorAll(".lt-tag-delg").forEach(function(btn){btn.addEventListener("click",function(){var idx=parseInt(this.getAttribute("data-idx"));_ltTagGroups.splice(idx,1);_ltSaveTags();renderMgr();if(_ltTagActiveGroup>=_ltTagGroups.length)_ltTagActiveGroup=_ltTagGroups.length-1;if(_ltTagMenuEl)_ltRenderTagMenu();_ltRefreshTagBars();});});',
+        '      body.querySelectorAll(".lt-tag-deli").forEach(function(btn){btn.addEventListener("click",function(){var g=parseInt(this.getAttribute("data-g")),i=parseInt(this.getAttribute("data-i"));if(_ltTagGroups[g]){_ltTagGroups[g].items.splice(i,1);_ltSaveTags();renderMgr();if(_ltTagMenuEl)_ltRenderTagMenu();}});});',
+        '      body.querySelectorAll(".lt-mgr-add-item").forEach(function(btn){btn.addEventListener("click",function(){var idx=parseInt(this.getAttribute("data-idx"));if(_ltTagGroups[idx]){_ltTagGroups[idx].items.push({id:"tu"+Date.now(),text:"new tag"});_ltSaveTags();renderMgr();if(_ltTagMenuEl)_ltRenderTagMenu();}});});',
+        '    }',
+        '    renderMgr();',
+        '    document.getElementById("lt-mgr-close").onclick=function(){var el=document.getElementById("lt-mgr-overlay");if(el)el.remove();if(_ltTagMenuEl)_ltRenderTagMenu();_ltRefreshTagBars();};',
+        '    document.getElementById("lt-mgr-add-group").onclick=function(){_ltTagGroups.push({id:"tg"+Date.now(),name:"\\u65b0\\u5206\\u7ec4",items:[{id:"tu"+Date.now(),text:"new tag"}]});_ltSaveTags();renderMgr();if(_ltTagMenuEl)_ltRenderTagMenu();_ltRefreshTagBars();};',
+        '  }',
+        '  (function(){',
+        '    function _ltTagScan(){',
+        '      var els=document.querySelectorAll("textarea,input[type=\\"text\\"],[contenteditable=\\"true\\"]");',
+        '      console.log("[LibTV Tag] scanning",els.length,"elements");',
+        '      els.forEach(function(ta){',
+        '        var isCE=ta.isContentEditable;',
+        '        if(!isCE&&ta.offsetParent===null)return;',
+        '        if(isCE){',
+        '          var flexRow=ta.parentNode&&ta.parentNode.parentNode;',
+        '          if(flexRow&&!flexRow.querySelector(".lt-tag-bar")){',
+        '            var cs=getComputedStyle(flexRow);',
+        '            if(cs.display==="flex"||cs.display==="inline-flex"){',
+        '              console.log("[LibTV Tag] found CE, attaching bar");',
+        '              _ltRenderTagBarInner(ta,flexRow);',
+        '            }',
+        '          }',
+        '        }else{',
+        '          if(ta.parentNode&&!ta.parentNode.querySelector(".lt-tag-icon")){',
+        '            var wr=ta.parentNode;',
+        '            if(getComputedStyle(wr).position==="static")wr.style.position="relative";',
+        '            var icon=document.createElement("div");',
+        '            icon.className="lt-tag-icon";',
+        '            icon.title="\\u6807\\u7b7e (I)";',
+        '            icon.innerHTML=\'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>\';',
+        '            icon.style.cssText="position:absolute;right:6px;bottom:6px;z-index:5;width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.35;color:#fff;background:rgba(0,0,0,0.3);transition:opacity 0.15s,background 0.15s;";',
+        '            icon.onmouseenter=function(){this.style.opacity="0.7";this.style.background="rgba(0,0,0,0.5)";};',
+        '            icon.onmouseleave=function(){this.style.opacity="0.35";this.style.background="rgba(0,0,0,0.3)";};',
+        '            icon.onclick=function(e){e.stopPropagation();_ltShowTagMenu(ta);};',
+        '            wr.appendChild(icon);',
+        '            console.log("[LibTV Tag] attached icon to",ta.tagName);',
+        '          }',
+        '        }',
+        '      });',
+        '    }',
+        '    _ltTagScan();',
+        '    setTimeout(function(){console.log("[LibTV Tag] retry scan");_ltTagScan();},3000);',
+        '    function _ltRenderTagBarInner(ta,flexRow){',
+        '      var old=flexRow.querySelector(".lt-tag-bar");',
+        '      if(old)old.remove();',
+        '      var bar=document.createElement("div");',
+        '      bar.className="lt-tag-bar";',
+        '      var head=document.createElement("div");',
+        '      head.className="lt-tag-bar-head";',
+        '      head.innerHTML=\'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>\';',
+        '      head.title="\\u6253\\u5f00\\u6807\\u7b7e\\u83dc\\u5355";',
+        '      head.onclick=function(e){e.stopPropagation();_ltShowTagMenu(ta);};',
+        '      bar.appendChild(head);',
+        '      var nav=document.createElement("div");',
+        '      nav.className="lt-tag-bar-nav";',
+        '      var prev=document.createElement("span");',
+        '      prev.textContent="\\u25c0";prev.className="lt-tag-bar-arrow";',
+        '      prev.onclick=function(e){e.stopPropagation();if(_ltTagGroups.length<2)return;_ltTagActiveGroup=(_ltTagActiveGroup-1+_ltTagGroups.length)%_ltTagGroups.length;_ltRefreshTagBars();};',
+        '      var next=document.createElement("span");',
+        '      next.textContent="\\u25b6";next.className="lt-tag-bar-arrow";',
+        '      next.onclick=function(e){e.stopPropagation();if(_ltTagGroups.length<2)return;_ltTagActiveGroup=(_ltTagActiveGroup+1)%_ltTagGroups.length;_ltRefreshTagBars();};',
+        '      var gname=document.createElement("span");',
+        '      gname.className="lt-tag-bar-gname";',
+        '      gname.textContent=_ltTagGroups[_ltTagActiveGroup]?_ltTagGroups[_ltTagActiveGroup].name:"";',
+        '      nav.appendChild(prev);nav.appendChild(gname);nav.appendChild(next);',
+        '      bar.appendChild(nav);',
+        '      var group=_ltTagGroups[_ltTagActiveGroup];',
+        '      if(group){',
+        '        var items=group.items.slice(0,4);',
+        '        items.forEach(function(it){',
+        '          var el=document.createElement("div");',
+        '          el.className="lt-tag-bar-item";',
+        '          el.textContent=it.text;',
+        '          el.onclick=function(e){e.stopPropagation();_ltTagInputEl=ta;_ltInsertTagAtCursor(it.text);};',
+        '          bar.appendChild(el);',
+        '        });',
+        '      }',
+        '      var expand=document.createElement("div");',
+        '      expand.className="lt-tag-bar-expand";',
+        '      expand.textContent="\\u25b6 \\u66f4\\u591a";',
+        '      expand.onclick=function(e){e.stopPropagation();_ltShowTagMenu(ta);};',
+        '      bar.appendChild(expand);',
+        '      flexRow.appendChild(bar);',
+        '    }',
+        '    function _ltRefreshTagBars(){',
+        '      document.querySelectorAll(".lt-tag-bar").forEach(function(bar){',
+        '        var flexRow=bar.parentNode; if(!flexRow)return;',
+        '        var ta=flexRow.querySelector("[contenteditable=true],textarea,input[type=\\"text\\"]");',
+        '        if(ta)_ltRenderTagBarInner(ta,flexRow);',
+        '      });',
+        '    }',
+        '    _ltTagScan();',
+        '    var _ltTagTimer=null;',
+        '    var _ltTagObs=new MutationObserver(function(){',
+        '      if(_ltTagTimer)clearTimeout(_ltTagTimer);',
+        '      _ltTagTimer=setTimeout(_ltTagScan,100);',
+        '    });',
+        '    _ltTagObs.observe(document.body,{childList:true,subtree:true});',
+        '  })();',
+
         /* ———— 悬浮提示词按钮 ———— */
         '  (function(){',
         '    var btn=document.createElement("div");',
@@ -986,16 +1250,18 @@
         '      }catch(ex){}',
         '    });',
         '  }',
-        '  var _ltStepObs=null;',
+        '  var _ltStepObs=null,_ltStepRetries=0;',
         '  function _ltStepApply(){',
         '    if(_ltStepTo){clearTimeout(_ltStepTo);_ltStepTo=null;}',
         '    var ed=document.querySelector(".react-flow__edges");',
-        '    if(!ed){_ltStepTo=setTimeout(_ltStepApply,500);return;}',
+        '    if(!ed){if(++_ltStepRetries>5)return;_ltStepTo=setTimeout(_ltStepApply,500);return;}',
+        '    _ltStepRetries=0;',
         '    if(document.body.classList.contains("libtv-step-edges")){',
         '      _ltStepEdges();',
         '      if(!_ltStepObs){',
-        '        _ltStepObs=new MutationObserver(function(){_ltStepEdges();});',
-        '        _ltStepObs.observe(ed,{childList:true,subtree:true,attributes:true,attributeFilter:["d"]});',
+        '        var _ltStepParent=document.querySelector(".react-flow")||document.body;',
+        '        _ltStepObs=new MutationObserver(function(){_ltStepRetries=0;_ltStepApply();});',
+        '        _ltStepObs.observe(_ltStepParent,{childList:true,subtree:true,attributes:true,attributeFilter:["d"]});',
         '      }',
         '    }else{',
         '      if(_ltStepObs){_ltStepObs.disconnect();_ltStepObs=null;}',
@@ -1020,7 +1286,9 @@
         '    }',
 
         '    var t=e.target||document.activeElement;',
-        '    if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.isContentEditable))return;',
+        '    if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.isContentEditable)){',
+        '      if(e.key!=="i"&&e.key!=="I")return;',
+        '    }',
 
         /* G: 网格 */
         '    if(e.key==="g"||e.key==="G"){',
@@ -1097,6 +1365,19 @@
         '      return;',
         '    }',
 
+        /* I: 标签 */
+        '    if(e.key==="i"||e.key==="I"){',
+        '      e.preventDefault(); e.stopPropagation();',
+        '      var ta=document.activeElement;',
+        '      if(ta&&(ta.tagName==="TEXTAREA"||(ta.tagName==="INPUT"&&ta.type==="text")||ta.isContentEditable)&&ta.offsetParent!==null){',
+        '        _ltShowTagMenu(ta);',
+        '      }else{',
+        '        var _tas=document.querySelectorAll("textarea,input[type=\\"text\\"],[contenteditable=\\"true\\"]");',
+        '        for(var _ti=0;_ti<_tas.length;_ti++){var t=_tas[_ti];if(t.offsetParent!==null){_ltShowTagMenu(t);break;}}',
+        '      }',
+        '      return;',
+        '    }',
+
         /* ?: 帮助 */
         '    if(e.key==="?"||e.key==="/"){',
         '      e.preventDefault(); e.stopPropagation();',
@@ -1106,7 +1387,8 @@
         '    }',
         '  }, true);',
 
-        '  console.log("[LibTV Boost] v1.4 · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · DIY主题 · 画布配色 · 模板变量");',
+        '  window._ltShowTagMenu=_ltShowTagMenu;',
+        '  console.log("[LibTV Boost] v1.5 · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 I标签 ?帮助 · AI增强 · DIY主题 · 画布配色 · 模板变量 · 标签");',
         '})();'
     ].join('\n');
     document.body.appendChild(hook);
@@ -1130,13 +1412,13 @@
 
     function _read(){
         var s = {};
-        for(var k in _toggles)
+        for(var k in _toggles) if(_toggles.hasOwnProperty(k))
             s[k] = localStorage.getItem('_lt_'+k) === '1';
         return s;
     }
     function _apply(){
         var s = _read();
-        for(var k in _toggles) _toggles[k](s[k]);
+        for(var k in _toggles) if(_toggles.hasOwnProperty(k)) _toggles[k](s[k]);
     }
     function _click(key){
         var v = localStorage.getItem('_lt_'+key) !== '1';
@@ -1151,6 +1433,10 @@
     GM_registerMenuCommand('╳ 隐藏连线', function(){ _click('edges'); });
     GM_registerMenuCommand('▦ 隐藏网格', function(){ _click('grid'); });
     GM_registerMenuCommand('◎ 专注模式', function(){ _click('focus'); });
+    GM_registerMenuCommand('🏷️ 标签', function(){
+        var ta=document.querySelector('textarea,input[type="text"],[contenteditable="true"]');
+        if(ta&&ta.offsetParent!==null){ unsafeWindow._ltShowTagMenu(ta); }
+    });
     GM_registerMenuCommand('🔍 诊断', function(){
         try {
             var info = [];
