@@ -2,7 +2,9 @@
 
 ## 概述
 
-Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、画布主题等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
+Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、**标签系统**、画布主题等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
+
+**当前版本：** 1.6
 
 ## 架构
 
@@ -14,39 +16,23 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 ┌─ <script> 注入到页面（第 5 节）───────────────┐
 │  链高亮引擎、连线 hover 高亮、直角连线        │
 │  节点搜索、提示词工具、调色板、快捷键         │
+│  标签系统（数据、菜单、管理、扫描、标签栏）   │
 └───────────────────────────────────────────────┘
 ```
 
 油猴沙箱能操作 DOM 但读不到页面 JS 变量，需要页面上下文的功能注入到 `<script>` 中执行。
+油猴菜单回调通过 `unsafeWindow._ltShowTagMenu` 调用注入脚本中的函数。
 
 ## 文件结构
 
-| 节 | 行号 | 作用 |
-|----|------|------|
-| 1 | 15–327 | **CSS 注入** — 所有视觉样式（节点、连线、面板、FPS、链高亮、主题覆盖等） |
-| 2 | 329–402 | **FPS 面板** — DOM 创建 + 拖拽 + fpsLoop RAF |
-| 3 | 404–488 | **流动光效** — SVG overlay，选中节点发光描边动画 |
-| 4 | 490–524 | **AI Agent Drawer 适配** — MutationObserver 动态推位 |
-| 5 | 529–1112 | **注入脚本** — 链引擎、hover 高亮、直角连线、搜索、提示词工具、调色板、快捷键 |
-| 6 | 1114–1202 | **菜单开关** — GM_registerMenuCommand + localStorage 持久化 |
-
-## CSS 开关模式
-
-功能通过 body 类或元素类切换，CSS 注入区对应规则：
-
-| 类名 | 元素 | 功能 | localStorage |
-|------|------|------|-------------|
-| `perf-mode` | `body` | 性能模式（去阴影/模糊/动画/滤镜） | `_lt_perf` |
-| `perf-hide-imgs` | `body` | 隐藏节点图片 | `_lt_hide` |
-| `perf-no-grid` | `.react-flow__background` | 隐藏网格 | `_lt_grid` |
-| `perf-hide-edges` | `.react-flow__edges` | 隐藏连线 | `_lt_edges` |
-| `libtv-focus` | `body` | 专注模式（隐藏侧栏） | `_lt_focus` |
-| `libtv-chain` | `body` | 链高亮激活 | — |
-| `libtv-autochain` | `body` | 自动链模式 | `_lt_autochain` |
-| `libtv-step-edges` | `body` | 直角连线模式 | `_lt_step` |
-| `libtv-chain-node` | `.react-flow__node` | 链中节点 | — |
-| `libtv-chain-edge` | `.react-flow__edge` | 链中连线 | — |
-| `libtv-edge-active` | `.react-flow__edge` | hover 高亮连线 | — |
+| 节 | 行号（约） | 作用 |
+|----|-----------|------|
+| 1 | 15–367 | **CSS 注入** — 所有视觉样式（节点、连线、面板、FPS、链高亮、主题覆盖、**标签系统**等） |
+| 2 | 369–442 | **FPS 面板** — DOM 创建 + 拖拽 + fpsLoop RAF |
+| 3 | 444–528 | **流动光效** — SVG overlay，选中节点发光描边动画 |
+| 4 | 530–564 | **AI Agent Drawer 适配** — MutationObserver 动态推位 |
+| 5 | 569–1450 | **注入脚本** — 链引擎、hover 高亮、直角连线、搜索、提示词工具、调色板、**标签系统**、快捷键 |
+| 6 | 1452–1489 | **菜单开关** — GM_registerMenuCommand + localStorage 持久化 |
 
 ## 快捷键
 
@@ -61,14 +47,15 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 | `P` | 提示词 | 打开提示词工具面板 |
 | `X` | 专注 | 切换专注模式（隐藏侧栏，画布全屏） |
 | `R` | 直角 | 切换直角连线（替换贝塞尔曲线） |
+| `I` | **标签** | **打开标签面板（输入框内也可用）** |
 | `?` / `/` | 帮助 | 切换底部快捷键提示显隐 |
-| `Escape` | 关闭 | 关闭搜索/提示词/诊断面板 + 清除链高亮 |
+| `Escape` | 关闭 | 关闭搜索/提示词/诊断/标签面板 + 清除链高亮 |
 
-所有快捷键在 input/textarea/contentEditable 中忽略，Ctrl/Meta/Alt 按下时也忽略。
+所有快捷键在 input/textarea 中忽略，**仅 `I` 键例外**（输入框内也可打开标签菜单）。Ctrl/Meta/Alt 按下时也忽略。
 
 ## 菜单开关
 
-油猴菜单 6 项，状态与快捷键双向同步，存 localStorage：
+油猴菜单 7 项，状态与快捷键双向同步，存 localStorage：
 
 | 菜单 | 对应的 localStorage | toggle key |
 |------|-------------------|------------|
@@ -77,7 +64,121 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 | `╳ 隐藏连线` | `_lt_edges` | `edges` |
 | `▦ 隐藏网格` | `_lt_grid` | `grid` |
 | `◎ 专注模式` | `_lt_focus` | `focus` |
+| `🏷️ 标签` | — | 打开标签面板（通过 `unsafeWindow._ltShowTagMenu`） |
 | `🔍 诊断` | — | 临时诊断面板 |
+
+## 标签系统
+
+### 概述（第 5 节注入脚本）
+
+轻量标签系统，提供预制描述词一键插入。支持：
+- 4 组预设标签（质量/风格/光照/构图），共 32 个
+- 自定义分组（新建/删除分组、添加/删除/重命名标签）
+- 光标位置插入（React 兼容，支持 textarea / input\[type=text\] / contentEditable 三种输入框）
+- 数据持久化到 `localStorage._lt_tags`
+
+### 数据结构
+
+```js
+_ltTagGroups = [
+  { id: "tg_quality", name: "质量", items: [
+    { id: "tq1", text: "masterpiece" },
+    { id: "tq2", text: "high quality" },
+    // ...
+  ]},
+  // ...
+]
+var _ltTagActiveGroup = 0;         // 当前激活分组索引
+var _ltTagMenuEl = null;           // 标签菜单 DOM 引用
+var _ltTagInputEl = null;          // 当前绑定的输入框
+```
+
+### 核心函数
+
+| 函数 | 作用 |
+|------|------|
+| `_ltInsertTagAtCursor(tagText)` | 在光标位置插入标签文本，支持 textarea/input（原生 setter + dispatchEvent）和 contentEditable（Range API） |
+| `_ltShowTagMenu(ta)` | 打开标签浮动面板，定位在输入框上方 |
+| `_ltCloseTagMenu()` | 关闭标签面板 |
+| `_ltRenderTagMenu()` | 渲染标签面板内容（分组 tabs + 标签云） |
+| `_ltPosTagMenu()` | 定位标签面板到输入框附近 |
+| `_ltSaveTags()` | 持久化标签数据到 localStorage |
+| `_ltManageTags()` | 打开管理模态框（新建/删除分组、添加/删除/重命名标签） |
+| `_ltTagScan()` | 扫描页面中的输入框，对 contentEditable 建立吸附标签栏，对 textarea/input 附加图标 |
+| `_ltRenderTagBarInner(ta, flexRow)` | 在输入框 flex 容器右侧渲染垂直紧凑标签栏（分组名 + 切换箭头 + 前 4 个标签 + 展开按钮） |
+| `_ltRefreshTagBars()` | 刷新所有标签栏（分组切换后调用） |
+
+### 入口
+
+| 入口 | 说明 |
+|------|------|
+| **快捷键** | `I` 键 — 优先操作焦点输入框；无焦点时操作第一个可见输入框 |
+| **油猴菜单** | `🏷️ 标签` — 通过 `unsafeWindow._ltShowTagMenu` 调用 |
+| **标签栏** | contentEditable 输入框右侧吸附的垂直栏，点击标签直接插入 |
+| **图标** | textarea/input 右下角半透明 🏷️ SVG（`position:absolute` 定位在父容器内） |
+
+### 样式
+
+CSS 注入区（第 1 节）包含标签系统全套样式：
+
+| 选择器 | 用途 |
+|--------|------|
+| `.lt-tag-menu` | 标签浮动面板（霓虹玻璃风格，320px） |
+| `.lt-tag-tabs` / `.lt-tag-tab` | 分组切换栏 |
+| `.lt-tag-body` | 标签云容器（flex wrap） |
+| `.lt-tag-item` | 单个标签（胶囊按钮） |
+| `.lt-tag-bar` | 吸附标签栏（垂直 flex，输入框右侧） |
+| `.lt-tag-bar-nav` / `.lt-tag-bar-arrow` | 分组导航 ◀ ▶ |
+| `.lt-tag-bar-gname` | 分组名称 |
+| `.lt-tag-bar-item` | 标签栏内标签（紧凑样式） |
+| `.lt-tag-bar-expand` | 「▶ 更多」展开按钮 |
+| `.lt-tag-bar-head` | 标签栏顶部 🏷️ 图标入口 |
+| `.lt-mgr-overlay` / `.lt-mgr-panel` | 管理面板模态框 |
+
+### 文本插入机制
+
+对于 **textarea / input\[type=text\]**：
+```js
+// 使用原生 setter 绕过 React 属性描述符
+var proto = ta.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+var nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+nativeSetter.call(ta, newVal);
+ta.dispatchEvent(new Event('input', {bubbles: true}));
+```
+
+对于 **contentEditable**：
+```js
+var sel = window.getSelection();
+var r = sel.getRangeAt(0);
+r.deleteContents();
+r.insertNode(document.createTextNode(tagText));
+r.collapse(false); // 光标放在插入文本之后
+sel.removeAllRanges(); sel.addRange(r);
+```
+
+## 提示词工具（第 5 节，约 645–943 行）
+
+内置提示词模板管理 + AI 增强功能：
+- 默认预置 5 个模板（产品摄影/电影镜头/吉卜力风/产品环绕/延时摄影）
+- 模板变量替换：`{变量名=默认值}`
+- AI 增强对接 OpenAI 兼容 API（默认 DeepSeek）
+- 调色板：内置 180+ 色板，分组管理，支持收藏/最近使用/收藏置顶
+- P 键开关
+
+## 直角连线系统
+
+| 样式 | 选择器 | 说明 |
+|------|--------|------|
+| 默认 | `.react-flow__edge-path` | stroke `var(--faint)`，宽度 1.8 |
+| hover 高亮 | `.libtv-edge-active .react-flow__edge-path` | stroke `var(--strong)`，宽度 2.5 |
+| 链高亮 | `.libtv-chain-edge .react-flow__edge-path` | stroke `var(--accent)`，宽度 2.5，带 drop-shadow |
+| 直角模式 | `body.libtv-step-edges` | 用 SVG API 将贝塞尔路径重写为直角折线 |
+| 性能模式 | `body.perf-mode .react-flow__edge-path` | 宽度 0.8，去 filter/transition |
+
+直角连线通过 `_ltStepEdges()` + MutationObserver 实现：
+- 观察 **`.react-flow`** 父级（而非 `.react-flow__edges` 自身，避免 React 重建后失效）
+- 最大 5 次重试
+- Observer 回调中重置 retries
 
 ## 性能模式
 
@@ -94,7 +195,7 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 - 节点 `::before`：隐藏
 - 流动光效 SVG（`#libtv-glow`）：`display: none`
 
-## 流动光效（第 3 节，404–488 行）
+## 流动光效（第 3 节）
 
 全屏 SVG overlay（`#libtv-glow`），`z-index: 50`，`pointer-events: none`。
 
@@ -104,79 +205,17 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 - 外侧光晕：`feGaussianBlur(stdDeviation=6)`
 - 性能模式下自动隐藏
 
-## 连线系统
-
-| 样式 | 选择器 | 说明 |
-|------|--------|------|
-| 默认 | `.react-flow__edge-path` | stroke `var(--faint)`，宽度 1.8 |
-| hover 高亮 | `.libtv-edge-active .react-flow__edge-path` | stroke `var(--strong)`，宽度 2.5 |
-| 链高亮 | `.libtv-chain-edge .react-flow__edge-path` | stroke `var(--accent)`，宽度 2.5，带 drop-shadow |
-| 直角模式 | `body.libtv-step-edges` | 用 SVG API 将贝塞尔路径重写为直角折线 |
-| 性能模式 | `body.perf-mode .react-flow__edge-path` | 宽度 0.8，去 filter/transition |
-
-直角连线通过 `_ltStepEdges()` + MutationObserver 实现，监听 `.react-flow__edges` 的 childList/attribute/d 变化，用 `getPointAtLength()` 提取起止坐标，重写 `d` 为 `M x1 y1 L x2 y1 L x2 y2`。
-
 ## 主题系统
 
 6 种预设主题（靛蓝/翡翠/玫瑰/琥珀/天蓝/紫色），存 localStorage `_lt_theme`。
 
-通过 `_ltApplyTheme()` 设置 `document.documentElement` 的 CSS 变量：
-
-| 变量 | 含义 |
-|------|------|
-| `--accent` | 主色调 |
-| `--accent-light` | 亮色调 |
-| `--accent-dark` | 暗色调 |
-| `--accent-rgb` | RGB 值（逗号分隔） |
-| `--accent-light-rgb` | 亮色 RGB |
-| `--canvas-bg` | 画布背景 |
-| `--node-bg` | 节点背景 |
-| `--border-color` | 节点边框色 |
-| `--edge-color` | 连线色 |
-
-在提示词面板的「主题」标签页中切换。
-
-## 提示词工具（第 5 节，约 645–943 行）
-
-内置提示词模板管理 + AI 增强功能：
-- 默认预置 5 个模板（产品摄影/电影镜头/吉卜力风/产品环绕/延时摄影）
-- 模板变量替换：`{变量名=默认值}`
-- AI 增强对接 OpenAI 兼容 API（默认 DeepSeek）
-- 调色板：内置 180+ 色板，分组管理，支持收藏/最近使用/收藏置顶
-- P 键开关
-
-## 新增功能（给 AI 的指引）
-
-### 新增快捷键
-
-在第 5 节注入脚本的 `keydown` 监听器（约 1007–1107 行）中添加：
-
-```js
-'    if(e.key==="x"||e.key==="X"){',
-'      e.preventDefault(); e.stopPropagation();',
-'      // 逻辑',
-'      try{localStorage.setItem("_lt_xxx","1");}catch(ex){}',
-'      return;',
-'    }',
-```
-
-需要更新以下位置：
-1. 快捷键 handler（添加 case）
-2. FPS 循环中的 flag 显示（如果有）
-3. 底部帮助文字（约 339 行 `helpEl.textContent`）
-4. console.log banner（约 1109 行）
-5. @description 元信息（第 5 行）
-
-### 新增 CSS 开关
-
-1. 在第 1 节 CSS 注入中写规则，用 body 类控制
-2. 在第 6 节 `_toggles` 加对应函数
-3. 加 `GM_registerMenuCommand` 条目
+通过 `_ltApplyTheme()` 设置 `document.documentElement` 的 CSS 变量。
 
 ## 注意事项
 
-- 两个脚本通过 `@match` / `@exclude` 分离：libtv-boost 只操作 libtv 域名，infinite-canvas-perf 排除 libtv 域名
 - 油猴沙箱中创建的变量在注入脚本中不可见，反之亦然
-- `--grid-color` 在 CSS 中定义了但未被任何规则引用
-- 非链模式下的流动光效只针对选中节点
+- 油猴菜单回调通过 `unsafeWindow` 访问注入脚本的函数（需 `@grant unsafeWindow`）
+- 标签 MutationObserver 使用 100ms 防抖，避免 React 频繁触发扫描
+- 首次扫描后 3 秒自动重试一次，应对异步渲染
+- contentEditable 的图标集成在标签栏顶部，不单独插入元素内部
 - 直角连线模式断开 MutationObserver 后，下一次画布渲染会自动恢复贝塞尔曲线
