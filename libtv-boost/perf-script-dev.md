@@ -4,7 +4,7 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、**标签系统**、画布主题等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.8.1
+**当前版本：** 1.8.2
 
 ## 架构
 
@@ -47,7 +47,7 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 | `P` | 提示词 | 打开提示词工具面板 |
 | `X` | 专注 | 切换专注模式（隐藏侧栏，画布全屏） |
 | `R` | 直角 | 切换直角连线（替换贝塞尔曲线） |
-| `?` / `/` | 帮助 | 切换底部快捷键提示显隐 |
+| `?` / `/` | 帮助 | 固定/取消固定快捷键提示（悬停右下角 FPS 面板也可临时查看） |
 | `Escape` | 关闭 | 关闭搜索/提示词/诊断/标签面板 + 清除链高亮 |
 
 所有快捷键在 input/textarea 中忽略。Ctrl/Meta/Alt 按下时也忽略。
@@ -223,6 +223,39 @@ sel.removeAllRanges(); sel.addRange(r);
 
 通过 `_ltApplyTheme()` 设置 `document.documentElement` 的 CSS 变量。
 
+## 页面视觉微调（CSS 注入，第 1 节）
+
+针对 liblib/iblib 页面结构的纯 CSS 覆盖规则，统一在 CSS 注入数组末尾（`.join('\n')` 之前）追加。
+
+### 毛玻璃
+
+| 目标 | 选择器 | 效果 |
+|------|--------|------|
+| 节点浮动面板 | `.react-flow__nodes .node-floating-ui > div.bg-panel-background` | 半透明深灰底 `rgba(38,38,38,0.55)` + `blur(20px)` 毛玻璃 + 细边框 |
+| 底部导航栏 | `div[class*="b768:bottom-3"]` | 同上毛玻璃效果 |
+
+两者均带 `backdrop-filter` / `-webkit-backdrop-filter` 与 `!important` 覆盖站内样式。
+
+### 画布背景
+
+| 目标 | 选择器 | 效果 |
+|------|--------|------|
+| 画布面板 | `.react-flow__pane` | `background-image` 叠加三层：中心暖色径向辉光（橙 `rgba(255,180,80,0.05)` → `rgba(255,140,50,0.02)` → 透明）+ 横向 + 纵向 `repeating-linear-gradient` 网格参考线（`rgba(255,255,255,0.015)`，40px 间距）；`background-color: transparent` |
+
+> 网格线透明度极低（0.015），辉光集中在画布中心；`!important` 覆盖站内默认背景。性能模式下本规则不单独关闭（如需关闭可后续做成开关）。
+
+### 元素隐藏
+
+| 目标 | 选择器 | 说明 |
+|------|--------|------|
+| 青色「会员超市」按钮 | `button[aria-label="会员超市"]`, `button[class*="text-[#05A3C5]"]` | `display:none` |
+| Mantine 图标按钮（其①） | `#mantine-y9su9myak-target` | `display:none` |
+| Mantine 图标按钮（其②） | `#mantine-44x1mzccr-target` | `display:none` |
+| 「限时40折」徽章 | `[class*="bg-[#FAD6A4]"]` | `display:none` |
+| 导航栏右侧文字 | `div[class*="border-"][class*="topnav-btn-border"] > div.relative:first-child > div.relative:last-child` | `display:none` |
+
+> 注：以上隐藏类选择器依赖站点当前 DOM 结构（class 名 / id），站点改版后可能失效，需重新核对选择器。
+
 ## 注意事项
 
 - 油猴沙箱中创建的变量在注入脚本中不可见，反之亦然
@@ -284,8 +317,14 @@ sel.removeAllRanges(); sel.addRange(r);
 
 ## 更新日志
 
+### v1.8.2
+- 快捷键提示条改为更克制的纯悬停触发：仅悬停 FPS 面板时右下角卡片临时出现，移开即消失，卡片 `pointer-events:none` 不拦截指针；`?`/`/` 仍可切换固定常驻
+- 页面视觉微调（CSS 注入）：新增毛玻璃规则（节点浮动面板、底部导航栏）、画布背景网格+中心暖色辉光、隐藏推广/冗余元素（会员超市按钮、`#mantine-*` 图标按钮、「限时40折」徽章、导航栏右侧文字）
+
 ### v1.8.1
 - 安全加固：新增 `_ltEsc()` 统一 HTML 转义，覆盖所有用户 / 内容包来源数据的 `innerHTML` 插入点（标签项、分组名、分类/Tab 名、标签库下拉、最近/已插入标签、提示词名/内容/分类、变量浮层、搜索结果、调色板色值、AI 设置输入），消除潜在存储型 XSS（尤其恶意内容包导入场景）
+- 页面视觉微调（CSS 注入）：新增毛玻璃规则（节点浮动面板 `.react-flow__nodes .node-floating-ui > div.bg-panel-background`、底部导航栏 `div[class*="b768:bottom-3"]`，均为 `rgba(38,38,38,0.55)` + `blur(20px)`）；隐藏推广/冗余元素（会员超市按钮、`#mantine-*` 图标按钮、「限时40折」徽章 `bg-[#FAD6A4]`、导航栏右侧文字 div）
+- 快捷键提示条改造：由「底部居中常显」改为「右下角卡片、默认隐藏、纯悬停触发」——仅悬停 FPS 面板时临时出现，移开（含移到卡片上）即消失，卡片 `pointer-events:none` 不拦截任何指针；`?`/`/` 仍可切换固定（pin）常驻。不再遮挡底部工具栏（位置落在页面唯一空闲的右下角，叠在 FPS / 提示词按钮上方）
 
 ### v1.8
 - 新增内容包系统：提示词 + 标签库导出 / 导入为 JSON（不含量主题 / 调色板 / AI 配置）

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
 // @namespace    https://github.com/hero8152/Infinite-Canvas
-// @version      1.8.1
+// @version      1.8.2
 // @description  性能优化 · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · 标签 · 提示词模板 · 模板变量 · 主题(画布配色DIY)
 // @match        *://*.iblib.tv/canvas*
 // @match        *://*.liblib.tv/canvas*
@@ -141,19 +141,23 @@
         '#libtv-fps .fps-sep  { color: rgba(255,255,255,0.12); }',
         '#libtv-fps .fps-zoom { color: #88f; }',
 
-        /* 快捷键提示 — 底部滑入/出 */
+        /* 快捷键提示 — 右下角卡片，悬停 FPS 面板出现 */
         '#libtv-help {',
-        '  position:fixed; left:50%; bottom:12px; z-index:99998;',
-        '  transform:translateX(-50%) translateY(0);',
-        '  color:rgba(255,255,255,0.25);',
-        '  font:10px/1.7 -apple-system,"SF Mono",monospace;',
+        '  position:fixed; right:14px; bottom:118px; z-index:99997;',
+        '  max-width:260px; padding:10px 12px;',
+        '  background:rgba(18,18,28,0.92);',
+        '  border:1px solid rgba(129,140,248,0.25); border-radius:10px;',
+        '  color:rgba(255,255,255,0.6);',
+        '  font:11px/1.8 -apple-system,"SF Mono",monospace;',
         '  pointer-events:none; user-select:none;',
-        '  white-space:nowrap; letter-spacing:0.04em;',
-        '  transition: opacity 0.35s ease, transform 0.35s ease;',
+        '  white-space:pre-line; text-align:left;',
+        '  box-shadow:0 8px 24px rgba(0,0,0,0.4);',
+        '  transition: opacity 0.3s ease, transform 0.3s ease;',
         '}',
         '#libtv-help.libtv-hide {',
         '  opacity:0;',
-        '  transform:translateX(-50%) translateY(12px);',
+        '  transform:translateY(8px);',
+        '  pointer-events:none;',
         '}',
 
         /* 链高亮模式 */
@@ -399,6 +403,49 @@
         '.lt-tag-deli { background:none; border:none; color:rgba(239,68,68,0.4); cursor:pointer; font-size:9px; padding:2px 4px; border-radius:3px; }',
         '.lt-tag-deli:hover { background:rgba(239,68,68,0.12); color:#f87171; }',
         '.lt-mgr-add-item { margin-top:4px; }',
+        '/* 毛玻璃 - 节点浮动面板 */',
+        '.react-flow__nodes .node-floating-ui > div.bg-panel-background {',
+        '  background-color: rgba(38, 38, 38, 0.55) !important;',
+        '  backdrop-filter: blur(20px) !important;',
+        '  -webkit-backdrop-filter: blur(20px) !important;',
+        '  border: 1px solid rgba(255, 255, 255, 0.08) !important;',
+        '}',
+        '/* 毛玻璃 - 底部导航栏 */',
+        'div[class*="b768:bottom-3"] {',
+        '  background-color: rgba(38, 38, 38, 0.55) !important;',
+        '  backdrop-filter: blur(20px) !important;',
+        '  -webkit-backdrop-filter: blur(20px) !important;',
+        '  border: 1px solid rgba(255, 255, 255, 0.08) !important;',
+        '}',
+        '/* 隐藏青色"会员超市"按钮 */',
+        'button[aria-label="会员超市"],',
+        'button[class*="text-[#05A3C5]"] {',
+        '  display: none !important;',
+        '}',
+        '/* 隐藏Mantine图标按钮 */',
+        '#mantine-y9su9myak-target {',
+        '  display: none !important;',
+        '}',
+        '/* 隐藏额外的Mantine图标按钮 */',
+        '#mantine-44x1mzccr-target {',
+        '  display: none !important;',
+        '}',
+        '/* 隐藏"限时40折"徽章 */',
+        '[class*="bg-[#FAD6A4]"] {',
+        '  display: none !important;',
+        '}',
+        '/* 隐藏导航栏右侧文字div */',
+        'div[class*="border-"][class*="topnav-btn-border"] > div.relative:first-child > div.relative:last-child {',
+        '  display: none !important;',
+        '}',
+        '/* 画布背景：网格参考线 + 中心暖色辉光 */',
+        '.react-flow__pane {',
+        '  background-image: ',
+        '    radial-gradient(ellipse at 50% 50%, rgba(255, 180, 80, 0.05) 0%, rgba(255, 140, 50, 0.02) 25%, transparent 55%),',
+        '    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 40px),',
+        '    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 40px) !important;',
+        '  background-color: transparent !important;',
+        '}',
 
     ].join('\n');
     document.head.appendChild(style);
@@ -413,8 +460,12 @@
 
     var helpEl = document.createElement('div');
     helpEl.id = 'libtv-help';
-    helpEl.textContent = 'G网格  T性能  H隐藏  L连线  C全链  F搜索  P提示词  X专注  R直角  ?帮助';
+    helpEl.classList.add('libtv-hide');
+    helpEl.textContent = '画布\n  G 网格   T 性能   H 隐藏   L 连线\n  C 全链   R 直角   X 专注\n工具\n  F 搜索   P 提示词   ? 帮助';
     document.body.appendChild(helpEl);
+    function _showHelp(){ if(helpEl) helpEl.classList.remove('libtv-hide'); }
+    function _hideHelp(){ if(helpEl && !helpEl.classList.contains('libtv-pin')) helpEl.classList.add('libtv-hide'); }
+    if(fpsEl){ fpsEl.addEventListener('mouseenter', _showHelp); fpsEl.addEventListener('mouseleave', _hideHelp); }
 
     var _fc = 0, _lastT = performance.now(), _fps = 0;
 
@@ -1430,11 +1481,11 @@
         '      return;',
         '    }',
 
-        /* ?: 帮助 */
+        /* ?: 帮助（固定/取消固定快捷键提示） */
         '    if(e.key==="?"||e.key==="/"){',
         '      e.preventDefault(); e.stopPropagation();',
         '      var h=document.getElementById("libtv-help");',
-        '      if(h) h.classList.toggle("libtv-hide");',
+        '      if(h){ h.classList.toggle("libtv-pin"); if(h.classList.contains("libtv-pin")) h.classList.remove("libtv-hide"); else h.classList.add("libtv-hide"); }',
         '      return;',
         '    }',
         '  }, true);',
@@ -1523,7 +1574,7 @@
         '  }',
         '  window._ltContent={exportPack:_ltDownloadContentPack,importFile:_ltImportContentPackFromFile};',
         '  window._ltShowTagMenu=_ltShowTagMenu;',
-         '  console.log("[LibTV Boost] v1.8.1 · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · DIY主题 · 画布配色 · 模板变量 · 标签 · 内容包");',
+         '  console.log("[LibTV Boost] v1.8.2 · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · DIY主题 · 画布配色 · 模板变量 · 标签 · 内容包");',
         '})();'
     ].join('\n');
     document.body.appendChild(hook);
