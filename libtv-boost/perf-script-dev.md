@@ -4,7 +4,7 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、**标签系统**、画布主题等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.8.2
+**当前版本：** 1.8.3
 
 ## 架构
 
@@ -253,8 +253,31 @@ sel.removeAllRanges(); sel.addRange(r);
 | Mantine 图标按钮（其②） | `#mantine-44x1mzccr-target` | `display:none` |
 | 「限时40折」徽章 | `[class*="bg-[#FAD6A4]"]` | `display:none` |
 | 导航栏右侧文字 | `div[class*="border-"][class*="topnav-btn-border"] > div.relative:first-child > div.relative:last-child` | `display:none` |
+| 顶部 Banner 区 | `header.m_3b16f56b > div.relative:first-child` | `display:none` |
+| 帮助信息按钮 | `button[aria-label="帮助信息"]` | `display:none` |
+| Mantine 图标按钮（其③） | `#mantine-ycmieh2cx-target` | `display:none` |
+| Mantine 图标按钮（其④） | `#mantine-cdb8qursd-target` | `display:none` |
+| 主 Banner / 横向轮播 | `section[class*="banner"]`, `div[class*="carousel"]`, `[class*="swiper"]` | `display:none` |
+| 全部项目页 / 搜索页顶部大块 | `div.b1280\:max-w-\[1440px\] > div.block` / `> div.hidden` / `> div.mx-auto` / `> div.mt-10` / `> button.border-border-default` | 隐藏 Banner / 搜索框 / AI 输入框 / TV Show / 横向滚动按钮 |
 
-> 注：以上隐藏类选择器依赖站点当前 DOM 结构（class 名 / id），站点改版后可能失效，需重新核对选择器。
+### 全部项目 / 首页布局
+
+详细规则见注入数组（v1.8.3）。要点：
+
+| 区块 | 关键选择器 | 效果 |
+|------|--------|------|
+| 全部项目容器 | `div.b768\:px-\[10px\] > div.mx-auto` | 限宽 `1800px` 居中、`padding 0 24px` |
+| 面包屑导航 | `> div.mx-auto > div.mb-6` / `div.text-base` / `button.bg-btn-secondary` | 标题 `24px` 加粗；右侧按钮玻璃描边 |
+| 网格 | `> div.mx-auto div.b768\:grid-cols-3` | `repeat(6, 1fr)`、间距 `16px`；`::before` 注入「最近项目」标题 |
+| 开始创作卡 | `div.aspect-video` / `div.create-new-project-card` | 高 `280px`、虚线玻璃卡片、hover 提亮 |
+| 项目卡片 | `div.b768\:grid-cols-3 > div.group` | 高 `280px`、圆角 16、hover 上浮；封面 `> div:nth-of-type(1)` 高 `170px` cover；底部 `div.items-top` 高 `110px`、标题两行截断 |
+| 分割线 + 所有项目 | `div.group:nth-of-type(12)::after` | 注入「所有项目」标题 + 上分割线 |
+| 首页个人最近项目 | `div.b768\:mb-8:nth-of-type(4)` | 限宽 `1200px` 居中、`margin 48px auto` |
+| └ 区块头 | `> div.b768\:mb-4` / `div.b768\:text-\[18px\]` | flex 显示、标题 `22px` 加粗 |
+| └ 网格 | `div.scrollbar-hide` | `repeat(3, 1fr)`、间距 `24px` |
+| └ 创作卡 / 项目卡 | `div.aspect-video` / `div.md\:w-auto` / `div.group` | 卡高 `320px`、封面 `210px`、底部 `items-top` 高 `110px`（标题 `15px` 两行截断）；hover 上浮+阴影 |
+
+> 注：以上布局类选择器依赖站点当前 DOM 结构（Tailwind 生成 class 名含 `:` / `[]`，在 CSS 注入数组中需转义为 `\\:` / `\\[` / `\\]`），站点改版后可能失效，需重新核对选择器。
 
 ## 注意事项
 
@@ -316,6 +339,9 @@ sel.removeAllRanges(); sel.addRange(r);
 > 注：本版仅做文件导入；WebDAV / 云同步留待后续版本。
 
 ## 更新日志
+
+### v1.8.3
+- 页面视觉微调（CSS 注入）：补充隐藏干扰元素（顶部 Banner 区、帮助信息按钮、`#mantine-*` 图标按钮③/④、主 Banner/横向轮播 `banner`/`carousel`/`swiper`、全部项目页/搜索页顶部大块）；全部项目容器放宽到 1800px、6 列网格、封面 280×170；首页个人最近项目限宽 1200px、3 列网格、封面 320×200
 
 ### v1.8.2
 - 快捷键提示条改为更克制的纯悬停触发：仅悬停 FPS 面板时右下角卡片临时出现，移开即消失，卡片 `pointer-events:none` 不拦截指针；`?`/`/` 仍可切换固定常驻
