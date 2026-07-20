@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         InfiniteCanvas Turbo
 // @namespace    https://github.com/hero8152/Infinite-Canvas
-// @version      11.1
-// @icon         https://github.com/lonely814/Messy/blob/main/InfiniteCanvas%20Turbo/icon.png
+// @version      11.1.1
+// @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/InfiniteCanvas%20Turbo/icon.png
 // @description  FPS+节点统计 · 菜单开关 · G网格 T性能 H隐藏图 L连线 O列表 C链高亮 F搜索 X专注 · 主题 · 圆角 · DOM虚拟化
 // @author       oocc00
 // @license      MIT
