@@ -1,7 +1,11 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
 // @version      1.9.3
+<<<<<<< HEAD
 // @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/libtv-boost/libtv-boost-icon.png
+=======
+// @icon         https://image.950814.xyz:16666/libtv-boost-icon.png
+>>>>>>> f5d420baed782174f8db771f0d2cffbe8efe80b8
 // @license      MIT
 // @description  性能优化 · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · 标签 · 提示词模板 · 模板变量 · 主题(画布配色DIY)
 // @match        *://*.iblib.tv/canvas*
