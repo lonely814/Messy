@@ -2,7 +2,8 @@
 // @name         MultiMirror Download (HuggingFace + ComfyUI)
 // @name:zh-CN   多镜像下载 (HuggingFace + ComfyUI)
 // @namespace    https://huggingface.co/
-// @version      1.0.1
+// @version      1.0.2
+// @icon         https://raw.githubusercontent.com/lonely814/Messy/main/comfyui/icon.png
 // @description  Add hf-mirror (yellow) and ModelScope (purple) download buttons to Hugging Face file pages and the ComfyUI missing-model panel, plus a folder-open shortcut.
 // @description:zh-CN  在 Hugging Face 文件页与 ComfyUI 缺模型面板，为每个下载入口增加 hf-mirror（黄）与 ModelScope（紫）镜像按钮，并提供打开模型目录的快捷键。
 // @match        https://huggingface.co/*
@@ -10,11 +11,11 @@
 // @match        http://localhost:8188/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
-// @author       AYU
+// @author       oocc00
 // @connect      modelscope.cn
 // @connect      hf-mirror.com
 // @run-at       document-idle
-// @license MIT
+// @license      MIT
 // ==/UserScript==
 
 (function () {
