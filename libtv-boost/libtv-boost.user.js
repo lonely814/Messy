@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
-// @version      1.9.3
+// @version      1.9.4
 // @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/libtv-boost/libtv-boost-icon.png
 // @license      MIT
+// @author       oocc00
 // @description  性能优化 · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · 标签 · 提示词模板 · 模板变量 · 主题(画布配色DIY)
 // @match        *://*.iblib.tv/canvas*
 // @match        *://*.liblib.tv/canvas*
@@ -1953,7 +1954,7 @@
         '      +"</div>";',
         '    /* \\u5173\\u4e8e */',
         '    h+="<div class=\\\"lt-settings-sec\\\"><div class=\\\"lt-settings-stitle\\\">\\u5173\\u4e8e</div>"',
-        '      +"<div class=\\\"lt-settings-about\\\">LibTV Canvas Boost v1.9.3<br>\\u6e90\\u7801\\u6a21\\u5757\\u5316\\u6784\\u5efa\\uff0c\\u63d0\\u4f9b\\u6027\\u80fd\\u4f18\\u5316\\u3001\\u89c6\\u89c9\\u589e\\u5f3a\\u3001AI \\u63d0\\u793a\\u8bcd\\u3001\\u6807\\u7b7e\\u7cfb\\u7edf</div>"',
+        '      +"<div class=\\\"lt-settings-about\\\">LibTV Canvas Boost v1.9.4<br>\\u6e90\\u7801\\u6a21\\u5757\\u5316\\u6784\\u5efa\\uff0c\\u63d0\\u4f9b\\u6027\\u80fd\\u4f18\\u5316\\u3001\\u89c6\\u89c9\\u589e\\u5f3a\\u3001AI \\u63d0\\u793a\\u8bcd\\u3001\\u6807\\u7b7e\\u7cfb\\u7edf</div>"',
         '      +"</div>";',
         '    h+="</div>";',
         '    div.innerHTML=h;',
@@ -2007,7 +2008,7 @@
         '  window._ltOpenSettings=_ltSettingsPanel;',
         '  window._ltContent={exportPack:_ltDownloadContentPack,importFile:_ltImportContentPackFromFile};',
         '  window._ltShowTagMenu=_ltShowTagMenu;',
-        '  console.log("[LibTV Boost] v1.9.3  · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · DIY主题 · 画布配色 · 模板变量 · 标签 · 内容包");',
+        '  console.log("[LibTV Boost] v1.9.4  · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · DIY主题 · 画布配色 · 模板变量 · 标签 · 内容包 · by oocc00");',
         '})();'
     ].join('\n');
     document.body.appendChild(hook);
