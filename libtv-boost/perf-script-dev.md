@@ -4,7 +4,7 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、标签系统、画布主题、设置面板等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.9.0
+**当前版本：** 1.9.3
 
 ## 文件结构
 
@@ -65,6 +65,22 @@ document.head.appendChild(style);
 | `libtv-chain` | `body` | 链高亮激活 | — |
 | `libtv-autochain` | `body` | 自动链模式 | `_lt_autochain` |
 | `libtv-step-edges` | `body` | 直角连线 | `_lt_step` |
+
+### 视觉改造（v1.9.3）
+
+| 改造项 | 效果 |
+|--------|------|
+| 节点卡片 | 玻璃质感（`backdrop-filter: blur(8px)` + 微透明背景 + 微边框） |
+| 节点悬浮 | hover 时边框提亮 + 阴影上浮 |
+| 选中节点 | 全息光晕（`box-shadow` 四层叠加）+ 边框变 accent 色 |
+| 连线 | 2px 粗 + hover 发光描边 |
+| 链高亮连线 | 2.8px + 8px 发光滤镜 |
+| 画布背景 | 多色渐变辉光（跟随主题 accent 色） |
+| 面板打开 | 画布自动压暗（`brightness(0.7) saturate(0.5)`） |
+| Toast 通知 | 右下角滑入通知条，替代 alert() |
+| 性能模式 | 一键关闭所有玻璃/发光/动画效果 |
+
+> ⚠️ `transform` 属性被 React Flow 用于节点定位，CSS 中不能覆盖。所有视觉效果使用 `box-shadow` / `filter` / `backdrop-filter` 实现。
 
 开关类名在 CSS 注入数组 + 快捷键 handler + 设置面板三处同步维护。
 

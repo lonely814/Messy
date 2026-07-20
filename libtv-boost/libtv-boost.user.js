@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
-// @version      1.9.2
-// @icon         https://image.950814.xyz:16666/libtv-boost-icon.png
+// @version      1.9.3
+// @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/libtv-boost/libtv-boost-icon.png
+// @license      MIT
 // @description  性能优化 · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · 标签 · 提示词模板 · 模板变量 · 主题(画布配色DIY)
 // @match        *://*.iblib.tv/canvas*
 // @match        *://*.liblib.tv/canvas*
@@ -34,28 +35,37 @@
         '  --edge-color: rgba(255,255,255,0.08);',
         '}',
 
-        /* 节点过渡 */
+        /* 节点卡片 — 玻璃质感 */
         '.react-flow__node {',
-        '  transition: box-shadow 0.25s ease, opacity 0.2s ease !important;',
-        '  border-radius: 12px;',
+        '  transition: all 0.25s ease !important;',
+        '  border-radius: 14px !important;',
+        '  background: rgba(255,255,255,0.02) !important;',
+        '  backdrop-filter: blur(8px) !important;',
+        '  -webkit-backdrop-filter: blur(8px) !important;',
+        '  border: 1px solid rgba(255,255,255,0.06) !important;',
+        '  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06) !important;',
+        '}',
+        '.react-flow__node:hover {',
+        '  border-color: rgba(129,140,248,0.2) !important;',
+        '  box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 0 0 1px rgba(129,140,248,0.08) !important;',
         '}',
 
-        /* 选中节点 — 发光轮廓 + 底部光晕 */
+        /* 选中节点 — 全息投影 + 浮起 */
         '.react-flow__node.selected {',
         '  outline: none !important;',
+        '  border-color: var(--accent, #6366f1) !important;',
+        '  border-width: 1.5px !important;',
         '  box-shadow:',
-        '    0 0 0 2px rgba(255,255,255,0.7),',
-        '    0 0 0 5px var(--accent, #6366f1),',
-        '    0 0 16px var(--accent, #6366f1),',
-        '    0 0 48px rgba(var(--accent-rgb),0.4) !important;',
+        '    0 0 0 2px rgba(255,255,255,0.3),',
+        '    0 0 0 4.5px var(--accent, #6366f1),',
+        '    0 0 20px var(--accent, #6366f1),',
+        '    0 0 60px rgba(var(--accent-rgb),0.3) !important;',
         '}',
         '.react-flow__node.selected::after {',
         '  content: ""; position: absolute;',
-        '  left: 10%; right: 10%; bottom: -4px; height: 3px;',
-        '  border-radius: 2px; opacity: 1;',
-        '  background: linear-gradient(90deg,transparent,var(--accent,#818cf8),transparent);',
-        '  box-shadow: 0 0 10px var(--accent,#818cf8),',
-        '              0 0 20px rgba(var(--accent-light-rgb),0.4);',
+        '  inset: -1px; border-radius: 15px;',
+        '  background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent, rgba(var(--accent-light-rgb),0.05)) !important;',
+        '  pointer-events: none; z-index: 0;',
         '}',
 
         /* 网格背景隐藏 */
@@ -64,11 +74,22 @@
         /* 隐藏连线 */
         '.react-flow__edges.perf-hide-edges { display: none !important; }',
 
-        /* 连线美化 */
+        /* 连线 — 渐变发光 */
         '.react-flow__edge-path {',
-        '  stroke: var(--faint, rgba(255,255,255,0.15)) !important;',
-        '  stroke-width: 1.8 !important;',
-        '  transition: stroke 0.15s, stroke-width 0.15s !important;',
+        '  stroke: var(--edge-color, rgba(255,255,255,0.12)) !important;',
+        '  stroke-width: 2 !important;',
+        '  transition: stroke 0.2s, stroke-width 0.2s !important;',
+        '}',
+        '.react-flow__edge:hover .react-flow__edge-path {',
+        '  stroke: var(--accent-light, #818cf8) !important;',
+        '  stroke-width: 2.5 !important;',
+        '  filter: drop-shadow(0 0 4px rgba(var(--accent-light-rgb),0.3)) !important;',
+        '}',
+        /* 链高亮 — 增强发光 */
+        'body.libtv-chain .react-flow__edge.libtv-chain-edge .react-flow__edge-path {',
+        '  stroke: var(--accent, #818cf8) !important;',
+        '  stroke-width: 2.8 !important;',
+        '  filter: drop-shadow(0 0 8px rgba(var(--accent-light-rgb),0.5)) !important;',
         '}',
         '.react-flow__edge.libtv-edge-active .react-flow__edge-path {',
         '  stroke: var(--strong, #818cf8) !important;',
@@ -96,7 +117,8 @@
         /* 性能模式 */
         'body.perf-mode .react-flow__node {',
         '  box-shadow: none !important; border-radius: 0 !important;',
-        '  backdrop-filter: none !important;',
+        '  background: none !important;',
+        '  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;',
         '  border-color: rgba(255,255,255,0.06) !important;',
         '  opacity: 0.85;',
         '  transition: none !important;',
@@ -120,27 +142,30 @@
         /* FPS 面板 — 紧凑小药丸 */
         '#libtv-fps {',
         '  position: fixed; right: 14px; bottom: 14px; z-index: 99999;',
-        '  padding: 4px 10px 4px 8px; border-radius: 20px;',
-        '  background: rgba(0,0,0,0.4); color: #aaa;',
-        '  font: 10px/1.5 -apple-system, "SF Mono", monospace;',
+        '  padding: 5px 12px; border-radius: 10px;',
+        '  background: rgba(10,10,15,0.55); color: rgba(255,255,255,0.5);',
+        '  font: 11px/1.5 -apple-system, "SF Mono", monospace;',
         '  user-select: none;',
-        '  backdrop-filter: blur(16px);',
-        '  border: 1px solid rgba(255,255,255,0.05);',
+        '  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);',
+        '  border: 1px solid rgba(255,255,255,0.06);',
         '  white-space: nowrap;',
-        '  display: inline-flex; align-items: center; gap: 4px;',
+        '  display: inline-flex; align-items: center; gap: 5px;',
         '  cursor: grab;',
         '  transition: all 0.2s ease;',
+        '  box-shadow: 0 2px 12px rgba(0,0,0,0.2);',
         '}',
         '#libtv-fps:hover {',
-        '  background: rgba(0,0,0,0.55);',
-        '  border-color: rgba(255,255,255,0.1);',
-        '  padding: 5px 12px 5px 10px;',
+        '  background: rgba(10,10,15,0.75);',
+        '  border-color: rgba(129,140,248,0.15);',
+        '  padding: 5px 14px;',
+        '  box-shadow: 0 4px 16px rgba(0,0,0,0.3);',
         '}',
         '#libtv-fps:active { cursor: grabbing; }',
-        '#libtv-fps .fps-val { color: #8f8; font-weight: 600; }',
-        '#libtv-fps .fps-flag { color: #fa0; }',
-        '#libtv-fps .fps-sep  { color: rgba(255,255,255,0.12); }',
-        '#libtv-fps .fps-zoom { color: #88f; }',
+        '#libtv-fps .fps-val { color: #4ade80; font-weight: 600; }',
+        '#libtv-fps .fps-flag { color: #fbbf24; }',
+        '#libtv-fps .fps-sep  { color: rgba(255,255,255,0.08); }',
+        '#libtv-fps .fps-zoom { color: #818cf8; }',
+        '#libtv-fps .fps-cnt { color: rgba(255,255,255,0.35); }',
 
         /* 快捷键提示 — 右下角卡片，悬停 FPS 面板出现 */
         '#libtv-help {',
@@ -203,6 +228,7 @@
         '  border-radius:16px; padding:0; overflow:hidden;',
         '  display:flex; flex-direction:column;',
         '  font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#d4d4d8;',
+        '  animation:ltFadeIn .15s ease;',
         '  box-shadow:',
         '    0 0 1px rgba(129,140,248,0.6),',
         '    0 0 8px rgba(129,140,248,0.15),',
@@ -347,7 +373,7 @@
         '.react-flow__edge-path { stroke: var(--edge-color) !important; }',
 
         /* 标签系统 · 四层结构 */
-        '.lt-tag-menu { position:fixed; z-index:100000; width:520px; max-height:250px; min-width:240px; min-height:160px; background:rgba(15,15,20,0.94); backdrop-filter:blur(24px) saturate(1.3); -webkit-backdrop-filter:blur(24px) saturate(1.3); border:1px solid rgba(129,140,248,0.25); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.6),0 0 0 1px rgba(129,140,248,0.1),0 0 20px rgba(129,140,248,0.12); resize:none; }',
+        '.lt-tag-menu { position:fixed; z-index:100000; width:520px; animation:ltFadeIn .15s ease; max-height:250px; min-width:240px; min-height:160px; background:rgba(15,15,20,0.94); backdrop-filter:blur(24px) saturate(1.3); -webkit-backdrop-filter:blur(24px) saturate(1.3); border:1px solid rgba(129,140,248,0.25); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.6),0 0 0 1px rgba(129,140,248,0.1),0 0 20px rgba(129,140,248,0.12); resize:none; }',
         '.lt-tag-resize { position:absolute; right:0; bottom:0; width:18px; height:18px; cursor:nwse-resize; display:flex; align-items:flex-end; justify-content:flex-end; z-index:5; touch-action:none; }',
         '.lt-tag-resize::after { content:""; width:9px; height:9px; margin:0 3px 3px 0; border-right:2px solid rgba(199,210,254,0.45); border-bottom:2px solid rgba(199,210,254,0.45); border-bottom-right-radius:3px; }',
         '.lt-tag-resize:hover::after { border-color:#818cf8; }',
@@ -442,9 +468,9 @@
         '/* 画布背景：网格参考线 + 中心暖色辉光 */',
         '.react-flow__pane {',
         '  background-image: ',
-        '    radial-gradient(ellipse at 50% 50%, rgba(255, 180, 80, 0.05) 0%, rgba(255, 140, 50, 0.02) 25%, transparent 55%),',
-        '    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 40px),',
-        '    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 40px) !important;',
+        '    radial-gradient(ellipse at 50% 50%, rgba(255, 180, 80, 0.06) 0%, rgba(var(--accent-light-rgb, 129, 140, 248), 0.04) 15%, rgba(255, 140, 50, 0.02) 30%, transparent 60%),',
+        '    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.012) 0px, rgba(255, 255, 255, 0.012) 1px, transparent 1px, transparent 40px),',
+        '    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0px, rgba(255, 255, 255, 0.012) 1px, transparent 1px, transparent 40px) !important;',
         '  background-color: transparent !important;',
         '}',
 
@@ -726,7 +752,7 @@
         '}',
 
         '/* ⚙ 设置面板 */',
-        '.lt-settings { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100002; width:440px; max-width:90vw; max-height:80vh; background:rgba(15,15,20,0.96); backdrop-filter:blur(32px) saturate(1.3); -webkit-backdrop-filter:blur(32px) saturate(1.3); border:1px solid rgba(129,140,248,0.2); border-radius:14px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 16px 48px rgba(0,0,0,0.6); }',
+        '.lt-settings { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); animation:ltFadeIn .15s ease; z-index:100002; width:440px; max-width:90vw; max-height:80vh; background:rgba(15,15,20,0.96); backdrop-filter:blur(32px) saturate(1.3); -webkit-backdrop-filter:blur(32px) saturate(1.3); border:1px solid rgba(129,140,248,0.2); border-radius:14px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 16px 48px rgba(0,0,0,0.6); }',
         '.lt-settings-head { display:flex; align-items:center; justify-content:space-between; padding:16px 18px 10px; border-bottom:1px solid rgba(129,140,248,0.1); font-size:14px; color:#e0e7ff; font-weight:600; flex-shrink:0; letter-spacing:0.02em; }',
         '.lt-settings-close { cursor:pointer; font-size:16px; color:rgba(255,255,255,0.2); transition:color .15s; line-height:1; }',
         '.lt-settings-close:hover { color:#818cf8; }',
@@ -752,12 +778,27 @@
         '.lt-settings-dclear:hover { background:rgba(239,68,68,0.12); color:#f87171; }',
         '.lt-settings-about { font-size:11px; color:rgba(255,255,255,0.2); line-height:1.6; margin-top:4px; }',
         '.lt-settings-cpbtns { display:flex; gap:6px; margin-top:8px; }',
+        /* 面板打开时画布压暗 */
+        'body:has(#libtv-prompt) .react-flow__renderer, body:has(#lt-settings) .react-flow__renderer {',
+        '  transition: filter 0.3s ease;',
+        '  filter: brightness(0.7) saturate(0.5);',
+        '}',
+        'body:has(#libtv-prompt) .react-flow__background, body:has(#lt-settings) .react-flow__background {',
+        '  opacity: 0.3; transition: opacity 0.3s ease;',
+        '}',
         '.lt-settings-btn { display:inline-flex; align-items:center; gap:4px; padding:6px 12px; border-radius:7px; border:none; cursor:pointer; font:12px/1.4 -apple-system,sans-serif; transition:all .15s; }',
         '.lt-settings-btn-primary { background:#6366f1; color:#fff; }',
         '.lt-settings-btn-primary:hover { background:#818cf8; }',
         '.lt-settings-btn-ghost { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.06); }',
         '.lt-settings-btn-ghost:hover { background:rgba(255,255,255,0.1); color:#fff; }',
         '.lt-settings-btn-sm { padding:4px 10px; font-size:11px; }',
+
+        /* Toast 通知 */
+        '.lt-toast { position:fixed; bottom:24px; right:24px; z-index:999999; padding:10px 18px; border-radius:10px; font:13px/1.4 -apple-system,sans-serif; color:#fff; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); box-shadow:0 4px 20px rgba(0,0,0,0.3); transform:translateY(20px); opacity:0; transition:all .25s ease; pointer-events:none; }',
+        '.lt-toast.show { transform:translateY(0); opacity:1; }',
+        '.lt-toast-success { background:rgba(16,185,129,0.9); }',
+        '.lt-toast-error { background:rgba(239,68,68,0.9); }',
+        '.lt-toast-info { background:rgba(99,102,241,0.9); }',
         '',
 ].join('\n');
     document.head.appendChild(style);
@@ -1792,6 +1833,7 @@
 
         /* ———— 通用 HTML 转义（防止内容包/用户输入造成 XSS） ———— */
         '  function _ltEsc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}',
+        '  function _ltToast(m,t){t=t||"info";var e=document.createElement("div");e.className="lt-toast lt-toast-"+t;e.textContent=m;document.body.appendChild(e);setTimeout(function(){e.classList.add("show");},10);setTimeout(function(){e.classList.remove("show");setTimeout(function(){e.remove();},300);},3000);}',
         /* ———— 内容包：导出 / 导入（提示词 + 标签） ———— */
         '  function _ltBuildContentPack(){',
         '    var prompts=JSON.parse(localStorage.getItem("_lt_prompts")||"[]");',
@@ -1811,12 +1853,12 @@
         '  }',
         '  function _ltImportContentPackFromFile(){',
         '    var inp=document.createElement("input");inp.type="file";inp.accept="application/json,.json";',
-        '    inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{_ltShowContentPackChooser(String(r.result));}catch(e){alert("内容包解析失败："+e.message);}};r.readAsText(f);};',
+        '    inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{_ltShowContentPackChooser(String(r.result));}catch(e){_ltToast("内容包解析失败："+e.message,"error");}};r.readAsText(f);};',
         '    inp.click();',
         '  }',
         '  function _ltShowContentPackChooser(text){',
-        '    var data;try{data=JSON.parse(text);}catch(e){alert("不是有效的 JSON 内容包："+e.message);return;}',
-        '    if(!data||data.type!=="content-pack"){alert("文件不是 libtv-boost 内容包（缺少 type:\\"content-pack\\"）");return;}',
+        '    var data;try{data=JSON.parse(text);}catch(e){_ltToast("不是有效的 JSON 内容包："+e.message,"error");return;}',
+        '    if(!data||data.type!=="content-pack"){_ltToast("文件不是 libtv-boost 内容包","error");return;}',
         '    var ov=document.createElement("div");ov.id="lt-cp-overlay";',
         '    ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:2147483647;display:flex;align-items:center;justify-content:center;";',
         '    var box=document.createElement("div");',
@@ -1869,8 +1911,8 @@
         '      }',
         '      if(window._ltPromptRefresh)window._ltPromptRefresh();',
         '      if(window._ltTagRefresh)window._ltTagRefresh();',
-        '      alert("✅ 内容包已导入（"+(mode==="replace"?"整体替换":"合并去重")+"）");',
-        '    }catch(e){alert("导入失败："+e.message);}',
+        '      _ltToast("✅ 内容包已导入（"+(mode==="replace"?"整体替换":"合并去重")+"）","success");',
+        '    }catch(e){_ltToast("导入失败："+e.message,"error");}',
         '  }',
         'function _ltSettingsPanel(){',
         '    var existing=document.getElementById("lt-settings");',
@@ -1911,7 +1953,7 @@
         '      +"</div>";',
         '    /* \\u5173\\u4e8e */',
         '    h+="<div class=\\\"lt-settings-sec\\\"><div class=\\\"lt-settings-stitle\\\">\\u5173\\u4e8e</div>"',
-        '      +"<div class=\\\"lt-settings-about\\\">LibTV Canvas Boost v1.9.2<br>\\u6e90\\u7801\\u6a21\\u5757\\u5316\\u6784\\u5efa\\uff0c\\u63d0\\u4f9b\\u6027\\u80fd\\u4f18\\u5316\\u3001\\u89c6\\u89c9\\u589e\\u5f3a\\u3001AI \\u63d0\\u793a\\u8bcd\\u3001\\u6807\\u7b7e\\u7cfb\\u7edf</div>"',
+        '      +"<div class=\\\"lt-settings-about\\\">LibTV Canvas Boost v1.9.3<br>\\u6e90\\u7801\\u6a21\\u5757\\u5316\\u6784\\u5efa\\uff0c\\u63d0\\u4f9b\\u6027\\u80fd\\u4f18\\u5316\\u3001\\u89c6\\u89c9\\u589e\\u5f3a\\u3001AI \\u63d0\\u793a\\u8bcd\\u3001\\u6807\\u7b7e\\u7cfb\\u7edf</div>"',
         '      +"</div>";',
         '    h+="</div>";',
         '    div.innerHTML=h;',
@@ -1965,7 +2007,7 @@
         '  window._ltOpenSettings=_ltSettingsPanel;',
         '  window._ltContent={exportPack:_ltDownloadContentPack,importFile:_ltImportContentPackFromFile};',
         '  window._ltShowTagMenu=_ltShowTagMenu;',
-        '  console.log("[LibTV Boost] v1.9.2  · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · DIY主题 · 画布配色 · 模板变量 · 标签 · 内容包");',
+        '  console.log("[LibTV Boost] v1.9.3  · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · DIY主题 · 画布配色 · 模板变量 · 标签 · 内容包");',
         '})();'
     ].join('\n');
     document.body.appendChild(hook);
