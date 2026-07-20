@@ -4,6 +4,8 @@
 
 Tampermonkey 油猴脚本，为自部署 / 官方 Infinite Canvas 提供性能优化（DOM 虚拟化、LOD、content-visibility）、视觉增强、快捷键工具。匹配 `*/static/canvas.html*`、`*/static/smart-canvas.html*`、`*/canvas.html*`、`*/canvas*`，排除 iblib/liblib 域名。
 
+**版本：** 11.1  |  **作者：** oocc00  |  **协议：** MIT
+
 ## 架构
 
 ```
