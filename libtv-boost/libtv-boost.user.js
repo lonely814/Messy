@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
-// @version      1.9.6
+// @version      1.9.7
 // @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/libtv-boost/libtv-boost-icon.png
 // @license      MIT
 // @author       oocc00
@@ -30,7 +30,6 @@
         '  --accent-rgb: 99,102,241;',
         '  --accent-light-rgb: 129,140,248;',
         '  --canvas-bg: #0f0f0f;',
-        '  --grid-color: rgba(255,255,255,0.12);',
         '  --node-bg: #1a1a2e;',
         '  --border-color: rgba(255,255,255,0.12);',
         '  --edge-color: rgba(255,255,255,0.08);',
@@ -465,7 +464,11 @@
         '}',
         '#mantine-ycmieh2cx-target,',
         '#mantine-cdb8qursd-target,',
-        'button[aria-label="帮助信息"] {',
+        'body.libtv-clean-home button[aria-label="帮助信息"] {',
+        '  display: none !important;',
+        '}',
+        'body.libtv-clean-home a[aria-label="回到主站"],',
+        'body.libtv-clean-home button[aria-label="创作者挑战赛"] {',
         '  display: none !important;',
         '}',
 
@@ -772,7 +775,12 @@
      * ========================================================= */
     var fpsEl = document.createElement('div');
     fpsEl.id = 'libtv-fps';
-    fpsEl.textContent = 'FPS: --';
+    fpsEl.innerHTML = '<span class="fps-val">--fps</span><span class="fps-sep">|</span><span class="fps-zoom">100%</span><span class="fps-sep">|</span><span class="fps-cnt">-节点</span><span class="fps-sep fps-flag-sep">|</span><span class="fps-flags"></span>';
+    var fpsVal = fpsEl.querySelector('.fps-val');
+    var fpsZoom = fpsEl.querySelector('.fps-zoom');
+    var fpsCnt = fpsEl.querySelector('.fps-cnt');
+    var fpsFlags = fpsEl.querySelector('.fps-flags');
+    var fpsFlagSep = fpsEl.querySelector('.fps-flag-sep');
     document.body.appendChild(fpsEl);
 
     var helpEl = document.createElement('div');
@@ -812,6 +820,7 @@
     })();
 
     function fpsLoop(now){
+        if (document.hidden) { _lastT = now; requestAnimationFrame(fpsLoop); return; }
         _fc++;
         if (now - _lastT >= 1000){
             _fps = Math.round(_fc * 1000 / (now - _lastT));
@@ -836,10 +845,12 @@
                 if(m) zoom = Math.round(parseFloat(m[1]) * 100) + '%';
             }
 
-            fpsEl.innerHTML = '<span class="fps-val">' + _fps + 'fps</span>'
-                + (zoom ? '<span class="fps-sep">|</span><span class="fps-zoom">' + zoom + '</span>' : '')
-                + '<span class="fps-sep">|</span><span class="fps-cnt">' + nTotal + '节点</span>'
-                + (flags ? '<span class="fps-sep">|</span>' + flags : '');
+            fpsVal.textContent = _fps + 'fps';
+            fpsZoom.textContent = zoom || '';
+            fpsZoom.style.display = zoom ? '' : 'none';
+            fpsCnt.textContent = nTotal + '节点';
+            fpsFlags.innerHTML = flags;
+            fpsFlagSep.style.display = flags ? '' : 'none';
             _fc = 0;
             _lastT = now;
         }
@@ -972,8 +983,10 @@
     /* =========================================================
      *  3. 快捷键 + 状态持久化
      * ========================================================= */
-    var hook = document.createElement('script');
-    hook.textContent = [
+    var hook;
+    try {
+        hook = document.createElement('script');
+        hook.textContent = [
         '(function(){',
 
         /* ———— 链高亮引擎 ———— */
@@ -1099,7 +1112,7 @@
         '      {id:"d4",name:"产品展示-环绕",category:"视频",content:"Smooth 360 orbit around {subject=product}, {lighting=soft studio} lighting, slow motion, {extra}"},',
         '      {id:"d5",name:"风光-延时",category:"视频",content:"Timelapse, {time=golden hour}, {sky=dramatic clouds}, warm tones, smooth transition, {extra}"},',
         '    ];',
-        '    localStorage.setItem("_lt_prompts",JSON.stringify(_ltPrompts));',
+        '    try{localStorage.setItem("_lt_prompts",JSON.stringify(_ltPrompts));}catch(e){}',
         '  }',
         '  var _ltPromptAPI=JSON.parse(localStorage.getItem("_lt_prompt_api")||"{\\"url\\":\\"https://api.deepseek.com/chat/completions\\",\\"model\\":\\"deepseek-v4-flash\\"}");',
         '  if(!_ltPromptAPI.url){_ltPromptAPI.url="https://api.deepseek.com/chat/completions";_ltPromptAPI.model=_ltPromptAPI.model||"deepseek-v4-flash";}',
@@ -1133,7 +1146,7 @@
 '    r.style.setProperty("--border-color",t.nc);',
 '    r.style.setProperty("--edge-color",t.ec);',
 '    _ltTheme=t;',
-'    localStorage.setItem("_lt_theme",JSON.stringify(t));',
+'    try{localStorage.setItem("_lt_theme",JSON.stringify(t));}catch(e){}',
 '    try{document.getElementById("ltp-theme-preview").style.background=t.l;}catch(e){}',
 '    try{var _e=document.querySelectorAll(".react-flow__renderer,.react-flow");for(var _i=0;_i<_e.length;_i++)_e[_i].style.backgroundColor=t.cb;}catch(e){}',
 '  }',
@@ -1144,7 +1157,7 @@
         '        if(_ltPActiveTab==="settings")_ltPActiveTab="templates";',
         '    var el=document.getElementById("libtv-prompt");',
         '    if(el){el.remove();return;}',
-        '    function savePrompts(){localStorage.setItem("_lt_prompts",JSON.stringify(_ltPrompts));}',
+        '    function savePrompts(){try{localStorage.setItem("_lt_prompts",JSON.stringify(_ltPrompts));}catch(e){}}',
         '    function renderBody(){',
         '      var body=document.getElementById("ltp-body"); if(!body)return;',
         '      if(_ltPActiveTab==="templates"){',
@@ -1295,7 +1308,7 @@
         '        function _rgb2hsl(r,g,b){r/=255;g/=255;b/=255;var mx=Math.max(r,g,b),mn=Math.min(r,g,b),h,s,l=(mx+mn)/2;if(mx===mn){h=s=0;}else{var d=mx-mn;s=l>0.5?d/(2-mx-mn):d/(mx+mn);switch(mx){case r:h=((g-b)/d+(g<b?6:0))/6;break;case g:h=((b-r)/d+2)/6;break;case b:h=((r-g)/d+4)/6;break;}}return[Math.round(h*360),Math.round(s*100),Math.round(l*100)];}',
         '        function _aiDesc(hex){var r=_hex2rgb(hex),hsl=_rgb2hsl(r[0],r[1],r[2]);var h=hsl[0],s=hsl[1],l=hsl[2];var desc="";if(l<15)desc="very dark";else if(l<35)desc="dark";else if(l<65)desc="mid-tone";else if(l<85)desc="light";else desc="very light";if(s<10)desc+=", almost gray";else if(s<30)desc+=", muted";else if(s<60)desc+=", moderate saturation";else desc+=", highly saturated";var hue="";if(h<15||h>=345)hue="red";else if(h<45)hue="orange";else if(h<70)hue="yellow";else if(h<160)hue="green";else if(h<200)hue="cyan";else if(h<260)hue="blue";else if(h<310)hue="purple";else hue="pink";return desc+" "+hue+" ("+hex+")";}',
         '        var _recent=JSON.parse(localStorage.getItem("_lt_pal_recent")||"[]");',
-        '        function _saveRecent(c){_recent=_recent.filter(function(x){return x!==c;});_recent.unshift(c);if(_recent.length>20)_recent.pop();localStorage.setItem("_lt_pal_recent",JSON.stringify(_recent));}',
+        '        function _saveRecent(c){_recent=_recent.filter(function(x){return x!==c;});_recent.unshift(c);if(_recent.length>20)_recent.pop();try{localStorage.setItem("_lt_pal_recent",JSON.stringify(_recent));}catch(e){}}',
         '        function _copySwatch(el,color){navigator.clipboard.writeText(color).then(function(){el.classList.add("copied");setTimeout(function(){el.classList.remove("copied");},800);var toast=document.createElement("div");toast.className="ltp-pal-toast show";toast.textContent="Copied "+color.toUpperCase();document.body.appendChild(toast);setTimeout(function(){toast.classList.remove("show");setTimeout(function(){toast.remove();},300);},1200);_saveRecent(color);});}',
         '        function _renderPalette(){',
         '          var h=\'<div class="ltp-pal-picker"><input type="color" id="ltp-pal-pick" value="#818cf8"><div class="ltp-pal-info"><div class="ltp-pal-hex" id="ltp-pal-hex">#818CF8</div><div class="ltp-pal-rgb" id="ltp-pal-rgb">rgb(129, 140, 248)</div><div class="ltp-pal-hsl" id="ltp-pal-hsl">hsl(235, 91%, 74%)</div></div></div>\';',
@@ -1327,7 +1340,7 @@
         '          document.getElementById("ltp-pal-rgb").onclick=function(){var v=this.textContent;navigator.clipboard.writeText(v);var toast=document.createElement("div");toast.className="ltp-pal-toast show";toast.textContent="Copied "+v;document.body.appendChild(toast);setTimeout(function(){toast.classList.remove("show");setTimeout(function(){toast.remove();},300);},1200);};',
         '          document.getElementById("ltp-pal-hsl").onclick=function(){var v=this.textContent;navigator.clipboard.writeText(v);var toast=document.createElement("div");toast.className="ltp-pal-toast show";toast.textContent="Copied "+v;document.body.appendChild(toast);setTimeout(function(){toast.classList.remove("show");setTimeout(function(){toast.remove();},300);},1200);};',
         '          document.getElementById("ltp-pal-ai-copy").onclick=function(){var v=document.getElementById("ltp-pal-ai-desc").textContent;navigator.clipboard.writeText(v);var toast=document.createElement("div");toast.className="ltp-pal-toast show";toast.textContent="Copied AI描述";document.body.appendChild(toast);setTimeout(function(){toast.classList.remove("show");setTimeout(function(){toast.remove();},300);},1200);};',
-        '          document.getElementById("ltp-pal-add-fav").onclick=function(){var hex=document.getElementById("ltp-pal-pick").value;if(!_fav.includes(hex)){_fav.push(hex);localStorage.setItem("_lt_pal_fav",JSON.stringify(_fav));_renderFav();}};',
+        '          document.getElementById("ltp-pal-add-fav").onclick=function(){var hex=document.getElementById("ltp-pal-pick").value;if(!_fav.includes(hex)){_fav.push(hex);try{localStorage.setItem("_lt_pal_fav",JSON.stringify(_fav));}catch(e){}_renderFav();}};',
         '        }',
         '        _renderPalette();',
         '      }',
@@ -1420,7 +1433,6 @@
         '  function _ltSaveLibs(){try{localStorage.setItem("_lt_tag_libs",JSON.stringify(_ltTagLibs));localStorage.setItem("_lt_cur_lib",_ltCurLib);}catch(e){}}',
         '  window._ltTagRefresh=function(){var s=localStorage.getItem("_lt_tag_libs");if(s){try{_ltTagLibs=JSON.parse(s);}catch(e){}}if(!_ltTagLibs[_ltCurLib])_ltCurLib=Object.keys(_ltTagLibs)[0];if(_ltTagMenuEl)_ltRenderTagMenu();};',
         '  function _ltPushRecent(t){t=String(t);if(!t)return;_ltRecentTags=_ltRecentTags.filter(function(x){return x!==t;});_ltRecentTags.push(t);if(_ltRecentTags.length>40)_ltRecentTags=_ltRecentTags.slice(-40);try{localStorage.setItem("_lt_recent",JSON.stringify(_ltRecentTags));}catch(e){}if(_ltTagMenuEl&&_ltTagActiveCat>=_ltCurLibCats().length)_ltRenderTagMenu();}',
-        '  var _ltTagMenuEl=null,_ltTagInputEl=null;',
         '  function _ltInsertTagAtCursor(tagText){',
         '    var ta=_ltTagInputEl; if(!ta)return;',
         '    if(ta.tagName==="TEXTAREA"||(ta.tagName==="INPUT"&&ta.type==="text")){',
@@ -1592,11 +1604,11 @@
         '  /* 标签管理已移至面板内联（新增标签 / 分组 / 分类） */',
         '  (function(){',
         '    function _ltTagScan(){',
-        '      var els=document.querySelectorAll("textarea,input[type=\\"text\\"],[contenteditable=\\"true\\"]");',
-        '',
-        '      els.forEach(function(ta){',
-        '        if(ta.offsetParent===null)return;',
-        '        /* unified tag icon for all inputs; anchored to parent, shows/hides with input */',
+         '      var els=document.querySelectorAll("textarea,input[type=\\"text\\"],[contenteditable=\\"true\\"]");',
+         '',
+         '      els.forEach(function(ta){',
+         '        if(ta.offsetParent===null)return;',
+         '        /* unified tag icon for all inputs; anchored to parent, shows/hides with input */',
         '        var wr=ta.parentNode;',
         '        if(wr&&!wr.querySelector(":scope > .lt-tag-icon")){',
         '          if(ta.parentNode&&!ta.parentNode.querySelector(".lt-tag-icon")){',
@@ -1606,27 +1618,23 @@
         '            icon.className="lt-tag-icon";',
         '            icon.title="\\u6807\\u7b7e";',
         '            icon.innerHTML=\'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>\';',
-        '            icon.style.cssText="position:absolute;right:6px;bottom:6px;z-index:2147483646;width:24px;height:24px;pointer-events:auto;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;";',
-        '',
-        '',
-        '            icon.onclick=function(e){e.stopPropagation();if(document.getElementById("lt-tag-menu"))_ltCloseTagMenu();else _ltShowTagMenu(ta);};',
-        '            wr.appendChild(icon);',
-        '            console.log("[LibTV Tag] attached icon to",ta.tagName);',
-        '          }',
+         '            icon.style.cssText="position:absolute;right:6px;bottom:6px;z-index:2147483646;width:24px;height:24px;pointer-events:auto;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;";',
+         '            icon.onclick=function(e){e.stopPropagation();if(document.getElementById("lt-tag-menu"))_ltCloseTagMenu();else _ltShowTagMenu(ta);};',
+         '            wr.appendChild(icon);',
+            '          }',
         '        }',
         '      });',
         '    }',
-        '    _ltTagScan();',
-        '    setTimeout(function(){console.log("[LibTV Tag] retry scan");_ltTagScan();},3000);',
-        '    _ltTagScan();',
+
         '    var _ltTagTimer=null;',
         '    var _ltTagObs=new MutationObserver(function(){',
         '      if(_ltTagTimer)clearTimeout(_ltTagTimer);',
         '      _ltTagTimer=setTimeout(_ltTagScan,100);',
         '    });',
         '    _ltTagObs.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["style","class","hidden"]});',
-        '    setInterval(_ltTagScan,1500);',
-        '  })();',
+         '    _ltTagScan();',
+         '    setInterval(_ltTagScan,1500);',
+         '  })();',
 
                /* ———— 悬浮提示词按钮（仅画布页面） ———— */
         '  (function(){',
@@ -1816,6 +1824,8 @@
 
         /* ———— 通用 HTML 转义（防止内容包/用户输入造成 XSS） ———— */
         '  function _ltEsc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}',
+        /* ———— 通用 Toast 提示 ———— */
+        '  function _ltToast(msg, dur){var e=document.getElementById("_ltToast");if(!e){e=document.createElement("div");e.id="_ltToast";Object.assign(e.style,{position:"fixed",bottom:"20px",left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.8)",color:"#fff",padding:"8px 18px",borderRadius:"6px",zIndex:99999,fontSize:"14px",pointerEvents:"none",transition:"opacity .3s",opacity:"0"});document.body.appendChild(e)}e.textContent=msg;e.style.opacity="1";clearTimeout(e._t);e._t=setTimeout(function(){e.style.opacity="0"},dur||2000);}',
         /* ———— 内容包：导出 / 导入（提示词 + 标签） ———— */
         '  function _ltBuildContentPack(){',
         '    var prompts=JSON.parse(localStorage.getItem("_lt_prompts")||"[]");',
@@ -1835,12 +1845,12 @@
         '  }',
         '  function _ltImportContentPackFromFile(){',
         '    var inp=document.createElement("input");inp.type="file";inp.accept="application/json,.json";',
-        '    inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{_ltShowContentPackChooser(String(r.result));}catch(e){alert("内容包解析失败："+e.message);}};r.readAsText(f);};',
+        '    inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{_ltShowContentPackChooser(String(r.result));}catch(e){_ltToast("内容包解析失败："+e.message);}};r.readAsText(f);};',
         '    inp.click();',
         '  }',
         '  function _ltShowContentPackChooser(text){',
-        '    var data;try{data=JSON.parse(text);}catch(e){alert("不是有效的 JSON 内容包："+e.message);return;}',
-        '    if(!data||data.type!=="content-pack"){alert("文件不是 libtv-boost 内容包（缺少 type:\\"content-pack\\"）");return;}',
+        '    var data;try{data=JSON.parse(text);}catch(e){_ltToast("不是有效的 JSON 内容包："+e.message);return;}',
+        '    if(!data||data.type!=="content-pack"){_ltToast("文件不是 libtv-boost 内容包（缺少 type:\\"content-pack\\"）");return;}',
         '    var ov=document.createElement("div");ov.id="lt-cp-overlay";',
         '    ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:2147483647;display:flex;align-items:center;justify-content:center;";',
         '    var box=document.createElement("div");',
@@ -1864,14 +1874,14 @@
         '  function _ltApplyContentPack(data,mode){',
         '    try{',
         '      if(mode==="replace"){',
-        '        if(Array.isArray(data.prompts))localStorage.setItem("_lt_prompts",JSON.stringify(data.prompts));',
-        '        if(data.tagLibs&&typeof data.tagLibs==="object")localStorage.setItem("_lt_tag_libs",JSON.stringify(data.tagLibs));',
-        '        if(data.currentLib)localStorage.setItem("_lt_cur_lib",data.currentLib);',
+        '        if(Array.isArray(data.prompts))try{localStorage.setItem("_lt_prompts",JSON.stringify(data.prompts));}catch(e){}',
+        '        if(data.tagLibs&&typeof data.tagLibs==="object")try{localStorage.setItem("_lt_tag_libs",JSON.stringify(data.tagLibs));}catch(e){}',
+        '        if(data.currentLib)try{localStorage.setItem("_lt_cur_lib",data.currentLib);}catch(e){}',
         '      }else{',
         '        var prompts=JSON.parse(localStorage.getItem("_lt_prompts")||"[]");',
         '        var seen={};prompts.forEach(function(p){seen[(p&&p.id)||("n"+Math.random())]=true;});',
         '        (data.prompts||[]).forEach(function(p){if(p&&p.id&&!seen[p.id]){prompts.push(p);seen[p.id]=true;}});',
-        '        localStorage.setItem("_lt_prompts",JSON.stringify(prompts));',
+        '        try{localStorage.setItem("_lt_prompts",JSON.stringify(prompts));}catch(e){}',
         '        var tagLibs=JSON.parse(localStorage.getItem("_lt_tag_libs")||"null");if(!tagLibs)tagLibs={};',
         '        var src=data.tagLibs||{};',
         '        for(var k in src){if(!src.hasOwnProperty(k))continue;',
@@ -1889,12 +1899,12 @@
         '          });',
         '          tagLibs[k].categories=dstCats;',
         '        }',
-        '        localStorage.setItem("_lt_tag_libs",JSON.stringify(tagLibs));',
+        '        try{localStorage.setItem("_lt_tag_libs",JSON.stringify(tagLibs));}catch(e){}',
         '      }',
         '      if(window._ltPromptRefresh)window._ltPromptRefresh();',
         '      if(window._ltTagRefresh)window._ltTagRefresh();',
-        '      alert("✅ 内容包已导入（"+(mode==="replace"?"整体替换":"合并去重")+"）");',
-        '    }catch(e){alert("导入失败："+e.message);}',
+        '      _ltToast("✅ 内容包已导入（"+(mode==="replace"?"整体替换":"合并去重")+"）");',
+        '    }catch(e){_ltToast("导入失败："+e.message);}',
         '  }',
         'function _ltSettingsPanel(){',
         '    var existing=document.getElementById("lt-settings");',
@@ -1935,7 +1945,7 @@
         '      +"</div>";',
         '    /* \\u5173\\u4e8e */',
         '    h+="<div class=\\\"lt-settings-sec\\\"><div class=\\\"lt-settings-stitle\\\">\\u5173\\u4e8e</div>"',
-        '      +"<div class=\\\"lt-settings-about\\\">LibTV Canvas Boost v1.9.6<br>\\u6e90\\u7801\\u6a21\\u5757\\u5316\\u6784\\u5efa\\uff0c\\u63d0\\u4f9b\\u6027\\u80fd\\u4f18\\u5316\\u3001\\u89c6\\u89c9\\u589e\\u5f3a\\u3001AI \\u63d0\\u793a\\u8bcd\\u3001\\u6807\\u7b7e\\u7cfb\\u7edf</div>"',
+        '      +"<div class=\\\"lt-settings-about\\\">LibTV Canvas Boost v1.9.7<br>\\u6e90\\u7801\\u6a21\\u5757\\u5316\\u6784\\u5efa\\uff0c\\u63d0\\u4f9b\\u6027\\u80fd\\u4f18\\u5316\\u3001\\u89c6\\u89c9\\u589e\\u5f3a\\u3001AI \\u63d0\\u793a\\u8bcd\\u3001\\u6807\\u7b7e\\u7cfb\\u7edf</div>"',
         '      +"</div>";',
         '    h+="</div>";',
         '    div.innerHTML=h;',
@@ -1945,7 +1955,7 @@
         '      el.onclick=function(){',
         '        var k=this.getAttribute("data-key");',
         '        var v=localStorage.getItem("_lt_"+k)!=="1";',
-        '        localStorage.setItem("_lt_"+k,v?"1":"0");',
+        '        try{localStorage.setItem("_lt_"+k,v?"1":"0");}catch(e){}',
         '        if(k==="grid"){var bg=document.querySelector(".react-flow__background");if(bg)bg.classList.toggle("perf-no-grid",v);}',
         '        else if(k==="edges"){var ed=document.querySelector(".react-flow__edges");if(ed)ed.classList.toggle("perf-hide-edges",v);}',
         '        else document.body.classList.toggle(k==="perf"?"perf-mode":k==="hide"?"perf-hide-imgs":"libtv-"+k,v);',
@@ -1955,7 +1965,7 @@
         '    /* API \\u4fdd\\u5b58 */',
         '    document.getElementById("lt-set-api-save").onclick=function(){',
         '      var d={url:document.getElementById("lt-set-url").value.trim(),key:document.getElementById("lt-set-key").value.trim(),model:document.getElementById("lt-set-model").value.trim()||"deepseek-v4-flash"};',
-        '      localStorage.setItem("_lt_prompt_api",JSON.stringify(d));',
+        '      try{localStorage.setItem("_lt_prompt_api",JSON.stringify(d));}catch(e){}',
         '      document.getElementById("lt-set-api-status").textContent="\\u2705 \\u5df2\\u4fdd\\u5b58";',
         '    };',
         '    /* \\u6570\\u636e\\u6e05\\u5355 */',
@@ -1967,7 +1977,7 @@
         '      var size=Math.round(val.length/1024);',
         '      var el=document.createElement("div");el.className="lt-settings-ditem";',
         '      el.innerHTML="<span>"+kv[1]+"</span><span>"+size+"KB</span><button class=\\\"lt-settings-dclear\\\" data-key=\\\""+kv[0]+"\\\">\\u6e05\\u7a7a</button>";',
-        '      el.querySelector(".lt-settings-dclear").onclick=function(e){e.stopPropagation();localStorage.removeItem(this.getAttribute("data-key"));el.remove();};',
+        '      el.querySelector(".lt-settings-dclear").onclick=function(e){e.stopPropagation();try{localStorage.removeItem(this.getAttribute("data-key"));}catch(ex){}el.remove();};',
         '      dl.appendChild(el);',
         '    });',
         '    /* \\u5bfc\\u51fa\\u5168\\u90e8 */',
@@ -1989,10 +1999,13 @@
         '  window._ltOpenSettings=_ltSettingsPanel;',
         '  window._ltContent={exportPack:_ltDownloadContentPack,importFile:_ltImportContentPackFromFile};',
         '  window._ltShowTagMenu=_ltShowTagMenu;',
-        '  console.log("[LibTV Boost] v1.9.6  · G网格 T性能 H隐藏 L连线 C全链 F搜索 P提示词 X专注 R直角 ?帮助 · AI增强 · DIY主题 · 画布配色 · 模板变量 · 标签 · 内容包 · by oocc00");',
-        '})();'
+'})();'
     ].join('\n');
     document.body.appendChild(hook);
+} catch(e) {
+    console.error('[LibTV] Hook error:', e);
+    if (typeof alert !== 'undefined') alert('LibTV hook error: ' + e.message);
+}
 
     /* =========================================================
      *  4. 菜单开关 + 状态持久化
@@ -2014,7 +2027,7 @@
     function _read(){
         var s = {};
         for(var k in _toggles) if(_toggles.hasOwnProperty(k))
-            s[k] = localStorage.getItem('_lt_'+k) === '1';
+            try{ s[k] = localStorage.getItem('_lt_'+k) === '1'; }catch(e){}
         return s;
     }
     function _apply(){
@@ -2022,8 +2035,9 @@
         for(var k in _toggles) if(_toggles.hasOwnProperty(k)) _toggles[k](s[k]);
     }
     function _click(key){
-        var v = localStorage.getItem('_lt_'+key) !== '1';
-        localStorage.setItem('_lt_'+key, v ? '1' : '0');
+        var v = true;
+        try{ v = localStorage.getItem('_lt_'+key) !== '1'; }catch(e){}
+        try{localStorage.setItem('_lt_'+key, v ? '1' : '0');}catch(e){}
         _toggles[key](v);
     }
 
@@ -2079,7 +2093,7 @@
                 navigator.clipboard.writeText(txt).then(function(){ document.getElementById('lt-dbg-copy').textContent = '✅ 已复制'; });
             };
             document.getElementById('lt-dbg-close').onclick = function(){ div.remove(); };
-        } catch(e){ alert(e.message); }
+        } catch(e){ try{_ltToast(e.message);}catch(ex){} }
     });
 })();
 

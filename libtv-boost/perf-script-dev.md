@@ -4,7 +4,7 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、标签系统、画布主题、设置面板等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.9.6  |  **作者：** oocc00  |  **协议：** MIT
+**当前版本：** 1.9.7  |  **作者：** oocc00  |  **协议：** MIT
 
 ## 文件结构
 
@@ -239,7 +239,7 @@ r.collapse(false);
 sel.removeAllRanges(); sel.addRange(r);
 ```
 
-**入口：** 所有输入框右下角 🏷️ 图标（MutationObserver 自动扫描，100ms 防抖，3 秒重试兜底）
+**入口：** 所有输入框右下角 🏷️ 图标（MutationObserver 自动扫描，100ms 防抖，setInterval 1.5 秒轮询兜底）
 
 #### 主题系统
 
@@ -341,8 +341,43 @@ var _toggles = {
 - `unsafeWindow` 需要 `@grant unsafeWindow`
 - edge 的 `aria-label` 可能包含不可见 Unicode 字符（零宽空格等），需 `.trim()` 后再匹配
 - 直角连线 Observer 观察 `.react-flow` 父级（非 `.react-flow__edges` 自身），防 React 重建后失效
-- 标签 MutationObserver 使用 100ms 防抖 + 3 秒重试兜底
+- 标签 MutationObserver 使用 100ms 防抖 + `setInterval` 1.5 秒轮询兜底
 - 所有 `_lt_*` localStorage 键的读写统一定义在脚本中，无外部依赖
+
+### ⚠️ Hook 注入陷阱（已踩坑）
+
+注入脚本通过数组拼字符串创建：
+```js
+var hook = document.createElement('script');
+hook.textContent = [
+    '(function(){',
+    '  ...',
+    '})();'
+].join('\n');
+document.body.appendChild(hook);
+```
+
+**这个数组只要有一个字符串的逗号/引号/缩进出错，整个外层脚本就静默挂掉，后续代码（设置面板同步、快捷键、诊断菜单等）全部不执行。** 连 F12 都看不到报错，因为错误发生在油猴沙箱内且被吞了。
+
+**正确做法：** 始终用 try/catch 包裹：
+```js
+var hook;
+try {
+    hook = document.createElement('script');
+    hook.textContent = [ ... ].join('\n');
+    document.body.appendChild(hook);
+} catch(e) {
+    console.error('[LibTV] Hook error:', e);
+    // 开发期间弹 alert 方便定位，发布前可移除
+    if (typeof alert !== 'undefined') alert('LibTV hook error: ' + e.message);
+}
+```
+
+> 在数组中间插入/删除行时，**特别留意**：
+> - 每行必须是完整的 `'字符串',` 格式（末尾逗号）
+> - 删除行后检查上下的逗号是否多出或缺失
+> - 数组字符串的缩进只影响源码可读性，不影响执行
+> - 优先用编辑器语法高亮检查数组语法
 
 ## 更新日志
 
@@ -350,6 +385,8 @@ var _toggles = {
 - 移除所有节点视觉美化 CSS（玻璃质感、全息投影、连线发光、画布辉光、面板压暗）— 修复远距缩放节点自动变大的 bug
 - 悬浮按钮改为 `_createBtn`/`_removeBtn` + `MutationObserver` 监听 `.react-flow` 出现/消失，只在画布页面显示
 - 版本号 1.9.3→1.9.6、图标换 GitHub raw、署名 `oocc00`、MIT 协议
+- 性能优化：移除重复的 `_ltTagScan` / `console.log` / FPS 后台空帧 / 重复 `var` / `alert()`→`_ltToast` / `localStorage` try/catch / 未使用 CSS 变量
+- **修复 hook 注入缺少 try/catch 导致静默失败** — 注入脚本数组语法错误时外层 IIFE 整段挂掉，标签/提示词/AI/设置面板全部不执行。加 try/catch 后错误暴露 + 恢复 `setInterval` 轮询兜底
 
 ### v1.9.5
 - 悬浮提示词按钮仅在画布页面（`.react-flow` 存在时）显示，非画布页面（首页等）不再出现
