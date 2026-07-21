@@ -4,7 +4,7 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、标签系统、画布主题、设置面板等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.9.3
+**当前版本：** 1.9.5
 
 ## 文件结构
 
@@ -65,6 +65,7 @@ document.head.appendChild(style);
 | `libtv-chain` | `body` | 链高亮激活 | — |
 | `libtv-autochain` | `body` | 自动链模式 | `_lt_autochain` |
 | `libtv-step-edges` | `body` | 直角连线 | `_lt_step` |
+| `libtv-clean-home` | `body` | 清爽首页 | `_lt_clean` |
 
 ### 视觉改造（v1.9.3）
 
@@ -79,10 +80,27 @@ document.head.appendChild(style);
 | 面板打开 | 画布自动压暗（`brightness(0.7) saturate(0.5)`） |
 | Toast 通知 | 右下角滑入通知条，替代 alert() |
 | 性能模式 | 一键关闭所有玻璃/发光/动画效果 |
+| 清爽首页 | 首页/全部项目页布局优化 + 隐藏干扰元素（Banner/会员超市/帮助按钮/轮播/AI输入区等），`N` 键切换 |
 
 > ⚠️ `transform` 属性被 React Flow 用于节点定位，CSS 中不能覆盖。所有视觉效果使用 `box-shadow` / `filter` / `backdrop-filter` 实现。
 
 开关类名在 CSS 注入数组 + 快捷键 handler + 设置面板三处同步维护。
+
+### 清爽首页 CSS（v1.9.4）
+
+首页/全部项目页的布局优化 + 隐藏干扰元素样式，通过 `body.libtv-clean-home` 类控制显隐（`N` 键切换）：
+
+| 区块 | 效果 |
+|------|------|
+| 隐藏干扰元素 | 顶部 Banner、会员超市、限时40折、帮助按钮、Mantine图标①②③④、导航栏右侧文字 |
+| 隐藏主 Banner/轮播 | `section[class*=banner]`、`div[class*=carousel]`、`[class*=swiper]` |
+| 隐藏全部项目页顶部 | `div.b1280:max-w-[1440px]` 的 block/hidden/mx-auto/mt-10/button |
+| 首页个人最近项目 | 限宽 1200px 居中、3列网格、卡片320px、封面210px |
+| 全部项目容器 | 限宽 1800px 居中、6列网格、面包屑24px、卡片280px、封面170px |
+| 分区标题 | `::before` 注入「最近项目」、`::after` 注入「所有项目」+ 分割线 |
+| 创作卡/项目卡 | 玻璃质感背景、hover 上浮+阴影、标题两行截断 |
+
+> ⚠️ 选择器依赖站点 Tailwind 生成的 class 名（含 `:` / `[]`），站点改版后可能失效。
 
 ### CSS 主题变量
 
@@ -150,7 +168,7 @@ MutationObserver 监听 `body`，检测右侧 AI Agent Drawer 的出现。当 dr
 | 节点搜索 | 1038–1080 | 浮动搜索面板，按文本过滤节点 |
 | 提示词工具 | 1082–1286 | 模板 / AI / 主题 / 调色板 / 设置 tab |
 | 标签系统 | 1289–1578 | 四层结构：库→分类→分组→标签 |
-| 浮动按钮 | 1580–1610 | 可拖拽的提示词工具按钮 |
+| 浮动按钮 | 1580–1610 | 可拖拽的提示词工具按钮（仅画布页面显示） |
 | 直角连线 | 1612–1646 | 贝塞尔→折线重写 |
 | 快捷键 | 1648–1750 | 11 个快捷键 handler |
 | 内容包 | 1752–1862 | 导出/导入 JSON |
@@ -256,6 +274,7 @@ sel.removeAllRanges(); sel.addRange(r);
 | `X` | ~1744 | 专注 toggle |
 | `R` | ~1752 | 直角连线 toggle |
 | `?` / `/` | ~1761 | 帮助提示 pin |
+| `N` | ~1761 | 清爽首页 toggle |
 
 #### 设置面板
 
@@ -263,7 +282,7 @@ sel.removeAllRanges(); sel.addRange(r);
 
 | 分区 | 实现 |
 |------|------|
-| 开关 | 5 个 toggle，操作 `localStorage._lt_*` + `body.classList` |
+| 开关 | 6 个 toggle（性能/隐藏图片/隐藏连线/隐藏网格/专注/清爽首页），操作 `localStorage._lt_*` + `body.classList` |
 | API | URL / Key / Model，存 `localStorage._lt_prompt_api` |
 | 数据管理 | 3 项（标签库/当前库/历史）+ 导出全部配置 + 内容包导出/导入 |
 | 关于 | 版本号 |
@@ -323,3 +342,19 @@ var _toggles = {
 - 直角连线 Observer 观察 `.react-flow` 父级（非 `.react-flow__edges` 自身），防 React 重建后失效
 - 标签 MutationObserver 使用 100ms 防抖 + 3 秒重试兜底
 - 所有 `_lt_*` localStorage 键的读写统一定义在脚本中，无外部依赖
+
+## 更新日志
+
+### v1.9.5
+- 悬浮提示词按钮仅在画布页面（`.react-flow` 存在时）显示，非画布页面（首页等）不再出现
+- 修复清爽首页开关导致设置面板/Toast 无法显示的问题（移除设置面板 CSS 的 `body.libtv-clean-home` 前缀）
+
+### v1.9.4
+- 新增清爽首页开关（`N` 键 / 设置面板 toggle），首页/全部项目页布局优化 + 隐藏干扰元素
+- 页面视觉微调：节点玻璃质感、选中全息光晕、连线 hover 发光、画布多色渐变辉光、面板打开自动压暗、Toast 通知
+- 新增 AI Agent Drawer 适配（MutationObserver 右推 FPS/浮动按钮）
+- 新增流动光效 SVG overlay
+
+### v1.8.3
+- 首页/全部项目页布局优化 CSS（1200px/1800px 限宽、3/6 列网格、卡片尺寸、面包屑、分区标题等）
+- 隐藏干扰元素（顶部 Banner、会员超市、帮助按钮、Mantine 图标、轮播/AI 输入区等）
