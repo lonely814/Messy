@@ -1,0 +1,13 @@
+schema_version = "1.0.0"
+
+id = "quick_viewport_filters"
+version = "1.0.0"
+name = "Quick Viewport Filters"
+tagline = "Toggle viewport object-type overlays from the 3D view header"
+maintainer = "You <you@example.com>"
+type = "add-on"
+
+blender_version_min = "4.5.0"
+
+license = ["SPDX:MIT"]
+copyright = ["2026 You"]
