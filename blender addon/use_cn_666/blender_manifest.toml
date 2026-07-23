@@ -1,0 +1,21 @@
+schema_version = "1.0.0"
+
+id = "use_cn_666"
+version = "2.3.0"
+name = "USE全局翻译"
+tagline = "一键式全局翻译，心无旁骛，你只管专心的创作！"
+maintainer = "布的[bude6688],Shuimeng,别人Скучно,666"
+type = "add-on"
+website = "https://www.bilibili.com/video/BV1JaaZzbEpc"
+
+blender_version_min = "4.5.0"
+
+tags = ["UI", "Development"]
+
+license = ["SPDX:GPL-3.0-or-later"]
+copyright = ["2024-2026 布的[bude6688]"]
+
+[permissions]
+files = "读写翻译文件、本地配置和笔刷资产文件"
+network = "通过 FTP 检查并下载汉化包更新"
+subprocess = "重启 Blender、安装 Pillow 库"
