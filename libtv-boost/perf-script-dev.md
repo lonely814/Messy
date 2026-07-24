@@ -4,7 +4,7 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、标签系统、画布主题、设置面板等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.9.11  |  **作者：** oocc00  |  **协议：** MIT
+**当前版本：** 1.10.1  |  **作者：** oocc00  |  **协议：** MIT
 
 ## 文件结构
 
@@ -420,6 +420,18 @@ node --check src/inject.js
 - `node build.js` 报错或产出文件语法错误 → `build.js` 的转义逻辑有 bug
 
 ## 更新日志
+
+### v1.10.1
+- AI 面板定位重构：从图标按钮位置弹出（右上对齐），替代屏幕居中
+- 按钮样式修复：使用内联样式替代 `.ltp-btn` CSS 类（因作用域限定于 `#libtv-prompt`）
+- 布局修正：任务标签、textarea、自定义 system prompt padding 统一对齐
+- 删除无用 CSS 规则 `#lt-ai-panel .ltp-status`
+
+### v1.10.0
+- 输入框内联 AI 快捷按钮（🤖），点击直接运行当前预设策略
+- 结果预览弹窗，支持预设切换、替换/复制/取消操作
+- 未配置 API 时引导至设置面板
+- 图标跟随输入内容自动显示/隐藏
 
 ### v1.9.11
 - **构建系统重构**：单体 `.user.js` 拆分为模块化 `src/` 目录（`style.css` / `inject.js` / `main.js`）+ `build.js` 构建脚本

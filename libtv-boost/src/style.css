@@ -838,3 +838,6 @@ body.libtv-clean-home div.b768\:px-\[10px\] > div.mx-auto body.libtv-clean-home 
 .ltp-ai-task.cp::before { content:"\2022";margin-right:3px; }
 .ltp-ai-task.cp:hover { color:rgba(255,255,255,0.5); }
 .ltp-ai-task.cp.active { color:var(--accent-light); }
+
+/* ── standalone AI panel status line ── */
+
