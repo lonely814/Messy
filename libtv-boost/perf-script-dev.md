@@ -4,32 +4,54 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、标签系统、画布主题、设置面板等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.9.10  |  **作者：** oocc00  |  **协议：** MIT
+**当前版本：** 1.9.11  |  **作者：** oocc00  |  **协议：** MIT
 
 ## 文件结构
 
 | 文件 | 说明 |
 |------|------|
-| `libtv-boost.user.js` | 油猴单文件脚本，拖进 Tampermonkey 安装 |
+| `src/style.css` | **CSS 源码** — 840 行，完整 IDE 语法高亮/自动补全/颜色预览 |
+| `src/inject.js` | **注入脚本源码** — 1178 行，页面上下文执行的 JS IIFE |
+| `src/main.js` | **主模板** — 油猴 IIFE 骨架，含 `__INJECT_CSS__` / `__INJECT_SCRIPT__` 占位符 |
+| `build.js` | **构建脚本** — 零依赖 Node 脚本，组装源码 → `.user.js` |
+| `libtv-boost.user.js` | **构建产出** — 拖进 Tampermonkey 安装。不要直接编辑此文件 |
 | `perf-script-dev.md` | 本文档 |
 | `libtv-content-pack.json` | 内容包导出示例 |
 
+**工作流：** 编辑 `src/` 下的源码 → `node build.js` → 产出 `libtv-boost.user.js`。
+
+## 构建系统
+
+`build.js` 是一个零依赖（仅 `node:fs` / `node:path`）的纯字符串处理脚本。
+
+**构建过程：**
+1. 读取 `src/style.css`，按行分割，每行转成单引号字符串（自动转义 `\` / `'` / CRLF）
+2. 读取 `src/inject.js`，同上处理
+3. 读取 `src/main.js` 模板，将 CSS 数组替换 `__INJECT_CSS__`，注入脚本数组替换 `__INJECT_SCRIPT__`
+4. 写出 `libtv-boost.user.js`
+
+**加新文件的流程：** 在 `build.js` 的 `build()` 函数中加一行 `read()` + `replace()` 链即可。
+
+**语法验证：**
+```bash
+node build.js                              # 构建
+node --check libtv-boost.user.js           # 验证产出语法
+node --check src/inject.js                 # 直接验证注入脚本语法（无需构建）
+```
+
 ## 脚本整体结构
 
-脚本是一个完整的单文件 IIFE，分 6 个节（按行号区间）：
+`build.js` 将 `src/` 下的源码组装进 `src/main.js` 模板，产出单文件 `.user.js`。
 
-| 节 | 行号（约） | 内容 |
-|----|-----------|------|
-| 1 | 20–760 | **CSS 注入** — 数组 `[...].join('\n')`，所有视觉样式 |
-| 2 | 762–840 | **FPS 面板** — 拖拽 + RAF 帧率循环 |
-| 3 | 843–926 | **流动光效** — SVG overlay，选中节点发光描边动画 |
-| 4 | 929–962 | **AI Agent Drawer 适配** — MutationObserver 动态右推 |
-| 5 | 964–1960 | **注入脚本** — `<script>` 元素注入到页面上下文的 JS |
-| 6 | 1963–2067 | **菜单开关 + 持久化** — GM_registerMenuCommand + localStorage |
+| 源代码 | 对应运行时位置 | 说明 |
+|--------|--------------|------|
+| `src/main.js` | IIFE 外层 | 油猴沙箱上下文：FPS 面板、流动光效、Drawer 适配、菜单开关、诊断 |
+| `src/inject.js` | `<script>` 注入到页面上下文 | 所有画布交互逻辑：链高亮、搜索、标签、提示词、主题、快捷键、设置面板 |
+| `src/style.css` | `style.textContent = [...]` | 所有视觉样式，通过构建自动嵌入 |
 
 ### 双沙箱通信
 
-油猴沙箱（第 6 节）通过 `unsafeWindow` 调用注入脚本（第 5 节）的函数：
+油猴沙箱（`src/main.js`）通过 `unsafeWindow` 调用注入脚本（`src/inject.js`）的函数：
 
 ```
 油猴沙箱                         注入脚本（页面上下文）
@@ -41,15 +63,24 @@ unsafeWindow._ltContent          ← window._ltContent
 
 注入脚本中的 `_lt*` 变量在 IIFE 内部，不污染全局。暴露给外层的接口通过 `window._lt*` 显式导出。
 
-## 第一节：CSS 注入（约第 20–760 行）
+## 第一节：CSS 注入（`src/style.css`）
 
-样式以数组形式注入：
+直接编辑 `src/style.css`，完整的 CSS 语法支持。构建时 `build.js` 将每行转为数组元素嵌入模板：
 
-```js
-var style = document.createElement('style');
-style.textContent = [ '/* CSS */', '.class { rule; }', ].join('\n');
-document.head.appendChild(style);
+```css
+/* 编辑 src/style.css — 正常 CSS 语法 */
+.react-flow__node {
+  border-radius: 12px;
+  transition: box-shadow 0.25s ease, opacity 0.2s ease !important;
+}
 ```
+
+构建产出等价于：
+```js
+style.textContent = ['.react-flow__node {', '  border-radius: 12px;', ...].join('\n');
+```
+
+> 开发者**不需要**手动维护数组格式。`node build.js` 自动处理所有引号/逗号/转义。
 
 ### CSS 开关模式
 
@@ -85,7 +116,7 @@ document.head.appendChild(style);
 
 > ⚠️ `transform` 属性被 React Flow 用于节点定位，CSS 中不能覆盖。所有视觉效果使用 `box-shadow` / `filter` / `backdrop-filter` 实现。
 
-开关类名在 CSS 注入数组 + 快捷键 handler + 设置面板三处同步维护。
+开关类名在 `src/style.css` + `src/inject.js`（快捷键 handler）+ `src/inject.js`（设置面板）三处同步维护。
 
 ### 清爽首页 CSS（v1.9.4）
 
@@ -135,14 +166,14 @@ document.head.appendChild(style);
 | `.lt-settings-about` | 关于区 |
 | `.lt-settings-cpbtns` | 内容包按钮行 |
 
-## 第二节：FPS 面板（约第 762–840 行）
+## 第二节：FPS 面板（`src/main.js`）
 
 DOM 创建 + 拖拽 + RAF 循环：
 - `#libtv-fps` 浮动面板，显示 FPS、缩放、节点数、开关状态
 - 可拖拽（mousedown/mousemove/mouseup）
 - 悬停时显示快捷键提示卡片 `#libtv-help`
 
-## 第三节：流动光效（约第 843–926 行）
+## 第三节：流动光效（`src/main.js`）
 
 全屏 SVG overlay（`#libtv-glow`），`z-index:50`，`pointer-events:none`。
 
@@ -152,31 +183,31 @@ DOM 创建 + 拖拽 + RAF 循环：
 - 光晕：`feGaussianBlur(stdDeviation=6)`
 - 性能模式下自动隐藏
 
-## 第四节：AI Agent Drawer 适配（约第 929–962 行）
+## 第四节：AI Agent Drawer 适配（`src/main.js`）
 
 MutationObserver 监听 `body`，检测右侧 AI Agent Drawer 的出现。当 drawer 打开时，将 FPS 面板和浮动按钮右推避免遮挡。
 
-## 第五节：注入脚本（约第 964–1960 行）
+## 第五节：注入脚本（`src/inject.js`）
 
-通过 `<script>` 注入到页面上下文执行。这是脚本的核心，所有画布交互逻辑都在这里。
+通过 `<script>` 注入到页面上下文执行。这是脚本的核心，所有画布交互逻辑都在这里。编辑 `src/inject.js`，构建时自动嵌入。
 
 ### 子模块
 
-| 子模块 | 行号（约） | 功能 |
-|--------|-----------|------|
-| 链高亮引擎 | ~968 | BFS 图遍历、`_ltAutoChain` 自动模式 |
-| 连线 hover 高亮 | ~1020 | mouseover/mouseout 切换 `.libtv-edge-active` |
-| 节点搜索 | 1038–1080 | 浮动搜索面板，按文本过滤节点 |
-| 提示词工具 | 1082–1286 | 模板 / AI / 主题 / 调色板 / 设置 tab |
-| 标签系统 | ~1289 | 四层结构：库→分类→分组→标签 |
-| 浮动按钮 | ~1580 | 可拖拽的提示词工具按钮（仅画布页面显示） |
-| 直角连线 | ~1612 | 贝塞尔→折线重写 |
-| 快捷键 | ~1648 | 11 个快捷键 handler |
-| 内容包 | ~1752 | 导出/导入 JSON |
-| 账号切换 | ~1492 | Cookie + localStorage 快照、多账号保存/切换/刷新/删除 |
-| 首次引导 | ~1775 | `_ltShowWelcome()` + 帮助面板（设置页可重新弹出） |
-| 设置面板 | ~2046 | `_ltSettingsPanel()` 函数 |
-| AI 增强重构 | ~1325 | 预设策略(润色/扩写/缩写/翻译) + 自定义 system prompt + 原文对比结果区 |
+| 子模块 | 功能 |
+|--------|------|
+| 链高亮引擎 | BFS 图遍历、`_ltAutoChain` 自动模式 |
+| 连线 hover 高亮 | mouseover/mouseout 切换 `.libtv-edge-active` |
+| 节点搜索 | 浮动搜索面板，按文本过滤节点 |
+| 提示词工具 | 模板 / AI / 主题 / 调色板 / 设置 tab |
+| 标签系统 | 四层结构：库→分类→分组→标签 |
+| 浮动按钮 | 可拖拽的提示词工具按钮（仅画布页面显示） |
+| 直角连线 | 贝塞尔→折线重写 |
+| 快捷键 | 11 个快捷键 handler |
+| 内容包 | 导出/导入 JSON |
+| 账号切换 | Cookie + localStorage 快照、多账号保存/切换/刷新/删除 |
+| 首次引导 | `_ltShowWelcome()` + 帮助面板（设置页可重新弹出） |
+| 设置面板 | `_ltSettingsPanel()` 函数 |
+| AI 增强重构 | 预设策略(润色/扩写/缩写/翻译) + 自定义 system prompt + 原文对比结果区 |
 
 #### 链高亮引擎
 
@@ -265,24 +296,24 @@ sel.removeAllRanges(); sel.addRange(r);
 
 所有 handler 在 keydown 事件中。input/textarea 中忽略，Ctrl/Meta/Alt 按下时忽略。
 
-| 键 | handler 行 | 功能 |
-|----|-----------|------|
-| `Escape` | ~1670 | 关闭面板 + 清除链高亮 |
-| `G` | ~1686 | 网格 toggle |
-| `T` | ~1695 | 性能 toggle |
-| `H` | ~1703 | 隐藏图片 toggle |
-| `L` | ~1711 | 隐藏连线 toggle |
-| `C` | ~1720 | 自动链 toggle |
-| `F` | ~1730 | 搜索面板开关 |
-| `P` | ~1737 | 提示词面板开关 |
-| `X` | ~1744 | 专注 toggle |
-| `R` | ~1752 | 直角连线 toggle |
-| `?` / `/` | ~1761 | 帮助提示 pin |
-| `N` | ~1761 | 清爽首页 toggle |
+| 键 | 功能 |
+|----|------|
+| `Escape` | 关闭面板 + 清除链高亮 |
+| `G` | 网格 toggle |
+| `T` | 性能 toggle |
+| `H` | 隐藏图片 toggle |
+| `L` | 隐藏连线 toggle |
+| `C` | 自动链 toggle |
+| `F` | 搜索面板开关 |
+| `P` | 提示词面板开关 |
+| `X` | 专注 toggle |
+| `R` | 直角连线 toggle |
+| `?` / `/` | 帮助提示 pin |
+| `N` | 清爽首页 toggle |
 
 #### 设置面板
 
-`_ltSettingsPanel()` 函数（约第 1865 行）创建独立浮动面板：
+`_ltSettingsPanel()` 函数（`src/inject.js`）创建独立浮动面板：
 
 | 分区 | 实现 |
 |------|------|
@@ -295,7 +326,7 @@ sel.removeAllRanges(); sel.addRange(r);
 - 油猴菜单 `⚙ 设置` → `unsafeWindow._ltOpenSettings()`
 - 提示词面板「设置」tab → 关闭面板 + 调用 `_ltSettingsPanel()`
 
-## 第六节：菜单 + 持久化（约第 1963–2067 行）
+## 第六节：菜单 + 持久化（`src/main.js`）
 
 ```js
 var _toggles = {
@@ -346,93 +377,56 @@ var _toggles = {
 - 直角连线 Observer 观察 `.react-flow` 父级（非 `.react-flow__edges` 自身），防 React 重建后失效
 - 标签 MutationObserver 使用 100ms 防抖 + `setInterval` 1.5 秒轮询兜底
 - 所有 `_lt_*` localStorage 键的读写统一定义在脚本中，无外部依赖
+- 编辑 `src/` 下的源码后必须执行 `node build.js` 重新生成 `.user.js`
+- `node --check src/inject.js` 可直接验证注入脚本语法，无需构建
+- 不要直接编辑 `libtv-boost.user.js` — 它是构建产出，下次 `node build.js` 会被覆盖
 
-### ⚠️ Hook 注入陷阱（已踩坑）
+### ⚠️ Hook 注入（构建自动处理）
 
-注入脚本通过数组拼字符串创建：
+注入脚本通过 `<script>` 注入到页面上下文。`build.js` 自动将 `src/inject.js` 转换为数组形式嵌入模板。开发者**不需要**手动维护数组格式：
+
 ```js
-var hook = document.createElement('script');
-hook.textContent = [
-    '(function(){',
-    '  ...',
-    '})();'
-].join('\n');
-document.body.appendChild(hook);
+// 这是 build.js 产出的代码，不是手写的
+hook.textContent = [/* build 自动生成的数组 */].join('\n');
 ```
 
-**这个数组只要有一个字符串的逗号/引号/缩进出错，整个外层脚本就静默挂掉，后续代码（设置面板同步、快捷键、诊断菜单等）全部不执行。** 连 F12 都看不到报错，因为错误发生在油猴沙箱内且被吞了。
+> 数组格式的引号/逗号/转义全部由 `node build.js` 自动处理。如果有语法错误，`node --check libtv-boost.user.js` 会在构建时报错，不会静默吞掉。
 
-**正确做法：** 始终用 try/catch 包裹：
-```js
-var hook;
-try {
-    hook = document.createElement('script');
-    hook.textContent = [ ... ].join('\n');
-    document.body.appendChild(hook);
-} catch(e) {
-    console.error('[LibTV] Hook error:', e);
-    // 开发期间弹 alert 方便定位，发布前可移除
-    if (typeof alert !== 'undefined') alert('LibTV hook error: ' + e.message);
-}
-```
+### 🪤 转义注意事项（v1.9.10 +）
 
-> 在数组中间插入/删除行时，**特别留意**：
-> - 每行必须是完整的 `'字符串',` 格式（末尾逗号）
-> - 删除行后检查上下的逗号是否多出或缺失
-> - 数组字符串的缩进只影响源码可读性，不影响执行
-> - 优先用编辑器语法高亮检查数组语法
-
-### 🪤 三重转义陷阱（v1.9.10 +）
-
-注入脚本里拼 `innerHTML` 时如果混入 JS 变量拼接，会涉及 **三层转义**，很容易漏一层导致语法错误：
+> 旧版的三重转义陷阱（层①：数组元素格式转义）**已由 `build.js` 自动处理**。开发者只需关心两层：
 
 | 层 | 上下文 | 转义目标 | 示例 |
 |---|--------|---------|------|
-| ① | `user.js` 的数组元素：`'...'` | 把注入脚本的源代码当字符串值放进数组 | `\\` → `\`, `\"` → `"` |
-| ② | 注入脚本中的 JS 字符串：`"..."` | 双引号字符串内的转义 | `\"` → `"`, `\\` → `\` |
-| ③ | HTML 属性值 | HTML entity | `&` → `&amp;` |
+| ~~①~~ | ~~数组元素 `'...'`~~ | ~~`build.js` 自动处理，无需手动操作~~ | 已自动化 |
+| ① (原②) | 注入脚本中的 JS 字符串：`"..."` | 双引号字符串内的转义 | `\"` → `"`, `\\` → `\` |
+| ② (原③) | HTML 属性值 | HTML entity | `&` → `&amp;` |
 
-**典型错误 — 拼接 `value` 属性（v1.9.10 踩坑）：**
+**注入脚本（`src/inject.js`）是正常 JS 文件，字符串行为就是标准 JS：**
 
-想生成的注入脚本代码：
 ```js
 "... value=\"" + _ltEsc(n) + "\">..."
-//       ^闭字符串  ^开新字符串
+//        ^^      标准 JS：\" 是转义双引号
 ```
 
-在数组元素（单引号字符串）里写成：
-```js
-'... value=\\"\\"+_ltEsc(n)+"\\"...'
-//         ^^^^^^                    层①：\\ → \, \" → "，得到 value=\"\"
-//                                    即层②里的 \"\" 两个转义双引号，_ltEsc(n) 被关在字符串里面了
-```
-
-正确写法 — 让层②的 `\"` 闭字符串，`_ltEsc(n)` 在外面：
-```js
-'... value=\\"" + _ltEsc(n) + "\\"...'
-//         ^^^^                       层①：\\ → \, "" → ""，得到 value=\""
-//                                    层②：\" 是转义双引号，后面的 " 闭字符串 → value="
-//                                    _ltEsc(n) 在字符串外面做拼接
-```
-
-**调试方法：** 把注入脚本 dump 出来用 `node --check` 检查语法：
+**调试方法：** 直接对源文件做 `node --check`：
 ```bash
-# 从 user.js 提取数组 → eval → join('\n') → node --check
-node -e "
-const c = require('fs').readFileSync('libtv-boost.user.js','utf-8');
-const s = c.indexOf('hook.textContent = ['), e = c.indexOf('].join', s);
-const arr = eval('[' + c.substring(s + 21, e) + ']');
-require('fs').writeFileSync('/tmp/inject.js', arr.join('\n'), 'utf-8');
-"
-node --check /tmp/inject.js
+node --check src/inject.js
 ```
 
-**判断哪一层出错的速查：**
-- `node --check` 报错 → 层② 语法错误（JS 字符串引用/转义问题）
-- array 的 `eval` 失败 → 层① 语法错误（数组元素格式问题）
-- `node --check` 通过但浏览器里效果不对 → 层③ HTML 转义问题（`_ltEsc()` 漏调）
+**判断出错层次的速查：**
+- `node --check src/inject.js` 报错 → JS 字符串语法错误
+- `node --check src/inject.js` 通过但浏览器里效果不对 → HTML 转义问题（`_ltEsc()` 漏调）
+- `node build.js` 报错或产出文件语法错误 → `build.js` 的转义逻辑有 bug
 
 ## 更新日志
+
+### v1.9.11
+- **构建系统重构**：单体 `.user.js` 拆分为模块化 `src/` 目录（`style.css` / `inject.js` / `main.js`）+ `build.js` 构建脚本
+- 开发工作流：编辑 `src/` 下源码 → `node build.js` 组装
+- CSS 改为纯 `.css` 文件，获得完整 IDE 语法高亮、自动补全、颜色预览
+- 注入脚本改为纯 `.js` 文件，`node --check src/inject.js` 直接验证语法
+- 数组格式的引号/逗号/转义由构建自动处理，不再手动维护
 
 ### v1.9.10
 - 提示词模板列表重构：`prompt()` 改为内联表单弹窗（名称/分类/内容独立输入区）
