@@ -390,7 +390,7 @@
             items.forEach(function(t,i){
               var idx=_ltThemePresets.indexOf(t);
               var sel=t.a===_ltTheme.a&&t.cb===_ltTheme.cb?"2px solid var(--accent-light)":"1px solid rgba(255,255,255,0.06)";
-              html+='<button class="ltp-theme-preset" data-idx="'+idx+'" style="width:76px;height:50px;border-radius:8px;border:'+sel+';cursor:pointer;padding:0;overflow:hidden;position:relative;transition:all .12s;background:'+t.nb+';display:flex;flex-direction:column;">'
+              html+='<button class="ltp-theme-preset" data-idx="'+idx+'" style="width:76px;height:50px;border-radius:8px;border:'+sel+';cursor:pointer;padding:0;overflow:hidden;position:relative;transition:border-color .12s ease-out, box-shadow .12s ease-out;background:'+t.nb+';display:flex;flex-direction:column;">'
                 +'<div style="height:6px;background:'+t.a+';flex-shrink:0;"></div>'
                 +'<div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:9px;color:rgba(255,255,255,0.4);overflow:hidden;">'+t.n+'</div>'
                 +'</button>';
@@ -502,8 +502,10 @@
     function _ltSetCookies(s){if(!s)return;s.split("; ").forEach(function(p){var i=p.indexOf("=");if(i<1)return;document.cookie=p.slice(0,i)+"="+p.slice(i+1)+"; path=/";});}
     function _ltSaveLS(){var o={};for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k.indexOf("_lt_")!==0)o[k]=localStorage.getItem(k);}return o;}
     function _ltRestoreLS(o){if(!o)return;for(var k in o){if(o.hasOwnProperty(k)&&k.indexOf("_lt_")!==0){try{localStorage.setItem(k,o[k]);}catch(e){}}}}
-    function _ltAccBackup(){try{var d=localStorage.getItem("_lt_accounts");if(d){document.cookie="_lt_acc_bak="+encodeURIComponent(d)+"; path=/; max-age="+(86400*60)+"; SameSite=Lax";}}catch(e){}}
-    function _ltAccTryRestore(){try{if(localStorage.getItem("_lt_accounts"))return;var m=document.cookie.match(/(?:^|;\s*)_lt_acc_bak=([^;]*)/);if(m){var d=decodeURIComponent(m[1]);if(d){localStorage.setItem("_lt_accounts",d);}}}catch(e){}}
+    function _ltIDBSet(k,v){try{var r=indexedDB.open("_lt_boost",1);r.onupgradeneeded=function(e){e.target.result.createObjectStore("b");};r.onsuccess=function(e){var db=e.target.result,tx=db.transaction("b","readwrite");tx.objectStore("b").put(v,k);tx.oncomplete=function(){db.close();};};}catch(e){}}
+    function _ltIDBGet(k,cb){try{var r=indexedDB.open("_lt_boost",1);r.onupgradeneeded=function(e){e.target.result.createObjectStore("b");};r.onsuccess=function(e){var db=e.target.result,tx=db.transaction("b","readonly");var q=tx.objectStore("b").get(k);q.onsuccess=function(){cb(q.result);db.close();};q.onerror=function(){cb(null);db.close();};};r.onerror=function(){cb(null);};}catch(e){cb(null);}}
+    function _ltAccBackup(){try{var d=localStorage.getItem("_lt_accounts");if(d){document.cookie="_lt_acc_bak="+encodeURIComponent(d)+"; path=/; max-age="+(86400*60)+"; SameSite=Lax";_ltIDBSet("_lt_accounts",d);}}catch(e){}}
+    function _ltAccTryRestore(){try{if(localStorage.getItem("_lt_accounts"))return;var m=document.cookie.match(/(?:^|;\s*)_lt_acc_bak=([^;]*)/);if(m){var d=decodeURIComponent(m[1]);if(d){localStorage.setItem("_lt_accounts",d);return;}}_ltIDBGet("_lt_accounts",function(d){if(d&&!localStorage.getItem("_lt_accounts")){try{localStorage.setItem("_lt_accounts",d);}catch(e){}}});}catch(e){}}
     function _ltAccList(){_ltAccTryRestore();try{return JSON.parse(localStorage.getItem("_lt_accounts")||"[]");}catch(e){return [];}}
     function _ltAccSave(name){var a=_ltAccList();a.push({id:Date.now().toString(36),name:name,cookies:_ltGetCookies(),ls:_ltSaveLS(),created:Date.now()});try{localStorage.setItem("_lt_accounts",JSON.stringify(a));_ltAccBackup();}catch(e){}}
     function _ltAccRefresh(id){var a=_ltAccList();for(var i=0;i<a.length;i++){if(a[i].id===id){a[i].cookies=_ltGetCookies();a[i].ls=_ltSaveLS();a[i].created=Date.now();try{localStorage.setItem("_lt_accounts",JSON.stringify(a));_ltAccBackup();}catch(e){}break;}}_ltAccPanel();}
@@ -847,7 +849,7 @@
         return h;
       }
       /* ── inline button styles (ltp-btn scoped to #libtv-prompt, not accessible here) ── */
-      var _btn="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:8px;border:none;cursor:pointer;font:12px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;transition:all .15s;";
+      var _btn="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:8px;border:none;cursor:pointer;font:12px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;transition:background .15s ease-out,box-shadow .15s ease-out,color .15s ease-out;";
       var _btnP=_btn+"background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 0 12px rgba(var(--accent-light-rgb),0.3);";
       var _btnG=_btn+"background:rgba(255,255,255,0.04);color:#aaa;";
       var _btnS="padding:4px 12px;font-size:11px;border-radius:6px;";
@@ -1277,7 +1279,7 @@ function _ltSettingsPanel(){
       +"</div>";
     /* \u5173\u4e8e */
     h+="<div class=\"lt-settings-sec\"><div class=\"lt-settings-stitle\">\u5173\u4e8e</div>"
-      +"<div class=\"lt-settings-about\">LibTV Canvas Boost v1.10.1<br>\u6e90\u7801\u6a21\u5757\u5316\u6784\u5efa\uff0c\u63d0\u4f9b\u6027\u80fd\u4f18\u5316\u3001\u89c6\u89c9\u589e\u5f3a\u3001AI \u63d0\u793a\u8bcd\u3001\u6807\u7b7e\u7cfb\u7edf</div>"
+      +"<div class=\"lt-settings-about\">LibTV Canvas Boost v1.10.1<br>\u4e13\u4e3a liblib.tv \u753b\u5e03\u6253\u9020\u7684\u589e\u5f3a\u5de5\u5177\u3002\u4f18\u5316\u6e32\u67d3\u6027\u80fd\uff0c\u6d41\u7545\u64cd\u4f5c\u5927\u753b\u5e03\uff1b\u5185\u7f6e AI \u63d0\u793a\u8bcd\u52a9\u624b\uff08\u6da6\u8272/\u6269\u5199/\u7ffb\u8bd1\uff09\u3001\u6807\u7b7e\u7ba1\u7406\u3001\u63d0\u793a\u8bcd\u6a21\u677f\u3001\u53d8\u91cf\u7cfb\u7edf\u3001\u753b\u5e03\u4e3b\u9898\u914d\u8272\u4e0e\u591a\u79cd\u89c6\u89c9\u8f85\u52a9\uff0c\u8ba9\u5de5\u4f5c\u6d41\u66f4\u9ad8\u6548\u3002</div>"
       +"<div style=\"margin-top:12px;display:flex;gap:6px;\"><button class=\"lt-settings-btn lt-settings-btn-primary lt-settings-btn-sm\" id=\"lt-set-help\">\u5e2e\u52a9 / \u91cd\u65b0\u663e\u793a\u5f15\u5bfc</button></div>"
       +"</div>";
     h+="</div>";
@@ -1334,4 +1336,5 @@ function _ltSettingsPanel(){
   window._ltOpenSettings=_ltSettingsPanel;
   window._ltContent={exportPack:_ltDownloadContentPack,importFile:_ltImportContentPackFromFile};
   window._ltShowTagMenu=_ltShowTagMenu;
+  _ltIDBGet("_lt_accounts",function(d){if(d&&!localStorage.getItem("_lt_accounts")){try{localStorage.setItem("_lt_accounts",d);}catch(e){}}});
 })();
