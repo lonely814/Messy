@@ -4,7 +4,7 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、标签系统、画布主题、设置面板等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.10.1  |  **作者：** oocc00  |  **协议：** MIT
+**当前版本：** 1.10.3  |  **作者：** oocc00  |  **协议：** MIT
 
 ## 文件结构
 
@@ -326,6 +326,43 @@ sel.removeAllRanges(); sel.addRange(r);
 - 油猴菜单 `⚙ 设置` → `unsafeWindow._ltOpenSettings()`
 - 提示词面板「设置」tab → 关闭面板 + 调用 `_ltSettingsPanel()`
 
+#### 账号切换系统
+
+**数据流：**
+1. `_ltAccSave(name)` → 保存当前 cookie + localStorage 快照到 `_lt_accounts`
+2. `_ltAccSwitch(id)` → 恢复目标账号的 cookie + localStorage, 然后 `location.reload()`
+3. `_ltAccList()` → 每次调用触发 `_ltAccTryRestore()` 自动恢复
+
+**三级兜底备份（v1.10.2）：**
+```
+localStorage._lt_accounts（主）
+  → cookie._lt_acc_bak（一级备份，60 天）
+    → IndexedDB._lt_boost（二级备份：对象仓库 b）
+```
+- 每次保存/刷新/删除账号时同时写 cookie + IndexedDB
+- `_ltAccTryRestore()` 判断 localStorage 丢失后依次尝试 cookie → IndexedDB
+- 页面加载时异步从 IndexedDB 提前恢复（`_ltIDBGet` + 回调写回）
+- IndexedDB 不会被 `localStorage.clear()` / 服务器 `Set-Cookie` 清除，仅「清除站点数据」可删
+
+**所有 `_lt_` localStorage 键：**
+
+| key | 用途 |
+|-----|------|
+| `_lt_accounts` | 多账号列表 |
+| `_lt_theme` | 主题预设 |
+| `_lt_prompts` | AI 提示词模板 |
+| `_lt_prompt_api` | AI API 配置（URL + model） |
+| `_lt_ai_sys` | 自定义 system prompt |
+| `_lt_ai_custom_presets` | 自定义预设列表 |
+| `_lt_pal_recent` | 取色器最近色（20 色） |
+| `_lt_pal_fav` | 取色器收藏 |
+| `_lt_tag_libs` | 标签库 |
+| `_lt_cur_lib` | 当前标签库名 |
+| `_lt_recent` | 已插入标签历史 |
+| `_lt_autochain` | 自动连线开关 |
+| `_lt_first_run` | 首次引导标识 |
+| `_lt_perf`, `_lt_hide`, `_lt_grid`, `_lt_edges`, `_lt_focus`, `_lt_step`, `_lt_clean` | 开关状态 |
+
 ## 第六节：菜单 + 持久化（`src/main.js`）
 
 ```js
@@ -419,7 +456,45 @@ node --check src/inject.js
 - `node --check src/inject.js` 通过但浏览器里效果不对 → HTML 转义问题（`_ltEsc()` 漏调）
 - `node build.js` 报错或产出文件语法错误 → `build.js` 的转义逻辑有 bug
 
+## CSS 现代特性应用（v1.10.2）
+
+已应用的现代 CSS 特性（PC-only，不需要 `@media (hover)`）：
+
+| 特性 | 用途 | 数量 |
+|------|------|------|
+| `color-mix()` | 替代 `rgba(var(--accent-rgb), N)` | 37 处 |
+| `@starting-style` | 面板入场过渡（display: none → block 时） | 6 个面板 |
+| `scrollbar-gutter: stable` | 防滚动条出现导致布局偏移 | 7 个容器 |
+| `text-wrap: balance` | 标题自动断行 | 6 处 |
+| `content-visibility: auto` | 长列表跳过屏外渲染 | 3 个列表 |
+| `backdrop-filter: blur(20px)` | 全屏输入毛玻璃 | 1 处 |
+
+过渡曲线统一使用 `var(--ease-out): cubic-bezier(0.23, 1, 0.32, 1)`，取代 `ease`。
+
+## 设计原则
+
+- **微动效**：参考 Emil Kowalski 设计哲学。短（0.15-0.3s），物理感，不干扰用户。用 `var(--ease-out)` 替代线性或 `ease`
+- **毛玻璃**：用 `backdrop-filter: blur(20px)` 而非透明度叠加
+- **PC 专用**：无 touch 适配，不需要 `@media (hover)` 守卫
+- **不写无用文档**：不主动创建 README/doc 文件，除非用户要求
+- **不用 emoji**：除非用户明确要求
+- **不提自动 commit**：不主动 git commit/push，除非用户要求
+
 ## 更新日志
+
+### v1.10.3
+- **内容包扩充**：AI 自定义预设（`_lt_ai_custom_presets`）+ 自定义 system prompt（`_lt_ai_sys`）加入导出导入
+- **API 默认值自动写入**：首次加载时自动将 deepseek 地址和模型写进 localStorage，不再需要手动点保存
+
+### v1.10.2
+- **多账号切换数据丢修复**：IndexedDB 三级兜底备份（localStorage → cookie → IndexedDB），退出登录不再丢账号
+- **清爽模式持久化修复**：`_lt_clean` 页面加载时恢复 `libtv-clean-home` class
+- **性能模式毛玻璃修复**：增加 `-webkit-backdrop-filter: none` 覆盖，补全高专用性选择器的毛玻璃禁用
+- **CSS 持续打磨**：color-mix / @starting-style / scrollbar-gutter / text-wrap / content-visibility / backdrop-filter
+- **过渡曲线统一**：全部 `ease` → `var(--ease-out)` / `var(--ease-in-out)`
+- **全局 focus 规则移除**：橙色描边问题修复
+- **Mantine 选择器收窄**：`nav [id$="-target"][id^="mantine-"]` 修复导航按钮被隐藏
+- **广告按钮隐藏**：`[data-tag="CornerMark"]` 替代旧版 class 选择器
 
 ### v1.10.1
 - AI 面板定位重构：从图标按钮位置弹出（右上对齐），替代屏幕居中

@@ -78,8 +78,16 @@ body.perf-mode * {
   animation-delay: 0s !important;
   transition-duration: 0s !important;
   backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 body.perf-mode #libtv-glow { display: none !important; }
+/* perf-mode: 覆盖 !important 毛玻璃（高专用性选择器） */
+body.perf-mode #libtv-search { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+body.perf-mode #libtv-pbtn.s1,
+body.perf-mode #libtv-pbtn.s3 { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+body.perf-mode .react-flow__nodes .node-floating-ui > div.bg-panel-background { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+body.perf-mode div[class*="max-h-\[90dvh\]"][class*="max-w-\[90vw\]"] > div.bg-panel-background,
+body.perf-mode div[class*="b768\:bottom-3"] { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 #libtv-fps {
   position: fixed; right: 14px; bottom: 14px; z-index: 99999;
   padding: 5px 12px; border-radius: 10px;

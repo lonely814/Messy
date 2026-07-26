@@ -7,6 +7,8 @@
         };
   var _ltAutoChain=localStorage.getItem("_lt_autochain")==="1";
   if(_ltAutoChain) document.body.classList.add("libtv-autochain");
+  var _ltClean=localStorage.getItem("_lt_clean")==="1";
+  if(_ltClean) document.body.classList.add("libtv-clean-home");
   var _ltGraphCache=null;
   function _ltGetGraph(){
     if(!_ltGraphCache){
@@ -117,8 +119,8 @@
     ];
     try{localStorage.setItem("_lt_prompts",JSON.stringify(_ltPrompts));}catch(e){}
   }
-  var _ltPromptAPI=JSON.parse(localStorage.getItem("_lt_prompt_api")||"{\"url\":\"https://api.deepseek.com/chat/completions\",\"model\":\"deepseek-v4-flash\"}");
-  if(!_ltPromptAPI.url){_ltPromptAPI.url="https://api.deepseek.com/chat/completions";_ltPromptAPI.model=_ltPromptAPI.model||"deepseek-v4-flash";}
+  var _ltPromptAPI=JSON.parse(localStorage.getItem("_lt_prompt_api")||"null");
+  if(!_ltPromptAPI||!_ltPromptAPI.url){_ltPromptAPI=_ltPromptAPI||{};_ltPromptAPI.url="https://api.deepseek.com/chat/completions";_ltPromptAPI.model=_ltPromptAPI.model||"deepseek-v4-flash";try{localStorage.setItem("_lt_prompt_api",JSON.stringify(_ltPromptAPI));}catch(e){}}
   var _ltThemePresets=[
     {n:"靛蓝",a:"#6366f1",l:"#818cf8",d:"#4f46e5",ar:"99,102,241",alr:"129,140,248",cb:"#0e0e12",gc:"rgba(255,255,255,0.12)",nb:"#16162a",nc:"rgba(129,140,248,0.15)",ec:"rgba(129,140,248,0.15)",cat:"dark"},
     {n:"翡翠",a:"#10b981",l:"#34d399",d:"#059669",ar:"16,185,129",alr:"52,211,153",cb:"#0b120f",gc:"rgba(255,255,255,0.12)",nb:"#12261c",nc:"rgba(52,211,153,0.15)",ec:"rgba(52,211,153,0.15)",cat:"dark"},
@@ -1165,7 +1167,9 @@
     var prompts=JSON.parse(localStorage.getItem("_lt_prompts")||"[]");
     var tagLibs=JSON.parse(localStorage.getItem("_lt_tag_libs")||"null")||{};
     var curLib=localStorage.getItem("_lt_cur_lib")||"默认标签";
-    return {app:"libtv-boost",type:"content-pack",version:1,exportedAt:new Date().toISOString(),currentLib:curLib,prompts:prompts,tagLibs:tagLibs};
+    var aiPresets=JSON.parse(localStorage.getItem("_lt_ai_custom_presets")||"[]");
+    var aiSys=localStorage.getItem("_lt_ai_sys")||"";
+    return {app:"libtv-boost",type:"content-pack",version:2,exportedAt:new Date().toISOString(),currentLib:curLib,prompts:prompts,tagLibs:tagLibs,aiPresets:aiPresets,aiSys:aiSys};
   }
   function _ltDownloadContentPack(){
     var str=JSON.stringify(_ltBuildContentPack(),null,2);
@@ -1191,8 +1195,10 @@
     box.style.cssText="background:#1b1d2a;border:1px solid rgba(129,140,248,0.3);border-radius:12px;padding:22px;min-width:320px;max-width:90vw;color:#e7e9f3;font-family:inherit;";
     var pcount=Array.isArray(data.prompts)?data.prompts.length:0;
     var tcount=data.tagLibs?Object.keys(data.tagLibs).length:0;
+    var acount=Array.isArray(data.aiPresets)?data.aiPresets.length:0;
+    var asys=data.aiSys?" · 自定义 system prompt":"";
     box.innerHTML='<div style="font-size:15px;font-weight:600;margin-bottom:6px;">导入内容包</div>'
-      +'<div style="font-size:12px;color:rgba(255,255,255,0.55);margin-bottom:14px;">检测到 '+pcount+' 条提示词 · '+tcount+' 个标签库</div>'
+      +'<div style="font-size:12px;color:rgba(255,255,255,0.55);margin-bottom:14px;">检测到 '+pcount+' 条提示词 · '+tcount+' 个标签库'+(acount?' · '+acount+' 个 AI 预设':'')+asys+'</div>'
       +'<div style="display:flex;flex-direction:column;gap:8px;">'
       +'<button id="lt-cp-replace" style="padding:10px;border-radius:8px;border:1px solid rgba(129,140,248,0.4);background:linear-gradient(135deg,rgba(129,140,248,0.25),rgba(167,139,250,0.25));color:#fff;cursor:pointer;font-size:13px;">整体替换（覆盖现有）</button>'
       +'<button id="lt-cp-merge" style="padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#e7e9f3;cursor:pointer;font-size:13px;">合并去重（保留现有）</button>'
@@ -1211,11 +1217,15 @@
         if(Array.isArray(data.prompts))try{localStorage.setItem("_lt_prompts",JSON.stringify(data.prompts));}catch(e){}
         if(data.tagLibs&&typeof data.tagLibs==="object")try{localStorage.setItem("_lt_tag_libs",JSON.stringify(data.tagLibs));}catch(e){}
         if(data.currentLib)try{localStorage.setItem("_lt_cur_lib",data.currentLib);}catch(e){}
+        if(Array.isArray(data.aiPresets))try{localStorage.setItem("_lt_ai_custom_presets",JSON.stringify(data.aiPresets));}catch(e){}
+        if(data.aiSys)try{localStorage.setItem("_lt_ai_sys",data.aiSys);}catch(e){}
       }else{
+        // prompts merge
         var prompts=JSON.parse(localStorage.getItem("_lt_prompts")||"[]");
         var seen={};prompts.forEach(function(p){seen[(p&&p.id)||("n"+Math.random())]=true;});
         (data.prompts||[]).forEach(function(p){if(p&&p.id&&!seen[p.id]){prompts.push(p);seen[p.id]=true;}});
         try{localStorage.setItem("_lt_prompts",JSON.stringify(prompts));}catch(e){}
+        // tagLibs merge
         var tagLibs=JSON.parse(localStorage.getItem("_lt_tag_libs")||"null");if(!tagLibs)tagLibs={};
         var src=data.tagLibs||{};
         for(var k in src){if(!src.hasOwnProperty(k))continue;
@@ -1234,6 +1244,12 @@
           tagLibs[k].categories=dstCats;
         }
         try{localStorage.setItem("_lt_tag_libs",JSON.stringify(tagLibs));}catch(e){}
+        // aiPresets merge (by id)
+        var presets=JSON.parse(localStorage.getItem("_lt_ai_custom_presets")||"[]");
+        var pseen={};presets.forEach(function(p){pseen[p.id]=true;});
+        (data.aiPresets||[]).forEach(function(p){if(p&&p.id&&!pseen[p.id]){presets.push(p);pseen[p.id]=true;}});
+        try{localStorage.setItem("_lt_ai_custom_presets",JSON.stringify(presets));}catch(e){}
+        // aiSys: do not overwrite in merge mode
       }
       if(window._ltPromptRefresh)window._ltPromptRefresh();
       if(window._ltTagRefresh)window._ltTagRefresh();
@@ -1279,7 +1295,7 @@ function _ltSettingsPanel(){
       +"</div>";
     /* \u5173\u4e8e */
     h+="<div class=\"lt-settings-sec\"><div class=\"lt-settings-stitle\">\u5173\u4e8e</div>"
-      +"<div class=\"lt-settings-about\">LibTV Canvas Boost v1.10.1<br>\u4e13\u4e3a liblib.tv \u753b\u5e03\u6253\u9020\u7684\u589e\u5f3a\u5de5\u5177\u3002\u4f18\u5316\u6e32\u67d3\u6027\u80fd\uff0c\u6d41\u7545\u64cd\u4f5c\u5927\u753b\u5e03\uff1b\u5185\u7f6e AI \u63d0\u793a\u8bcd\u52a9\u624b\uff08\u6da6\u8272/\u6269\u5199/\u7ffb\u8bd1\uff09\u3001\u6807\u7b7e\u7ba1\u7406\u3001\u63d0\u793a\u8bcd\u6a21\u677f\u3001\u53d8\u91cf\u7cfb\u7edf\u3001\u753b\u5e03\u4e3b\u9898\u914d\u8272\u4e0e\u591a\u79cd\u89c6\u89c9\u8f85\u52a9\uff0c\u8ba9\u5de5\u4f5c\u6d41\u66f4\u9ad8\u6548\u3002</div>"
+      +"<div class=\"lt-settings-about\">LibTV Canvas Boost v1.10.3<br>\u4e13\u4e3a liblib.tv \u753b\u5e03\u6253\u9020\u7684\u589e\u5f3a\u5de5\u5177\u3002\u4f18\u5316\u6e32\u67d3\u6027\u80fd\uff0c\u6d41\u7545\u64cd\u4f5c\u5927\u753b\u5e03\uff1b\u5185\u7f6e AI \u63d0\u793a\u8bcd\u52a9\u624b\uff08\u6da6\u8272/\u6269\u5199/\u7ffb\u8bd1\uff09\u3001\u6807\u7b7e\u7ba1\u7406\u3001\u63d0\u793a\u8bcd\u6a21\u677f\u3001\u53d8\u91cf\u7cfb\u7edf\u3001\u753b\u5e03\u4e3b\u9898\u914d\u8272\u4e0e\u591a\u79cd\u89c6\u89c9\u8f85\u52a9\uff0c\u8ba9\u5de5\u4f5c\u6d41\u66f4\u9ad8\u6548\u3002</div>"
       +"<div style=\"margin-top:12px;display:flex;gap:6px;\"><button class=\"lt-settings-btn lt-settings-btn-primary lt-settings-btn-sm\" id=\"lt-set-help\">\u5e2e\u52a9 / \u91cd\u65b0\u663e\u793a\u5f15\u5bfc</button></div>"
       +"</div>";
     h+="</div>";
