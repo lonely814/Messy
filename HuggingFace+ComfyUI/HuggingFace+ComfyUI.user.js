@@ -2,13 +2,13 @@
 // @name         MultiMirror Download (HuggingFace + ComfyUI)
 // @name:zh-CN   多镜像下载 (HuggingFace + ComfyUI)
 // @namespace    https://huggingface.co/
-// @version      1.0.3
+// @version      1.0.4
 // @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/HuggingFace%2BComfyUI/icon.png
 // @description  Add hf-mirror (yellow) and ModelScope (purple) download buttons to Hugging Face file pages and the ComfyUI missing-model panel, plus a folder-open shortcut.
 // @description:zh-CN  在 Hugging Face 文件页与 ComfyUI 缺模型面板，为每个下载入口增加 hf-mirror（黄）与 ModelScope（紫）镜像按钮，并提供打开模型目录的快捷键。
 // @match        https://huggingface.co/*
-// @match        http://127.0.0.1:8188/*
-// @match        http://localhost:8188/*
+// @match        *://localhost/*
+// @match        *://127.0.0.1/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @author       oocc00
@@ -423,9 +423,13 @@
     });
   }
 
-  if (location.hostname === 'huggingface.co') {
+  // 域名分流：HF 用 hostname 判断；localhost/127.0.0.1 不写死端口，
+  // 靠 host 字段匹配任意端口即可
+  const isHfPage = location.hostname === 'huggingface.co';
+  const isComfyPage = !isHfPage && /localhost|127\.0\.0\.1/.test(location.host);
+  if (isHfPage) {
     start(patchHuggingFace);
-  } else {
+  } else if (isComfyPage) {
     start(patchComfyUI);
   }
 })();
