@@ -18,7 +18,15 @@ mindmap
       效率工具类
         MultiMirror 多镜像下载
     Blender 插件
-      dual_addon_search 面板增强
+      界面与翻译
+        dual_addon_search 面板增强
+        use_cn_666 汉化插件
+      视口与相机
+        quick_viewport_filters 快速视口过滤
+        CAMERA_PLUS 相机控件
+      场景与动画
+        Empty & Collection Switcher
+        snap_keyframe_to_slider 关键帧吸附
 ```
 
 ---
@@ -40,19 +48,21 @@ mindmap
 
 #### 版本历史
 
-| 版本 | 亮点 |
-|------|------|
-| **v1.10.2** | 多账号切换修复：IndexedDB 三级兜底备份，退出登录不再丢账号 · CSS 微动效持续打磨 |
-| **v1.10.1** | AI 面板定位重构：从图标按钮处弹出替代屏幕居中 · 按钮样式使用内联修复 · 布局调整 |
-| **v1.10.0** | 输入框内联 AI 快捷按钮（🤖）+ 结果预览弹窗 + 预设切换 · 标签图标旁第二位快捷入口 |
-| **v1.9.11** | 构建系统重构：源码模块化拆分（`src/`） + `node build.js` 一键构建 · 开发文档同步更新 |
-| **v1.9.10** | 提示词模板重构：内联表单弹窗 + 分类徽章 + 查看弹窗 + 始终可见操作按钮 · 列表布局重做 |
-| **v1.9.9** | AI 增强重构：预设策略(润色/扩写/缩写/翻译) + 自定义 system prompt + 结果对比区 · 多账号切换（Cookie + localStorage 快照） |
-| **v1.9.8** | 首次使用引导面板 · 设置面板新增「帮助/重新显示引导」按钮 |
-| v1.9.7 | 面板 CSS 主题跟随迁移完成 · 主题预设扩充至 29 种（含高对比度） |
-| v1.9.6 | 按钮 5 种样式 + 右键循环切换 + localStorage 持久化 |
-| v1.9.5 | 引入按钮样式系统 · 主题预设补充（+9 dark +4 light） |
-| v1.9.4 | OMO 配置修复（子代理模型统一） |
+| 版本          | 亮点                                                                                      |
+| ----------- | --------------------------------------------------------------------------------------- |
+| **v1.10.4** | 修复 Mantine 规则误杀节点面板 · 设置面板新增 GitHub/Greasy Fork/ScriptCat 链接                            |
+| **v1.10.3** | 内容包扩充（AI 预设+system prompt）· API 默认值自动写入                                                 |
+| **v1.10.2** | 多账号切换修复：IndexedDB 三级兜底备份，退出登录不再丢账号 · CSS 微动效持续打磨                                        |
+| **v1.10.1** | AI 面板定位重构：从图标按钮处弹出替代屏幕居中 · 按钮样式使用内联修复 · 布局调整                                            |
+| **v1.10.0** | 输入框内联 AI 快捷按钮（🤖）+ 结果预览弹窗 + 预设切换 · 标签图标旁第二位快捷入口                                         |
+| **v1.9.11** | 构建系统重构：源码模块化拆分（`src/`） + `node build.js` 一键构建 · 开发文档同步更新                                |
+| **v1.9.10** | 提示词模板重构：内联表单弹窗 + 分类徽章 + 查看弹窗 + 始终可见操作按钮 · 列表布局重做                                        |
+| **v1.9.9**  | AI 增强重构：预设策略(润色/扩写/缩写/翻译) + 自定义 system prompt + 结果对比区 · 多账号切换（Cookie + localStorage 快照） |
+| **v1.9.8**  | 首次使用引导面板 · 设置面板新增「帮助/重新显示引导」按钮                                                          |
+| v1.9.7      | 面板 CSS 主题跟随迁移完成 · 主题预设扩充至 29 种（含高对比度）                                                   |
+| v1.9.6      | 按钮 5 种样式 + 右键循环切换 + localStorage 持久化                                                    |
+| v1.9.5      | 引入按钮样式系统 · 主题预设补充（+9 dark +4 light）                                                     |
+| v1.9.4      | OMO 配置修复（子代理模型统一）                                                                       |
 
 <br>
 
@@ -71,7 +81,7 @@ mindmap
 
 ### ⬇️ 下载工具系列
 
-#### 🌐 MultiMirror Download (HuggingFace + ComfyUI)
+#### 🌐 MultiMirror Download (HuggingFace + ComfyUI) v1.0.4
 
 <div align="right">
     <a href="https://greasyfork.org/zh-CN/scripts/587134-multimirror-download-huggingface-comfyui">
@@ -89,19 +99,49 @@ mindmap
 
 ## 🧊 Blender 插件合集
 
-个人开发的 Blender 效率向小插件，针对性优化日常创作流程。
+个人维护的 Blender 效率工具集，部分为原创开发，部分为修复兼容的魔改版本，针对性优化日常建模与动画工作流。
 
 <details open>
-<summary>🔍 dual_addon_search 插件设置面板增强</summary>
+<summary>🔍 dual_addon_search — 插件设置面板增强</summary>
 
-#### ✨ 核心特性
+> 重构插件搜索与筛选逻辑，支持关键词模糊匹配；双栏布局大幅提升设置面板浏览与配置效率；一键快速定位插件配置项与帮助文档。
 
-- 重构插件搜索与筛选逻辑，支持关键词模糊匹配
-- 双栏布局大幅提升设置面板浏览与配置效率
-- 一键快速定位插件配置项与帮助文档
+适配 Blender 3.x ~ 4.x，开箱即用，无额外依赖。
 
-> [!NOTE]
-> 适配 Blender 3.x ~ 4.x 全系列正式版本，开箱即用，无额外依赖。
+</details>
+
+<details>
+<summary>🌏 use_cn_666 — Blender 汉化插件（个人魔改）</summary>
+
+> 基于社区汉化项目精调，补全缺失词条，优化翻译准确性，同步适配 Blender 最新版本 API 变更，让中文界面体验更完整流畅。
+
+</details>
+
+<details>
+<summary>👁️ quick_viewport_filters — 快速视口过滤</summary>
+
+> 一键切换视口显示过滤——灯光,网格,空物体，在建模与审阅之间自由跳转，减少菜单层级操作，专注创作本身。
+
+</details>
+
+<details>
+<summary>📷 CAMERA_PLUS — 增强型相机控件</summary>
+
+> 提供更直观的相机操控方式与视觉辅助。因原作者已停更，个人修复了与 Blender 最新版本的兼容性问题，延续插件生命周期。
+
+</details>
+
+<details>
+<summary>🔗 Empty & Collection Switcher — 集合与父子级快速转换</summary>
+
+> 在空对象与集合之间快速转换层级关系，灵活调整场景父子结构，尤其适合复杂装配与多层级场景的高效组织。
+
+</details>
+
+<details>
+<summary>⏱️ snap_keyframe_to_slider — 关键帧吸附到时间线</summary>
+
+> 将选中关键帧对齐到时间线当前帧位置，精确控制动画节奏，告别逐帧拖拽的手动对位，提升动画调整效率。
 
 </details>
 
