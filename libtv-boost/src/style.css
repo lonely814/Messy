@@ -481,15 +481,6 @@ button[aria-label="会员超市"],
 button[class*="text-[#05A3C5]"] {
   display: none !important;
 }
-/* 隐藏 Mantine 面板触发按钮 */
-[id$="-target"][id^="mantine-"],
-body.libtv-clean-home button[aria-label="帮助信息"] {
-  display: none !important;
-}
-/* 恢复导航栏 Mantine 按钮 */
-nav [id$="-target"][id^="mantine-"] {
-  display: flex !important;
-}
 /* 隐藏"限时40折"广告按钮 */
 [data-tag="CornerMark"] {
   display: none !important;
@@ -509,7 +500,7 @@ div[class*="border-"][class*="topnav-btn-border"] > div.relative:first-child > d
 header.m_3b16f56b > div.relative:first-child {
   display: none !important;
 }
-/* body.libtv-clean-home button[aria-label="帮助信息"] 已合入上方 Mantine 规则 */
+body.libtv-clean-home button[aria-label="帮助信息"],
 body.libtv-clean-home a[aria-label="回到主站"],
 body.libtv-clean-home button[aria-label="创作者挑战赛"] {
   display: none !important;
@@ -798,6 +789,8 @@ body.libtv-clean-home div.b768\:px-\[10px\] > div.mx-auto body.libtv-clean-home 
 .lt-settings-dclear:hover { background:rgba(239,68,68,0.12); color:#f87171; }
 .lt-settings-dclear:active { transform:scale(0.93); }
 .lt-settings-about { font-size:11px; color:rgba(255,255,255,0.2); line-height:1.6; margin-top:4px; }
+.lt-settings-about a { color:rgba(255,255,255,0.4); text-decoration:none; transition:color .15s var(--ease-out); }
+.lt-settings-about a:hover { color:#fff; }
 .lt-settings-cpbtns { display:flex; gap:6px; margin-top:8px; }
 .lt-settings-btn { display:inline-flex; align-items:center; gap:4px; padding:6px 12px; border-radius:7px; border:none; cursor:pointer; font:12px/1.4 -apple-system,sans-serif; transition:background .15s var(--ease-out), color .15s var(--ease-out), box-shadow .15s var(--ease-out), transform .15s var(--ease-out); }
 .lt-settings-btn:active { transform:scale(0.97); }

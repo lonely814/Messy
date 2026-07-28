@@ -4,7 +4,7 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、标签系统、画布主题、设置面板等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.10.3  |  **作者：** oocc00  |  **协议：** MIT
+**当前版本：** 1.10.4  |  **作者：** oocc00  |  **协议：** MIT
 
 ## 文件结构
 
@@ -481,6 +481,10 @@ node --check src/inject.js
 - **不提自动 commit**：不主动 git commit/push，除非用户要求
 
 ## 更新日志
+
+### v1.10.4
+- **修复 Mantine 全局规则误杀节点面板**：移除 `[id$="-target"][id^="mantine-"] { display:none }`，节点面板内按钮/图片容器恢复正常
+- **设置面板新增项目链接**：关于区加入 GitHub / Greasy Fork / ScriptCat 三个跳转图标
 
 ### v1.10.3
 - **内容包扩充**：AI 自定义预设（`_lt_ai_custom_presets`）+ 自定义 system prompt（`_lt_ai_sys`）加入导出导入

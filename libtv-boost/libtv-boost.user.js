@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
-// @version      1.10.3
+// @version      1.10.4
 // @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/libtv-boost/libtv-boost-icon.png
 // @license      MIT
 // @author       oocc00
@@ -504,15 +504,6 @@
 'button[class*="text-[#05A3C5]"] {',
 '  display: none !important;',
 '}',
-'/* 隐藏 Mantine 面板触发按钮 */',
-'[id$="-target"][id^="mantine-"],',
-'body.libtv-clean-home button[aria-label="帮助信息"] {',
-'  display: none !important;',
-'}',
-'/* 恢复导航栏 Mantine 按钮 */',
-'nav [id$="-target"][id^="mantine-"] {',
-'  display: flex !important;',
-'}',
 '/* 隐藏"限时40折"广告按钮 */',
 '[data-tag="CornerMark"] {',
 '  display: none !important;',
@@ -532,7 +523,7 @@
 'header.m_3b16f56b > div.relative:first-child {',
 '  display: none !important;',
 '}',
-'/* body.libtv-clean-home button[aria-label="帮助信息"] 已合入上方 Mantine 规则 */',
+'body.libtv-clean-home button[aria-label="帮助信息"],',
 'body.libtv-clean-home a[aria-label="回到主站"],',
 'body.libtv-clean-home button[aria-label="创作者挑战赛"] {',
 '  display: none !important;',
@@ -821,6 +812,8 @@
 '.lt-settings-dclear:hover { background:rgba(239,68,68,0.12); color:#f87171; }',
 '.lt-settings-dclear:active { transform:scale(0.93); }',
 '.lt-settings-about { font-size:11px; color:rgba(255,255,255,0.2); line-height:1.6; margin-top:4px; }',
+'.lt-settings-about a { color:rgba(255,255,255,0.4); text-decoration:none; transition:color .15s var(--ease-out); }',
+'.lt-settings-about a:hover { color:#fff; }',
 '.lt-settings-cpbtns { display:flex; gap:6px; margin-top:8px; }',
 '.lt-settings-btn { display:inline-flex; align-items:center; gap:4px; padding:6px 12px; border-radius:7px; border:none; cursor:pointer; font:12px/1.4 -apple-system,sans-serif; transition:background .15s var(--ease-out), color .15s var(--ease-out), box-shadow .15s var(--ease-out), transform .15s var(--ease-out); }',
 '.lt-settings-btn:active { transform:scale(0.97); }',
@@ -2406,7 +2399,7 @@
 '      +"</div>";',
 '    /* \\u5173\\u4e8e */',
 '    h+="<div class=\\"lt-settings-sec\\"><div class=\\"lt-settings-stitle\\">\\u5173\\u4e8e</div>"',
-'      +"<div class=\\"lt-settings-about\\">LibTV Canvas Boost v1.10.3<br>\\u4e13\\u4e3a liblib.tv \\u753b\\u5e03\\u6253\\u9020\\u7684\\u589e\\u5f3a\\u5de5\\u5177\\u3002\\u4f18\\u5316\\u6e32\\u67d3\\u6027\\u80fd\\uff0c\\u6d41\\u7545\\u64cd\\u4f5c\\u5927\\u753b\\u5e03\\uff1b\\u5185\\u7f6e AI \\u63d0\\u793a\\u8bcd\\u52a9\\u624b\\uff08\\u6da6\\u8272/\\u6269\\u5199/\\u7ffb\\u8bd1\\uff09\\u3001\\u6807\\u7b7e\\u7ba1\\u7406\\u3001\\u63d0\\u793a\\u8bcd\\u6a21\\u677f\\u3001\\u53d8\\u91cf\\u7cfb\\u7edf\\u3001\\u753b\\u5e03\\u4e3b\\u9898\\u914d\\u8272\\u4e0e\\u591a\\u79cd\\u89c6\\u89c9\\u8f85\\u52a9\\uff0c\\u8ba9\\u5de5\\u4f5c\\u6d41\\u66f4\\u9ad8\\u6548\\u3002</div>"',
+'      +"<div class=\\"lt-settings-about\\">LibTV Canvas Boost v1.10.4<br>\\u4e13\\u4e3a liblib.tv \\u753b\\u5e03\\u6253\\u9020\\u7684\\u589e\\u5f3a\\u5de5\\u5177\\u3002\\u4f18\\u5316\\u6e32\\u67d3\\u6027\\u80fd\\uff0c\\u6d41\\u7545\\u64cd\\u4f5c\\u5927\\u753b\\u5e03\\uff1b\\u5185\\u7f6e AI \\u63d0\\u793a\\u8bcd\\u52a9\\u624b\\uff08\\u6da6\\u8272/\\u6269\\u5199/\\u7ffb\\u8bd1\\uff09\\u3001\\u6807\\u7b7e\\u7ba1\\u7406\\u3001\\u63d0\\u793a\\u8bcd\\u6a21\\u677f\\u3001\\u53d8\\u91cf\\u7cfb\\u7edf\\u3001\\u753b\\u5e03\\u4e3b\\u9898\\u914d\\u8272\\u4e0e\\u591a\\u79cd\\u89c6\\u89c9\\u8f85\\u52a9\\uff0c\\u8ba9\\u5de5\\u4f5c\\u6d41\\u66f4\\u9ad8\\u6548\\u3002<div style=\\"margin-top:12px;display:flex;gap:10px;\\"><a href=\\"https://github.com/lonely814/Messy\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"currentColor\\"><path d=\\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z\\"/></svg>GitHub</a><a href=\\"https://greasyfork.org/zh-CN/scripts/586841-libtv-canvas-boost\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\"><path d=\\"M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5\\"/></svg>Greasy Fork</a><a href=\\"https://scriptcat.org/zh-CN/script-show-page/7117\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M12 20h9\\"/><path d=\\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\\"/></svg>ScriptCat</a></div></div>"',
 '      +"<div style=\\"margin-top:12px;display:flex;gap:6px;\\"><button class=\\"lt-settings-btn lt-settings-btn-primary lt-settings-btn-sm\\" id=\\"lt-set-help\\">\\u5e2e\\u52a9 / \\u91cd\\u65b0\\u663e\\u793a\\u5f15\\u5bfc</button></div>"',
 '      +"</div>";',
 '    h+="</div>";',
