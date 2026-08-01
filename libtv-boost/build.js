@@ -1,9 +1,11 @@
 // build.js — zero-dep build script for libtv-boost.user.js
 // Usage: node build.js
 // Reads src/style.css, src/inject.js, src/main.js → assembles libtv-boost.user.js
+// 版本号统一在本文件顶部 VERSION 常量维护，构建时自动注入 __VERSION__ 占位符
 const fs = require('fs');
 const path = require('path');
 
+const VERSION = '1.10.6';
 const ROOT = __dirname;
 const SRC = path.join(ROOT, 'src');
 const OUT = path.join(ROOT, 'libtv-boost.user.js');
@@ -40,10 +42,11 @@ function build() {
   let main = read('main.js');
   main = main.replace('__INJECT_CSS__', cssLines.join(',\n'));
   main = main.replace('__INJECT_SCRIPT__', injectLines.join(',\n'));
+  main = main.replace(/__VERSION__/g, VERSION);
 
   // 3. Write output
   fs.writeFileSync(OUT, main, 'utf-8');
-  console.log('✓ Built: ' + OUT);
+  console.log('✓ Built v' + VERSION + ': ' + OUT);
 }
 
 build();

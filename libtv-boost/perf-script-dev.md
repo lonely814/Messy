@@ -4,7 +4,7 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、标签系统、画布主题、设置面板等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.10.5  |  **作者：** oocc00  |  **协议：** MIT
+**当前版本：** 1.10.6  |  **作者：** oocc00  |  **协议：** MIT
 
 ## 文件结构
 
@@ -28,7 +28,10 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 1. 读取 `src/style.css`，按行分割，每行转成单引号字符串（自动转义 `\` / `'` / CRLF）
 2. 读取 `src/inject.js`，同上处理
 3. 读取 `src/main.js` 模板，将 CSS 数组替换 `__INJECT_CSS__`，注入脚本数组替换 `__INJECT_SCRIPT__`
-4. 写出 `libtv-boost.user.js`
+4. 将 `build.js` 顶部的 `VERSION` 常量注入所有 `__VERSION__` 占位符（`@version` 元数据 + 设置面板关于区）
+5. 写出 `libtv-boost.user.js`
+
+**版本号维护：** 统一在 `build.js` 顶部 `VERSION` 常量修改，构建时自动注入，不再手动改源码。文档中的版本号仍需手动同步。
 
 **加新文件的流程：** 在 `build.js` 的 `build()` 函数中加一行 `read()` + `replace()` 链即可。
 
@@ -58,6 +61,7 @@ node --check src/inject.js                 # 直接验证注入脚本语法（�
 ───────                         ────────────────────
 unsafeWindow._ltShowTagMenu(ta)  ← window._ltShowTagMenu
 unsafeWindow._ltOpenSettings()   ← window._ltOpenSettings
+unsafeWindow._ltDiag             ← window._ltDiag（图标扫描自检，诊断菜单读取）
 unsafeWindow._ltContent          ← window._ltContent
 ```
 
@@ -177,12 +181,13 @@ DOM 创建 + 拖拽 + RAF 循环：
 
 全屏 SVG overlay（`#libtv-glow`），`z-index:50`，`pointer-events:none`。
 
-对每个 `.react-flow__node.selected`，生成沿节点边框运动的虚线描边动画：
+对每个 `.react-flow__node.selected` 生成沿节点边框运动的双流光（双层 × 180° 对位）：
+- 结构：模糊光带（accentLight，7px，13% 周长）+ 白色亮线（2px，13% 周长），第二条 offset+周长/2
 - 色调：读取 `--accent` / `--accent-light`
-- 动画周期：7000ms
-- 光晕：`feGaussianBlur(stdDeviation=6)`
+- 动画周期：7000ms/圈，每节点独立计时（t0），固定从顶边中点出发
+- 光晕：`feGaussianBlur(stdDeviation=6)`（固定，不随缩放）
+- 性能：元素缓存（帧内只改 dashoffset/opacity，零 DOM 重建）、30fps 节流、200ms 淡入 / 150ms 淡出
 - 性能模式下自动隐藏
-
 ## 第四节：AI Agent Drawer 适配（`src/main.js`）
 
 MutationObserver 监听 `body`，检测右侧 AI Agent Drawer 的出现。当 drawer 打开时，将 FPS 面板和浮动按钮右推避免遮挡。
@@ -412,7 +417,7 @@ var _toggles = {
 - `unsafeWindow` 需要 `@grant unsafeWindow`
 - edge 的 `aria-label` 可能包含不可见 Unicode 字符（零宽空格等），需 `.trim()` 后再匹配
 - 直角连线 Observer 观察 `.react-flow` 父级（非 `.react-flow__edges` 自身），防 React 重建后失效
-- 标签 MutationObserver 使用 100ms 防抖 + `setInterval` 1.5 秒轮询兜底
+- 图标扫描：MutationObserver(100ms) + 事件连扫(80/300/800/1500ms) + 1s 轮询三层兜底；图标为 body 浮动元素（fixed 定位 + 稳定性门），不进 React 树
 - 所有 `_lt_*` localStorage 键的读写统一定义在脚本中，无外部依赖
 - 编辑 `src/` 下的源码后必须执行 `node build.js` 重新生成 `.user.js`
 - `node --check src/inject.js` 可直接验证注入脚本语法，无需构建
@@ -479,8 +484,86 @@ node --check src/inject.js
 - **不写无用文档**：不主动创建 README/doc 文件，除非用户要求
 - **不用 emoji**：除非用户明确要求
 - **不提自动 commit**：不主动 git commit/push，除非用户要求
+- **诊断内置**：关键子系统自带自检（_ltDiag），出问题先看数据再猜原因
+- **不轻易删兜底**：删除"看似冗余"的容错机制前，先确认它的历史作用
+
+## 踩坑记录（2026-08 图标系统修复战役）
+
+从 1.10.5 移除定时轮询到 1.10.6 重写图标架构，这轮修复踩了不少坑，全部沉淀如下。
+
+### 1. 不要把「兜底轮询」当冗余优化
+
+- **现象**：自认「双保险多余」删掉 `setInterval(_ltTagScan,1500)`，导致图标全部消失，历经五个版本才完全修复
+- **教训**：双保险设计往往有历史原因（真实页面 MutationObserver 确实存在漏检）。删前先确认每一层的作用，删后必须留可回滚通道
+- **最终方案**：三层各司其职——事件连扫负责即时响应、1s 轮询负责兜底注册、浮动图标负责存活
+
+### 2. `offsetParent === null` 不等于隐藏
+
+- **现象**：画布输入框在 `position:fixed` 悬浮面板内，`offsetParent` 按规范恒为 null，可见性检查把它当隐藏过滤
+- **正确姿势**：判断可见性用 `getClientRects().length > 0` —— fixed 元素有布局矩形（通过），`display:none` 无矩形（跳过）
+
+### 3. 站点 DOM 会变，选择器要能自证
+
+- **现象**：liblib 把 textarea 输入框换成 ChatRichInput 富文本编辑器，旧选择器（textarea / contenteditable="true"）全部失效
+- **教训**：站点脚本必须内置诊断（`window._ltDiag` + 油猴菜单「🔍 诊断」）。这次正是诊断数据直接给出「页面 textarea 总数: 0」「node=false」，才从猜转向了定位
+
+### 4. 别往 React 管理的 DOM 里塞外来节点
+
+- **现象**：图标注入输入框 wrapper 后，被 ChatRichInput 的高频重渲染（光标/选区/每次输入）反复清掉 → 时有时无
+- **正确姿势**：图标挂 `document.body`（fixed 定位），按输入框 `getBoundingClientRect()` 同步位置，彻底脱离 React 渲染树
+- **细节**：显示前加「稳定性门」——矩形连续两次一致（位移 <8px）才显示，避免面板动画期间图标闪现/瞬移
+
+### 5. 顶层 `JSON.parse(localStorage)` 必须兜底
+
+- **现象**：任一 `_lt_*` 数据损坏，整个 IIFE 在入口处抛错，后续所有功能（含图标）静默失效
+- **正确姿势**：入口数据读取一律 try/catch + 默认值（`_lt_prompts` / `_lt_prompt_api` / `_lt_theme` / `_lt_tag_libs` / `_lt_recent` 已全部加固）
+
+### 6. 嵌套作用域的函数不能顶层调用
+
+- **现象**：`_ltIDBGet` 定义在 `_ltPromptPanel` 内部，顶层调用每次加载抛 ReferenceError（存量 bug，控制台可见但无人注意）
+- **正确姿势**：顶层执行代码引用函数前确认其定义位置；用沙箱执行注入脚本可立刻暴露
+
+### 7. 调试方法论（这次战役的制胜关键）
+
+- **沙箱测试**：用 DOM stub 执行构建产物中提取的注入脚本（提取数组 → eval → 跑通），能秒级验证「加载是否抛错、图标能否注入」，无需浏览器
+- **诊断先行**：先加可观测性再改逻辑；自检统计每轮重置，避免累积数字误导判断
+- **产物与源码对比**：build 是字符串拼接，怀疑构建问题时提取产物中的数组反解对比（注意行尾符差异）
+- **文件换行符**：dev 文档是 CRLF，直接 edit 多行匹配会失败，用 node 脚本按 index 替换
+
+### 8. 版本纪律
+
+- 修复期保持同一版本号，用户确认效果后再统一发布（本次 1.10.6~1.10.10 合并为一条 1.10.6）
+- 合并发布时把中间版本的 changelog 合并为一条，避免文档膨胀
+
+### 9. 视觉重做要保留原始风貌
+- **现象**：光效重做先试三层彗星（被否）、再试纯模糊单层（被否），用户最终认可「最初的双层质感 + 顺滑机制」
+- **教训**：用户对已有视觉有感情。重做时先保留原视觉骨架、只修问题（顺滑度/时机/性能），不要换概念；参数迭代比概念替换安全
 
 ## 更新日志
+
+### v1.10.6
+**AI 增强体验**
+- 版本号自动注入：build.js 顶部 VERSION 常量统一维护，@version 元数据与设置面板关于区构建时自动注入
+- API Key 显隐切换：设置面板 Key 输入框新增 👁 按钮
+- 执行按钮状态化：生成成功后按钮变「🔄 重新生成」，清空结果后恢复「执行」
+- 设置面板双栏卡片化布局：加宽至 880px，分区独立玻璃卡片（渐变背景/圆角/投影/hover 上浮），头部 logo 徽章 + 关于区版本呼吸徽章
+- 面板统一贵气化：提示词面板/标签面板/AI 面板统一渐变背景、18px 大圆角、顶部高光线；AI 与标签面板宽度统一 540px
+- 浮动图标层级修正：z-index 从 2147483646 降至 99990（面板 99999~100002 之上、页面 UI 之下，弹出面板不再被图标遮挡）
+
+**图标系统重写（适配 liblib 新版画布）**
+- 适配 ChatRichInput 富文本输入：页面已无 textarea，节点白名单新增 ChatRichInput/RichInput/chat-rich/prompt-editor 等 class 匹配
+- 浮动图标架构：标签/AI 图标挂载 document.body（fixed 定位），彻底脱离 React 渲染树，富文本高频重渲染不再清除图标
+- 选择器放宽为 `textarea,input,[contenteditable]`（过滤按钮类），可见性改用 getClientRects（兼容 fixed 悬浮面板）
+- 响应优化：事件后 80/300/800/1500ms 连扫 + 1s 轮询兜底；稳定性门（矩形稳定后才显示，面板动画期间不闪现）
+
+**流动光效重写**
+- 双层双流光：模糊光带（accent 13% 周长）+ 白色亮线双层，180° 对位第二条；固定从顶边中点出发（消除随机跳位）、200ms 淡入/150ms 淡出、元素缓存零重建、30fps 渲染、模糊固定 6px
+- 迭代教训：三层彗星/纯模糊均被否，最终回到原始双层质感 + 顺滑机制
+
+**健壮性与诊断**
+- 修复注入脚本顶层调用 `_ltIDBGet` 加载即崩（ReferenceError）
+- `_lt_prompts` / `_lt_prompt_api` / `_lt_theme` / `_lt_tag_libs` / `_lt_recent` 五处顶层 JSON.parse 异常兜底，数据损坏不再杀死整个脚本
+- 图标扫描自检接入油猴菜单「🔍 诊断」：输入框详情（tag/type/可见性/节点归属）+ 浮动图标状态（连接/显示/坐标）
 
 ### v1.10.5
 - **面板拖拽**：标签面板 / AI 增强面板按住头部可自由拖动（自动排除内部可交互元素，标签面板缩放仍可用）

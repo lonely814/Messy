@@ -108,7 +108,8 @@
     });
     document.getElementById("lt-search-input").focus();
   }
-  var _ltPrompts=JSON.parse(localStorage.getItem("_lt_prompts")||"[]");
+  var _ltPrompts=[];
+  try{_ltPrompts=JSON.parse(localStorage.getItem("_lt_prompts")||"[]");}catch(e){_ltPrompts=[];}
   if(!_ltPrompts.length){
     _ltPrompts=[
       {id:"d1",name:"产品摄影",category:"图像",content:"Product photography on {background=white} background, {lighting=studio lighting}, high detail, 8K, sharp focus, {extra}"},
@@ -119,7 +120,8 @@
     ];
     try{localStorage.setItem("_lt_prompts",JSON.stringify(_ltPrompts));}catch(e){}
   }
-  var _ltPromptAPI=JSON.parse(localStorage.getItem("_lt_prompt_api")||"null");
+  var _ltPromptAPI=null;
+  try{_ltPromptAPI=JSON.parse(localStorage.getItem("_lt_prompt_api")||"null");}catch(e){_ltPromptAPI=null;}
   if(!_ltPromptAPI||!_ltPromptAPI.url){_ltPromptAPI=_ltPromptAPI||{};_ltPromptAPI.url="https://api.deepseek.com/chat/completions";_ltPromptAPI.model=_ltPromptAPI.model||"deepseek-v4-flash";try{localStorage.setItem("_lt_prompt_api",JSON.stringify(_ltPromptAPI));}catch(e){}}
   var _ltThemePresets=[
     {n:"靛蓝",a:"#6366f1",l:"#818cf8",d:"#4f46e5",ar:"99,102,241",alr:"129,140,248",cb:"#0e0e12",gc:"rgba(255,255,255,0.12)",nb:"#16162a",nc:"rgba(129,140,248,0.15)",ec:"rgba(129,140,248,0.15)",cat:"dark"},
@@ -152,7 +154,9 @@
     {n:"高对比绿",a:"#22c55e",l:"#4ade80",d:"#16a34a",ar:"34,197,94",alr:"74,222,128",cb:"#000000",gc:"rgba(255,255,255,0.12)",nb:"#0a0f0c",nc:"rgba(74,222,128,0.18)",ec:"rgba(74,222,128,0.18)",cat:"high"},
     {n:"高对比橙",a:"#f97316",l:"#fb923c",d:"#ea580c",ar:"249,115,22",alr:"251,146,60",cb:"#000000",gc:"rgba(255,255,255,0.12)",nb:"#0f0a06",nc:"rgba(251,146,60,0.18)",ec:"rgba(251,146,60,0.18)",cat:"high"},
   ];
-  var _ltTheme=JSON.parse(localStorage.getItem("_lt_theme")||"null")||_ltThemePresets[0];
+  var _ltTheme=null;
+  try{_ltTheme=JSON.parse(localStorage.getItem("_lt_theme")||"null");}catch(e){_ltTheme=null;}
+  if(!_ltTheme)_ltTheme=_ltThemePresets[0];
   if(!_ltTheme.cb){_ltTheme.cb=_ltThemePresets[0].cb;_ltTheme.gc=_ltThemePresets[0].gc;_ltTheme.nb=_ltThemePresets[0].nb;_ltTheme.nc=_ltThemePresets[0].nc;_ltTheme.ec=_ltThemePresets[0].ec;}
   function _ltApplyTheme(t){
     var r=document.documentElement;
@@ -333,7 +337,7 @@
           document.getElementById("ltp-ai-status").textContent=_ltAISource?"✅ 已绑定源输入框":"⚠ 未找到可见输入框";
         };
         /* clear */
-        document.getElementById("ltp-ai-clear").onclick=function(){_ltAIInp.value="";_ltAIInp.style.height="auto";document.getElementById("ltp-ai-result").style.display="none";};
+        document.getElementById("ltp-ai-clear").onclick=function(){_ltAIInp.value="";_ltAIInp.style.height="auto";document.getElementById("ltp-ai-result").style.display="none";var g=document.getElementById("ltp-ai-go");if(g)g.textContent="🚀 执行";};
         /* execute */
         var _ltDoAI=function(text,btn){
           var api=_ltPromptAPI;
@@ -348,7 +352,7 @@
             resEl.style.display="block";
             resEl.innerHTML='<div class="ai-sec"><div class="ai-label">原文</div><div class="ai-text ai-orig">'+_ltEsc(text.slice(0,300))+(text.length>300?"...":"")+'</div></div><div class="ai-sep"></div><div class="ai-sec"><div class="ai-label">增强结果</div><div class="ai-text" id="ltp-ai-res-text">'+_ltEsc(result)+'</div></div><div class="ai-res-actions"><button class="ltp-btn ltp-btn-primary ltp-btn-sm" id="ltp-ai-write">写回源输入框</button><button class="ltp-btn ltp-btn-ghost ltp-btn-sm" id="ltp-ai-copy">复制</button></div>';
             statusEl.textContent="✅ 完成";
-            btn.textContent="🚀 执行";btn.disabled=false;
+            btn.textContent="🔄 重新生成";btn.disabled=false;
             /* write-back */
             document.getElementById("ltp-ai-write").onclick=function(){
               if(!_ltAISource){statusEl.textContent="⚠ 未绑定源输入框，请先点击“从输入框获取”";return;}
@@ -566,7 +570,8 @@
     div.querySelectorAll(".ltp-tab").forEach(function(t){t.onclick=function(){_ltPActiveTab=this.getAttribute("data-tab");div.querySelectorAll(".ltp-tab").forEach(function(x){x.classList.toggle("active",x===t);});renderBody();};});
     window._ltPromptRefresh=function(){var d=document.getElementById("libtv-prompt");if(d){_ltPrompts=JSON.parse(localStorage.getItem("_lt_prompts")||"[]");renderBody();}};
   }
-  var _ltTagLibs=JSON.parse(localStorage.getItem("_lt_tag_libs")||"null");
+  var _ltTagLibs=null;
+  try{_ltTagLibs=JSON.parse(localStorage.getItem("_lt_tag_libs")||"null");}catch(e){_ltTagLibs=null;}
   if(!_ltTagLibs){
     _ltTagLibs={"默认标签":{categories:[
       {name:"常规标签",icon:"⭐",groups:[
@@ -592,7 +597,8 @@
   if(!_ltTagLibs[_ltCurLib])_ltCurLib=Object.keys(_ltTagLibs)[0];
   var _ltTagActiveCat=0;
   var _ltTagSearch="";
-  var _ltRecentTags=JSON.parse(localStorage.getItem("_lt_recent")||"[]");
+  var _ltRecentTags=[];
+  try{_ltRecentTags=JSON.parse(localStorage.getItem("_lt_recent")||"[]");}catch(e){_ltRecentTags=[];}
   var _ltTagMenuEl=null,_ltTagInputEl=null;
   function _ltCurLibCats(){var l=_ltTagLibs[_ltCurLib];return l&&l.categories?l.categories:[];}
   function _ltCurCatGroups(){var c=_ltCurLibCats()[_ltTagActiveCat];return c&&c.groups?c.groups:[];}
@@ -851,55 +857,119 @@
   }
   /* 标签管理已移至面板内联（新增标签 / 分组 / 分类） */
   (function(){
+    var _ltScanStats={runs:0,found:0,visible:0,nodeInp:0,tagInj:0,aiInj:0,last:0,details:[]};
     function _ltTagScan(){
-      var els=document.querySelectorAll("textarea,input[type=\"text\"],[contenteditable=\"true\"]");
+      _ltScanStats.runs++;
+      _ltScanStats.visible=0;_ltScanStats.nodeInp=0;_ltScanStats.tagInj=0;_ltScanStats.aiInj=0;
+      var els=document.querySelectorAll("textarea,input,[contenteditable]");
+      _ltScanStats.found=els.length;
+      _ltScanStats.details=[];
       /* filter to only canvas node inputs (skip page-level search bars, etc.) */
-      function _ltIsNodeInput(el){return el.closest(".react-flow__node")!==null||el.closest("[data-id^=\"i-\"],[data-id^=\"n-\"],[data-id^=\"m-\"]")!==null;}
+      function _ltIsNodeInput(el){
+        if(el.closest(".react-flow__node")!==null)return true;
+        if(el.closest("[data-id^=\"i-\"],[data-id^=\"n-\"],[data-id^=\"m-\"]")!==null)return true;
+        /* liblib \u753b\u5e03\u65b0\u7248\u8bdd\u6846\u5f0f\u8f93\u5165\uff08ChatRichInput\uff09\u53ca\u5404\u79cd\u63d0\u793a\u8bcd\u7f16\u8f91\u5668 */
+        return el.closest("[class*=\"ChatRichInput\"],[class*=\"RichInput\"],[class*=\"chat-rich\"],[class*=\"prompt-editor\"],[class*=\"PromptEditor\"],[class*=\"canvas-prompt\"]")!==null;
+      }
+      var _ltSkipTypes={hidden:1,checkbox:1,radio:1,button:1,submit:1,reset:1,file:1,image:1};
 
       els.forEach(function(ta){
-        if(ta.offsetParent===null)return;
-        if(!_ltIsNodeInput(ta))return;
-        /* unified tag icon for all inputs; anchored to parent, shows/hides with input */
-        var wr=ta.parentNode;
-        if(wr&&!wr.querySelector(":scope > .lt-tag-icon")){
-          if(ta.parentNode&&!ta.parentNode.querySelector(".lt-tag-icon")){
-            var wr=ta.parentNode;
-            if(getComputedStyle(wr).position==="static")wr.style.position="relative";
-            var icon=document.createElement("div");
-            icon.className="lt-tag-icon";
-            icon.title="\u6807\u7b7e";
-            icon.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
-            icon.style.cssText="position:absolute;right:6px;bottom:6px;z-index:2147483646;width:24px;height:24px;pointer-events:auto;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;";
-            icon.onclick=function(e){e.stopPropagation();if(document.getElementById("lt-tag-menu"))_ltCloseTagMenu();else _ltShowTagMenu(ta);};
-            wr.appendChild(icon);
-          }
+        if(ta.tagName==="INPUT"&&_ltSkipTypes[(ta.type||"").toLowerCase()])return;
+        var rects=0;
+        try{rects=ta.getClientRects?ta.getClientRects().length:0;}catch(e){}
+        var isNode=_ltIsNodeInput(ta);
+        if(_ltScanStats.details.length<8){
+          _ltScanStats.details.push((ta.tagName||"?")+" type="+((ta.getAttribute&&ta.getAttribute("type"))||ta.type||"")+" ce="+((ta.getAttribute&&ta.getAttribute("contenteditable"))||"")+" vis="+(rects>0)+" node="+isNode+" cls="+String(ta.className||"").slice(0,60));
         }
-        /* AI quick icon - co-inject alongside tag icon */
-        if(wr&&!wr.querySelector(":scope > .lt-ai-icon")){
-          if(ta.parentNode&&!ta.parentNode.querySelector(".lt-ai-icon")){
-            var wr=ta.parentNode;
-            if(getComputedStyle(wr).position==="static")wr.style.position="relative";
-            var aiIcon=document.createElement("div");
-            aiIcon.title="AI 增强";
-            aiIcon.style.cssText="position:absolute;right:44px;bottom:6px;z-index:2147483646;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;";
-            aiIcon.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3l.5 2.5L12 6l-2.5.5L9 9l-.5-2.5L6 6l2.5-.5z"/><path d="M16 12l.5 2.5L19 15l-2.5.5L16 18l-.5-2.5L13 15l2.5-.5z"/></svg>';
-            aiIcon.onclick=function(e){
-              e.stopPropagation();
-              _ltAIPanel(ta,aiIcon);
-            };
-            wr.appendChild(aiIcon);
-          }
-        }
+        if(rects===0)return;
+        _ltScanStats.visible++;
+        if(!isNode)return;
+        _ltScanStats.nodeInp++;
+        /* 已注册过？复用并同步位置 */
+        var f=null;
+        for(var _i=0;_i<_ltFloatIcons.length;_i++){if(_ltFloatIcons[_i].ta===ta){f=_ltFloatIcons[_i];break;}}
+        if(f){_ltSyncOne(f);return;}
+        /* 浮动图标（挂 body，不进 React 树，避免重渲染被清除） */
+        var tagIcon=document.createElement("div");
+        tagIcon.className="lt-tag-icon";
+        tagIcon.title="标签";
+        tagIcon.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
+        tagIcon.style.cssText="position:fixed;display:none;left:-999px;top:-999px;z-index:99990;width:24px;height:24px;border-radius:6px;align-items:center;justify-content:center;cursor:pointer;";
+        document.body.appendChild(tagIcon);
+        var aiIcon=document.createElement("div");
+        aiIcon.className="lt-ai-icon";
+        aiIcon.title="AI 增强";
+        aiIcon.style.cssText="position:fixed;display:none;left:-999px;top:-999px;z-index:99990;width:24px;height:24px;align-items:center;justify-content:center;cursor:pointer;color:#fff;";
+        aiIcon.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3l.5 2.5L12 6l-2.5.5L9 9l-.5-2.5L6 6l2.5-.5z"/><path d="M16 12l.5 2.5L19 15l-2.5.5L16 18l-.5-2.5L13 15l2.5-.5z"/></svg>';
+        document.body.appendChild(aiIcon);
+        tagIcon.onclick=function(e){e.stopPropagation();if(document.getElementById("lt-tag-menu"))_ltCloseTagMenu();else _ltShowTagMenu(ta);};
+        aiIcon.onclick=function(e){e.stopPropagation();_ltAIPanel(ta,aiIcon);};
+        _ltFloatIcons.push({ta:ta,tagIcon:tagIcon,aiIcon:aiIcon});
+        _ltScanStats.tagInj++;_ltScanStats.aiInj++;
+        _ltSyncOne(_ltFloatIcons[_ltFloatIcons.length-1]);
       });
+      _ltScanStats.last=Date.now();
+      _ltSyncPositions();
+      /* 诊断：当前浮动图标状态 */
+      _ltScanStats.icons=[];
+      for(var _j=0;_j<_ltFloatIcons.length&&_j<5;_j++){
+        var _fi=_ltFloatIcons[_j];
+        _ltScanStats.icons.push("ta="+(_fi.ta.isConnected?1:0)+" tag="+(_fi.tagIcon?(_fi.tagIcon.style.display+"/"+((Math.round(parseFloat(_fi.tagIcon.style.left)))||0)+","+((Math.round(parseFloat(_fi.tagIcon.style.top)))||0)):"-")+" ai="+(_fi.aiIcon?(_fi.aiIcon.style.display+"/"+((Math.round(parseFloat(_fi.aiIcon.style.left)))||0)+","+((Math.round(parseFloat(_fi.aiIcon.style.top)))||0)):"-"));
+      }
     }
-    var _ltTagTimer=null;
-    var _ltTagObs=new MutationObserver(function(){
-      if(_ltTagTimer)clearTimeout(_ltTagTimer);
-      _ltTagTimer=setTimeout(_ltTagScan,100);
-    });
+    /* 浮动图标管理 */
+    var _ltFloatIcons=[];
+    function _ltSyncOne(f){
+      if(!f.ta.isConnected||!f.ta.getClientRects||!f.ta.getClientRects().length){_ltHideIcons(f);f._pend=false;return;}
+      var r=f.ta.getBoundingClientRect();
+      if(r.width<=0||r.height<=0){_ltHideIcons(f);f._pend=false;return;}
+      /* 稳定性门：矩形稳定后才显示，避免面板动画期间位置跳变 */
+      var lr=f._lr||{left:1e9,top:1e9,width:1e9,height:1e9};
+      var d=Math.abs(lr.left-r.left)+Math.abs(lr.top-r.top)+Math.abs(lr.width-r.width)+Math.abs(lr.height-r.height);
+      f._lr={left:r.left,top:r.top,width:r.width,height:r.height};
+      if(d>=8){f._pend=true;return;}
+      f._pend=false;
+      if(f.tagIcon){f.tagIcon.style.left=(r.right-6-24)+"px";f.tagIcon.style.top=(r.bottom-6-24)+"px";f.tagIcon.style.display="flex";}
+      if(f.aiIcon){f.aiIcon.style.left=(r.right-6-24-44)+"px";f.aiIcon.style.top=(r.bottom-6-24)+"px";f.aiIcon.style.display="flex";}
+    }
+    function _ltHideIcons(f){if(f.tagIcon)f.tagIcon.style.display="none";if(f.aiIcon)f.aiIcon.style.display="none";}
+    var _ltSyncT=null;
+    function _ltSyncPositions(){
+      var pend=false;
+      for(var i=_ltFloatIcons.length-1;i>=0;i--){
+        var f=_ltFloatIcons[i];
+        if(!f.ta.isConnected||!document.body.contains(f.ta)){
+          if(f.tagIcon)f.tagIcon.remove();
+          if(f.aiIcon)f.aiIcon.remove();
+          _ltFloatIcons.splice(i,1);
+          continue;
+        }
+        _ltSyncOne(f);
+        if(f._pend)pend=true;
+      }
+      if(pend&&!_ltSyncT){_ltSyncT=setTimeout(function(){_ltSyncT=null;_ltSyncPositions();},150);}
+    }
+    document.addEventListener("scroll",_ltSyncPositions,true);
+    window.addEventListener("resize",_ltSyncPositions);
+    setInterval(_ltTagScan,1000);
+        var _ltTagTimer=null;
+    function _ltTagSchedule(delay){if(_ltTagTimer)clearTimeout(_ltTagTimer);_ltTagTimer=setTimeout(_ltTagScan,delay||100);}
+    var _ltTagObs=new MutationObserver(function(){_ltTagSchedule(100);});
     _ltTagObs.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["style","class","hidden"]});
+    /* \u4e8b\u4ef6\u9a71\u52a8\u515c\u5e95\uff1a\u9762\u677f\u901a\u5e38\u7531\u70b9\u51fb/\u805a\u7126/\u952e\u76d8\u89e6\u53d1\uff0c\u6bd4\u5b9a\u65f6\u8f6e\u8be2\u66f4\u7cbe\u51c6\u4e14\u96f6\u7a7a\u95f2\u5f00\u9500 */
+    var _ltBurstT=[];
+    function _ltTagBurst(){
+      for(var i=0;i<_ltBurstT.length;i++)clearTimeout(_ltBurstT[i]);
+      _ltBurstT=[];
+      [80,300,800,1500].forEach(function(d){_ltBurstT.push(setTimeout(_ltTagScan,d));});
+    }
+    document.addEventListener("click",function(){_ltTagBurst();},true);
+        document.addEventListener("focusin",function(){_ltTagBurst();},true);
+        document.addEventListener("keydown",function(){_ltTagSchedule(300);},true);
     _ltTagScan();
-    setInterval(_ltTagScan,1500);
+    /* \u52a0\u8f7d\u540e\u4e00\u6b21\u6027\u5ef6\u65f6\u8865\u626b\uff08\u9632\u9762\u677f\u521d\u59cb\u5316\u8f83\u6162\uff09 */
+    setTimeout(_ltTagScan,800);setTimeout(_ltTagScan,3000);setTimeout(_ltTagScan,10000);
+    window._ltDiag={tagScan:_ltScanStats};
     /* ── standalone AI-only panel (self-contained, no dependence on _ltPromptPanel) ── */
     function _ltAIPanel(inputEl,iconEl){
       var pid="lt-ai-panel";
@@ -937,7 +1007,7 @@
       var ir=iconEl.getBoundingClientRect();
       var div=document.createElement("div");
       div.id=pid;
-      div.style.cssText="position:fixed;left:0;top:0;z-index:99999;width:440px;max-width:88vw;max-height:68vh;background:rgba(12,12,20,0.88);-webkit-backdrop-filter:blur(32px) saturate(1.4);backdrop-filter:blur(32px) saturate(1.4);border:1px solid rgba(var(--accent-light-rgb),0.25);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 1px rgba(var(--accent-light-rgb),0.6),0 0 8px rgba(var(--accent-light-rgb),0.15),0 0 24px rgba(var(--accent-light-rgb),0.08),0 16px 48px rgba(0,0,0,0.5);color:#d4d4d8;font:13px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;";
+      div.style.cssText="position:fixed;left:0;top:0;z-index:99999;width:540px;max-width:88vw;max-height:68vh;background:rgba(12,12,20,0.88);-webkit-backdrop-filter:blur(32px) saturate(1.4);backdrop-filter:blur(32px) saturate(1.4);border:1px solid rgba(var(--accent-light-rgb),0.25);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 1px rgba(var(--accent-light-rgb),0.6),0 0 8px rgba(var(--accent-light-rgb),0.15),0 0 24px rgba(var(--accent-light-rgb),0.08),0 16px 48px rgba(0,0,0,0.5);color:#d4d4d8;font:13px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;";
       div.innerHTML=
         '<div id="lt-ap-head" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(var(--accent-light-rgb),0.12);flex-shrink:0;cursor:grab;"><span style="font-size:13px;font-weight:600;color:var(--accent-light);">AI \u589e\u5f3a</span><span id="lt-ap-close" style="cursor:pointer;font-size:16px;color:rgba(255,255,255,0.25);line-height:1;">\u2715</span></div>'
         +'<div class="ltp-ai-tasks" id="lt-ap-tasks" style="padding:8px 12px 4px;">'+_ltTaskHTML(curTask)+'</div>'
@@ -994,6 +1064,7 @@
       document.getElementById("lt-ap-clr").onclick=function(){
         inp.value="";inp.style.height="auto";
         var re=document.getElementById("lt-ap-result");re.style.display="none";
+        var g=document.getElementById("lt-ap-go");if(g)g.textContent="\u2728 \u6267\u884c";
       };
       /* execute */
       var _gen=0;
@@ -1029,7 +1100,7 @@
             });
           };
           statusEl.textContent="\u2705 \u5b8c\u6210";
-          btn.disabled=false;btn.textContent="\u2728 \u6267\u884c";
+          btn.disabled=false;btn.textContent="\ud83d\udd04 \u91cd\u65b0\u751f\u6210";
         })
         .catch(function(e){
           if(myGen!==_gen)return;
@@ -1342,7 +1413,7 @@ function _ltSettingsPanel(){
     var existing=document.getElementById("lt-settings");
     if(existing){existing.remove();return;}
     var div=document.createElement("div");div.id="lt-settings";div.className="lt-settings";
-    var h="<div class=\"lt-settings-head\"><span>⚙ \u8bbe\u7f6e</span><span class=\"lt-settings-close\" id=\"lt-settings-close\">\u2715</span></div>"
+    var h="<div class=\"lt-settings-head\"><div class=\"lt-settings-title\"><span class=\"lt-settings-logo\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M13 2L3 14h9l-1 8 10-12h-9l1-8z\"/></svg></span><span>\u8bbe\u7f6e</span></div><span class=\"lt-settings-close\" id=\"lt-settings-close\">\u2715</span></div>"
       +"<div class=\"lt-settings-body\" id=\"lt-settings-body\">";
     /* \u5f00\u5173 */
     var toggles=[
@@ -1352,7 +1423,7 @@ function _ltSettingsPanel(){
       {k:"grid",l:"\u9690\u85cf\u7f51\u683c"},
       {k:"focus",l:"\u4e13\u6ce8\u6a21\u5f0f"},
     ];
-    h+="<div class=\"lt-settings-sec\"><div class=\"lt-settings-stitle\">\u5f00\u5173</div>";
+    h+="<div class=\"lt-settings-sec\ lt-sec-toggles\"><div class=\"lt-settings-stitle\">\u5f00\u5173</div>";
     toggles.forEach(function(t){
       var on=document.body.classList.contains("perf-mode")||localStorage.getItem("_lt_"+t.k)==="1";
       h+="<div class=\"lt-settings-toggle\" data-key=\""+t.k+"\"><span>"+t.l+"</span><span class=\"lt-settings-switch"+(on?" on":"")+"\"></span></div>";
@@ -1376,7 +1447,7 @@ function _ltSettingsPanel(){
       if(_m)curPresetId=_m.id;
     }
     if(!curPresetId&&apiPresets.length)curPresetId=apiPresets[0].id;
-    h+="<div class=\"lt-settings-sec\"><div class=\"lt-settings-stitle\">AI \u589e\u5f3a API</div>"
+    h+="<div class=\"lt-settings-sec\ lt-sec-api\"><div class=\"lt-settings-stitle\">AI \u589e\u5f3a API</div>"
       +"<div class=\"lt-settings-row\" style=\"flex-wrap:wrap;\"><label>\u9884\u8bbe</label>"
       +"<select class=\"lt-settings-inp\" id=\"lt-set-preset\" style=\"max-width:170px;flex:0 1 170px;\">"
       +apiPresets.map(function(p){return "<option value=\""+_ltEsc(p.id)+"\""+(p.id===curPresetId?" selected":"")+">"+_ltEsc(p.name)+"</option>";}).join("")
@@ -1385,7 +1456,7 @@ function _ltSettingsPanel(){
       +"<button class=\"lt-settings-btn lt-settings-btn-ghost lt-settings-btn-sm\" id=\"lt-set-preset-del\" title=\"\u5220\u9664\u5f53\u524d\u9884\u8bbe\">\u2715</button>"
       +"</div>"
       +"<div class=\"lt-settings-row\"><label>API \u5730\u5740</label><input class=\"lt-settings-inp\" id=\"lt-set-url\" value=\""+_ltEsc(api.url||"")+"\" placeholder=\"https://api.deepseek.com/chat/completions\"></div>"
-      +"<div class=\"lt-settings-row\"><label>API Key</label><input class=\"lt-settings-inp\" type=\"password\" id=\"lt-set-key\" value=\""+_ltEsc(api.key||"")+"\" placeholder=\"sk-...\"></div>"
+      +"<div class=\"lt-settings-row\"><label>API Key</label><input class=\"lt-settings-inp\" type=\"password\" id=\"lt-set-key\" value=\""+_ltEsc(api.key||"")+"\" placeholder=\"sk-...\"><button class=\"lt-settings-btn lt-settings-btn-ghost lt-settings-btn-sm\" id=\"lt-set-key-eye\" title=\"\u663e\u793a/\u9690\u85cf Key\">\ud83d\udc41</button></div>"
       +"<div class=\"lt-settings-row\"><label>\u6a21\u578b</label><input class=\"lt-settings-inp\" id=\"lt-set-model\" value=\""+_ltEsc(api.model||"")+"\" placeholder=\"deepseek-v4-flash\">"
       +"<button class=\"lt-settings-btn lt-settings-btn-ghost lt-settings-btn-sm\" id=\"lt-set-model-fetch\" title=\"\u4ece API \u62c9\u53d6\u6a21\u578b\u5217\u8868\">\ud83d\udd04 \u62c9\u53d6</button></div>"
       +"<div class=\"lt-settings-mlist\" id=\"lt-set-model-list\" style=\"display:none;\"></div>"
@@ -1395,7 +1466,7 @@ function _ltSettingsPanel(){
       +"<span class=\"lt-settings-status\" id=\"lt-set-api-status\"></span></div>"
       +"</div>";
     /* \u6570\u636e */
-    h+="<div class=\"lt-settings-sec\"><div class=\"lt-settings-stitle\">\u6570\u636e\u7ba1\u7406</div>"
+    h+="<div class=\"lt-settings-sec\ lt-sec-data\"><div class=\"lt-settings-stitle\">\u6570\u636e\u7ba1\u7406</div>"
       +"<div class=\"lt-settings-dlist\" id=\"lt-settings-dlist\"></div>"
       +"<button class=\"lt-settings-btn lt-settings-btn-ghost lt-settings-btn-sm\" id=\"lt-set-export-all\">\u5bfc\u51fa\u5168\u90e8\u914d\u7f6e</button>"
       +"<div class=\"lt-settings-cpbtns\">"
@@ -1404,8 +1475,8 @@ function _ltSettingsPanel(){
       +"</div>"
       +"</div>";
     /* \u5173\u4e8e */
-    h+="<div class=\"lt-settings-sec\"><div class=\"lt-settings-stitle\">\u5173\u4e8e</div>"
-      +"<div class=\"lt-settings-about\">LibTV Canvas Boost v1.10.5<br>\u4e13\u4e3a liblib.tv \u753b\u5e03\u6253\u9020\u7684\u589e\u5f3a\u5de5\u5177\u3002\u4f18\u5316\u6e32\u67d3\u6027\u80fd\uff0c\u6d41\u7545\u64cd\u4f5c\u5927\u753b\u5e03\uff1b\u5185\u7f6e AI \u63d0\u793a\u8bcd\u52a9\u624b\uff08\u6da6\u8272/\u6269\u5199/\u7ffb\u8bd1\uff09\u3001\u6807\u7b7e\u7ba1\u7406\u3001\u63d0\u793a\u8bcd\u6a21\u677f\u3001\u53d8\u91cf\u7cfb\u7edf\u3001\u753b\u5e03\u4e3b\u9898\u914d\u8272\u4e0e\u591a\u79cd\u89c6\u89c9\u8f85\u52a9\uff0c\u8ba9\u5de5\u4f5c\u6d41\u66f4\u9ad8\u6548\u3002<div style=\"margin-top:12px;display:flex;gap:10px;\"><a href=\"https://github.com/lonely814/Messy\" target=\"_blank\" style=\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z\"/></svg>GitHub</a><a href=\"https://greasyfork.org/zh-CN/scripts/586841-libtv-canvas-boost\" target=\"_blank\" style=\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5\"/></svg>Greasy Fork</a><a href=\"https://scriptcat.org/zh-CN/script-show-page/7117\" target=\"_blank\" style=\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\"/></svg>ScriptCat</a></div></div>"
+    h+="<div class=\"lt-settings-sec\ lt-sec-about\"><div class=\"lt-settings-stitle\">\u5173\u4e8e</div>"
+      +"<div class=\"lt-settings-about\"><span class=\"lt-ver-badge\"><span class=\"lt-ver-dot\"></span>v__VERSION__</span><div style=\"margin-top:8px;font-size:13px;color:rgba(255,255,255,0.55);font-weight:600;\">LibTV Canvas Boost</div>\u4e13\u4e3a liblib.tv \u753b\u5e03\u6253\u9020\u7684\u589e\u5f3a\u5de5\u5177\u3002\u4f18\u5316\u6e32\u67d3\u6027\u80fd\uff0c\u6d41\u7545\u64cd\u4f5c\u5927\u753b\u5e03\uff1b\u5185\u7f6e AI \u63d0\u793a\u8bcd\u52a9\u624b\uff08\u6da6\u8272/\u6269\u5199/\u7ffb\u8bd1\uff09\u3001\u6807\u7b7e\u7ba1\u7406\u3001\u63d0\u793a\u8bcd\u6a21\u677f\u3001\u53d8\u91cf\u7cfb\u7edf\u3001\u753b\u5e03\u4e3b\u9898\u914d\u8272\u4e0e\u591a\u79cd\u89c6\u89c9\u8f85\u52a9\uff0c\u8ba9\u5de5\u4f5c\u6d41\u66f4\u9ad8\u6548\u3002<div style=\"margin-top:12px;display:flex;gap:10px;\"><a href=\"https://github.com/lonely814/Messy\" target=\"_blank\" style=\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z\"/></svg>GitHub</a><a href=\"https://greasyfork.org/zh-CN/scripts/586841-libtv-canvas-boost\" target=\"_blank\" style=\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5\"/></svg>Greasy Fork</a><a href=\"https://scriptcat.org/zh-CN/script-show-page/7117\" target=\"_blank\" style=\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\"/></svg>ScriptCat</a></div></div>"
       +"<div style=\"margin-top:12px;display:flex;gap:6px;\"><button class=\"lt-settings-btn lt-settings-btn-primary lt-settings-btn-sm\" id=\"lt-set-help\">\u5e2e\u52a9 / \u91cd\u65b0\u663e\u793a\u5f15\u5bfc</button></div>"
       +"</div>";
     h+="</div>";
@@ -1499,6 +1570,12 @@ function _ltSettingsPanel(){
       if(next){presetSel.value=next.id;_ltFillPreset(next);}
       _ltApiStatus("\u2705 \u5df2\u5220\u9664\u9884\u8bbe",true);
     };
+    document.getElementById("lt-set-key-eye").onclick=function(){
+      var inp=document.getElementById("lt-set-key");
+      var show=inp.type==="password";
+      inp.type=show?"text":"password";
+      this.textContent=show?"\ud83d\ude48":"\ud83d\udc41";
+    };
     document.getElementById("lt-set-api-save").onclick=function(){
       _ltApiPersist();
       _ltApiStatus("\u2705 \u5df2\u4fdd\u5b58",true);
@@ -1572,5 +1649,5 @@ function _ltSettingsPanel(){
   window._ltOpenSettings=_ltSettingsPanel;
   window._ltContent={exportPack:_ltDownloadContentPack,importFile:_ltImportContentPackFromFile};
   window._ltShowTagMenu=_ltShowTagMenu;
-  _ltIDBGet("_lt_accounts",function(d){if(d&&!localStorage.getItem("_lt_accounts")){try{localStorage.setItem("_lt_accounts",d);}catch(e){}}});
+  try{_ltIDBGet("_lt_accounts",function(d){if(d&&!localStorage.getItem("_lt_accounts")){try{localStorage.setItem("_lt_accounts",d);}catch(e){}}});}catch(e){}
 })();

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
-// @version      1.10.5
+// @version      __VERSION__
 // @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/libtv-boost/libtv-boost-icon.png
 // @license      MIT
 // @author       oocc00
@@ -115,7 +115,7 @@
     /* =========================================================
      *  流动光效 — 全屏 SVG overlay，不碰节点 DOM
      * ========================================================= */
-    (function(){
+        (function(){
         var svgNS='http://www.w3.org/2000/svg';
         var overlay=document.createElementNS(svgNS,'svg');
         overlay.id='libtv-glow';
@@ -125,8 +125,8 @@
         var glowDefs=document.createElementNS(svgNS,'defs');
         var filter=document.createElementNS(svgNS,'filter');
         filter.setAttribute('id','glowBlur');
-        filter.setAttribute('x','-50%');filter.setAttribute('y','-50%');
-        filter.setAttribute('width','200%');filter.setAttribute('height','200%');
+        filter.setAttribute('x','-60%');filter.setAttribute('y','-60%');
+        filter.setAttribute('width','220%');filter.setAttribute('height','220%');
         var blur=document.createElementNS(svgNS,'feGaussianBlur');
         blur.setAttribute('stdDeviation','6');
         filter.appendChild(blur);
@@ -136,66 +136,122 @@
         var animGroup=document.createElementNS(svgNS,'g');
         overlay.appendChild(animGroup);
 
-        var prevNodes=new Set();
-        var animRaf=null;
+        /* 元素缓存：每节点一组 rect，帧内只改属性，不重建 DOM */
+        var entries=[],lastT=0;
 
         function readAccent(){
             var n=document.querySelector('.react-flow__node');
             if(!n)return{accent:'#6366f1',accentLight:'#818cf8'};
-            var s=getComputedStyle(n);
+            var st=getComputedStyle(n);
             return{
-                accent:s.getPropertyValue('--accent').trim()||'#6366f1',
-                accentLight:s.getPropertyValue('--accent-light').trim()||'#818cf8'
+                accent:st.getPropertyValue('--accent').trim()||'#6366f1',
+                accentLight:st.getPropertyValue('--accent-light').trim()||'#818cf8'
             };
         }
 
-        function buildFrame(){
-            while(animGroup.firstChild)animGroup.removeChild(animGroup.firstChild);
+        function geomOf(node){
+            var r=node.getBoundingClientRect();
+            var w=r.width,h=r.height;
+            var cssW=node.offsetWidth||w,cssH=node.offsetHeight||h;
+            var zoom=Math.min(cssW?w/cssW:1,cssH?h/cssH:1);
+            var cssBr=parseFloat(getComputedStyle(node).borderRadius)||12;
+            return{w:w,h:h,zoom:zoom,br:cssBr*zoom};
+        }
+        function perimOf(g){
+            var hw=Math.max(0,g.w-2*g.br),hh=Math.max(0,g.h-2*g.br);
+            return 2*hw+2*hh+4*g.br*Math.PI/2;
+        }
+        function mkRect(g,sw,stroke,dashLen,op){
+            var el=document.createElementNS(svgNS,'rect');
+            el.setAttribute('x',0);el.setAttribute('y',0);
+            el.setAttribute('width',g.w);el.setAttribute('height',g.h);
+            el.setAttribute('rx',g.br);el.setAttribute('fill','none');
+            el.setAttribute('stroke',stroke);el.setAttribute('stroke-width',sw);
+            el.setAttribute('stroke-opacity',op);
+            el.setAttribute('stroke-dasharray',dashLen+' '+Math.max(0,g.perim-dashLen));
+            return el;
+        }
+        function buildEntry(node,g,c){
+            var wrap=document.createElementNS(svgNS,'g');
+            wrap.setAttribute('opacity','0');
+            animGroup.appendChild(wrap);
+            var perim=g.perim;
+            var outer=mkRect(g,7,c.accentLight,Math.round(perim*0.13),0.6);
+            outer.setAttribute('filter','url(#glowBlur)');
+            var core=mkRect(g,2,'#fff',Math.max(10,Math.round(perim*0.13)),0.95);
+            var outer2=mkRect(g,7,c.accentLight,Math.round(perim*0.13),0.6);
+            outer2.setAttribute('filter','url(#glowBlur)');
+            var core2=mkRect(g,2,'#fff',Math.max(10,Math.round(perim*0.13)),0.95);
+            wrap.appendChild(outer);wrap.appendChild(core);
+            wrap.appendChild(outer2);wrap.appendChild(core2);
+            return{node:node,wrap:wrap,outer:outer,core:core,outer2:outer2,core2:core2,
+                   w:g.w,h:g.h,br:g.br,zoom:g.zoom,perim:perim,
+                   t0:performance.now(),fade:0,fadeDir:1};
+        }
+        function rebuildEntry(e,g,c){
+            var perim=g.perim;
+            e.outer.setAttribute('width',g.w);e.outer.setAttribute('height',g.h);e.outer.setAttribute('rx',g.br);
+            e.outer.setAttribute('stroke',c.accentLight);
+            e.outer.setAttribute('stroke-dasharray',Math.round(perim*0.13)+' '+Math.max(0,perim-Math.round(perim*0.13)));
+            e.core.setAttribute('width',g.w);e.core.setAttribute('height',g.h);e.core.setAttribute('rx',g.br);
+            e.core.setAttribute('stroke-dasharray',Math.max(10,Math.round(perim*0.13))+' '+Math.max(0,perim-Math.max(10,Math.round(perim*0.13))));
+            e.core2.setAttribute('width',g.w);e.core2.setAttribute('height',g.h);e.core2.setAttribute('rx',g.br);
+            e.core2.setAttribute('stroke-dasharray',Math.max(10,Math.round(perim*0.13))+' '+Math.max(0,perim-Math.max(10,Math.round(perim*0.13))));
+            e.outer2.setAttribute('width',g.w);e.outer2.setAttribute('height',g.h);e.outer2.setAttribute('rx',g.br);
+            e.outer2.setAttribute('stroke',c.accentLight);
+            e.outer2.setAttribute('stroke-dasharray',Math.round(perim*0.13)+' '+Math.max(0,perim-Math.round(perim*0.13)));
+            e.w=g.w;e.h=g.h;e.br=g.br;e.zoom=g.zoom;e.perim=perim;
+        }
+        function buildFrame(now){
             var nodes=document.querySelectorAll('.react-flow__node.selected');
-            if(!nodes.length){prevNodes.clear();return;}
+            var sel=new Set();
+            nodes.forEach(function(n){sel.add(n);});
             var c=readAccent();
-            var now=performance.now();
-
+            /* 新选中节点：从顶边中点出发，淡入 */
             nodes.forEach(function(node){
-                var r=node.getBoundingClientRect();
-                var w=r.width,h=r.height;
-                var cssW=node.offsetWidth||w,cssH=node.offsetHeight||h;
-                var zoomX=cssW?w/cssW:1,zoomY=cssH?h/cssH:1;
-                var zoom=Math.min(zoomX,zoomY);
-                var cssBr=parseFloat(getComputedStyle(node).borderRadius)||12;
-                var br=cssBr*zoom;
-                var perim=2*(w+h);
-                var dash=Math.round(perim*0.12),gap=perim-dash;
-
-                function mkRect(stroke,sw){
-                    var el=document.createElementNS(svgNS,'rect');
-                    el.setAttribute('x',0);el.setAttribute('y',0);
-                    el.setAttribute('width',w);el.setAttribute('height',h);
-                    el.setAttribute('rx',br);el.setAttribute('fill','none');
-                    el.setAttribute('stroke',stroke);el.setAttribute('stroke-width',sw);
-                    el.setAttribute('stroke-dasharray',dash+' '+gap);
-                    return el;
+                var found=false;
+                for(var i=0;i<entries.length;i++){if(entries[i].node===node){found=true;break;}}
+                if(!found){
+                    var g=geomOf(node);
+                    g.perim=perimOf(g);
+                    entries.push(buildEntry(node,g,c));
                 }
-
-                var g1=mkRect(c.accentLight,8);
-                g1.setAttribute('filter','url(#glowBlur)');
-                var g2=mkRect('#fff',2);
-
-                var p=((now%7000)/7000);
-                var off=Math.round(p*perim);
-                g1.setAttribute('stroke-dashoffset',off);
-                g2.setAttribute('stroke-dashoffset',off);
-
-                var wrap=document.createElementNS(svgNS,'g');
-                wrap.setAttribute('transform','translate('+r.left+','+r.top+')');
-                wrap.appendChild(g1);
-                wrap.appendChild(g2);
-                animGroup.appendChild(wrap);
             });
+            /* 更新 / 淡出 / 清理 */
+            for(var i=entries.length-1;i>=0;i--){
+                var e=entries[i];
+                if(!sel.has(e.node)){
+                    e.fade-=0.22;
+                    if(e.fade<=0){e.wrap.remove();entries.splice(i,1);continue;}
+                }else{
+                    if(e.fadeDir<0)e.fadeDir=1;
+                    e.fade=Math.min(1,e.fade+0.09);
+                    var g2=geomOf(e.node);
+                    if(Math.abs(g2.w-e.w)>1||Math.abs(g2.h-e.h)>1||Math.abs(g2.br-e.br)>0.5){
+                        g2.perim=perimOf(g2);
+                        rebuildEntry(e,g2,c);
+                    }
+                    var r=e.node.getBoundingClientRect();
+                    e.wrap.setAttribute('transform','translate('+r.left+','+r.top+')');
+                    var d=((now-e.t0)%7000)/7000*e.perim;
+                    var startPos=Math.max(0,e.w-2*e.br)/2;
+                    var off=((d-startPos)%e.perim+e.perim)%e.perim;
+                    var off2=(off+e.perim/2)%e.perim;
+                    e.outer.setAttribute('stroke-dashoffset',off);
+                    e.core.setAttribute('stroke-dashoffset',off);
+                    e.outer2.setAttribute('stroke-dashoffset',off2);
+                    e.core2.setAttribute('stroke-dashoffset',off2);
+                }
+                e.wrap.setAttribute('opacity',Math.max(0,Math.min(1,e.fade)).toFixed(3));
+            }
         }
 
-        function loop(){buildFrame();animRaf=requestAnimationFrame(loop);}
-        loop();
+        /* 30fps：视觉顺滑且开销减半 */
+        function loop(t){
+            if(t-lastT>=33){buildFrame(t);lastT=t;}
+            requestAnimationFrame(loop);
+        }
+        requestAnimationFrame(loop);
     })();
 
     /* =========================================================
@@ -241,11 +297,11 @@
     try {
         hook = document.createElement('script');
         hook.textContent = [__INJECT_SCRIPT__].join('\n');
-    document.body.appendChild(hook);
-} catch(e) {
-    console.error('[LibTV] Hook error:', e);
-    if (typeof alert !== 'undefined') alert('LibTV hook error: ' + e.message);
-}
+        document.body.appendChild(hook);
+    } catch(e) {
+        console.error('[LibTV] Hook error:', e);
+        if (typeof alert !== 'undefined') alert('LibTV hook error: ' + e.message);
+    }
 
     /* =========================================================
      *  4. 菜单开关 + 状态持久化
@@ -323,6 +379,27 @@
                 var transform = n.style.transform || '';
                 var text = (n.textContent||'').trim().split('\n')[0].slice(0,40);
                 info.push(k + ' data-id=' + n.getAttribute('data-id') + ' transform="' + transform + '" text="' + text + '" class=' + (n.getAttribute('class')||'').slice(0,40));
+            }
+            var diag = unsafeWindow._ltDiag && unsafeWindow._ltDiag.tagScan;
+            if(diag){
+                info.push('');
+                info.push('=== 图标扫描自检 ===');
+                info.push('扫描次数: ' + diag.runs + '  最近: ' + (diag.last ? new Date(diag.last).toLocaleTimeString() : '从未'));
+                info.push('找到输入框: ' + diag.found + '  可见: ' + diag.visible + '  节点内: ' + diag.nodeInp);
+                info.push('注入 标签图标: ' + diag.tagInj + '  AI图标: ' + diag.aiInj);
+                info.push('页面 textarea 总数: ' + document.querySelectorAll('textarea').length);
+                if(diag.details && diag.details.length){
+                    info.push('前 ' + diag.details.length + ' 个输入详情:');
+                    diag.details.forEach(function(d){ info.push('  ' + d); });
+                }
+                if(diag.icons && diag.icons.length){
+                    info.push('浮动图标状态 (注册 ' + diag.icons.length + ' 组):');
+                    diag.icons.forEach(function(d){ info.push('  ' + d); });
+                }
+            } else {
+                info.push('');
+                info.push('=== 图标扫描自检 ===');
+                info.push('未初始化 — inject 脚本未运行到扫描逻辑');
             }
             var txt = info.join('\n');
             var div = document.createElement('div');
