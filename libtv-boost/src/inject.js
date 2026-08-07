@@ -8,7 +8,33 @@
   var _ltAutoChain=localStorage.getItem("_lt_autochain")==="1";
   if(_ltAutoChain) document.body.classList.add("libtv-autochain");
   var _ltClean=localStorage.getItem("_lt_clean")==="1";
-  if(_ltClean) document.body.classList.add("libtv-clean-home");
+  /* 清爽模式 v2：开启后主页 → 项目页（旧 CSS 已删除，改跳转） */
+  function _ltIsHomePath(){
+    var p=location.pathname;
+    return p===""||p==="/"||p==="/zh"||p==="/index.html";
+  }
+  if(_ltClean&&_ltIsHomePath()) location.replace("/project");
+  /* 清爽模式 v2：拦截"回到主页/首页/logo"链接/按钮 → 项目页 */
+  document.addEventListener("click",function(e){
+    if(localStorage.getItem("_lt_clean")!=="1")return;
+    var el=e.target&&e.target.closest?e.target.closest("a[href],button,[role=\"button\"],[role=\"menuitem\"],[data-menu-item]"):null;
+    if(!el)return;
+    var href=(el.getAttribute&&el.getAttribute("href")||"").trim();
+    var aria=(el.getAttribute&&el.getAttribute("aria-label")||"");
+    var label=(aria+" "+(el.textContent||"")).trim();
+    var isHome=href==="/"||href==="/zh"||href==="/index.html"||href==="https://www.liblib.tv"||href==="https://www.liblib.tv/";
+    if(!isHome){
+      isHome=/回到主(站|页)|返回首页|回首页|主站/.test(label)
+        ||/(^|\s)(首页|主页)(\s|$)/.test(label)
+        ||(/LibTV/.test(aria)&&/首页|主页/.test(aria));
+    }
+    if(isHome){
+      e.preventDefault();
+      if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+      else e.stopPropagation();
+      location.href="/project";
+    }
+  },true);
   var _ltGraphCache=null;
   function _ltGetGraph(){
     if(!_ltGraphCache){
@@ -1303,8 +1329,9 @@
     }
     if(e.key==="n"||e.key==="N"){
       e.preventDefault(); e.stopPropagation();
-      document.body.classList.toggle("libtv-clean-home");
-      try{localStorage.setItem("_lt_clean",document.body.classList.contains("libtv-clean-home")?"1":"0");}catch(ex){}
+      var _on=localStorage.getItem("_lt_clean")!=="1";
+      try{localStorage.setItem("_lt_clean",_on?"1":"0");}catch(ex){}
+      if(_on&&_ltIsHomePath()) location.replace("/project");
       return;
     }
     if(e.key==="?"||e.key==="/"){

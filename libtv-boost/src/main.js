@@ -89,7 +89,7 @@
             if (document.body.classList.contains('libtv-autochain')) flags += '<span class="fps-flag">⟷</span>';
             if (document.body.classList.contains('libtv-focus')) flags += '<span class="fps-flag">◎</span>';
             if (document.body.classList.contains('libtv-step-edges')) flags += '<span class="fps-flag">└</span>';
-            if (document.body.classList.contains('libtv-clean-home')) flags += '<span class="fps-flag">♡</span>';            
+            try { if (localStorage.getItem('_lt_clean') === '1') flags += '<span class="fps-flag">♡</span>'; } catch(e) {}
             var nTotal = document.querySelectorAll('.react-flow__node').length;
 
             // 缩放级别
