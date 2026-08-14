@@ -389,9 +389,18 @@ Blender 控制台，后续同 tag 调用静默。命名空间用函数名作为 
 
 ### 打包发布
 
-1. 修改版本号 (`bl_info["version"]`)
-2. 如果改了名称/描述，同步更新 `bl_info["name"]` / `"description"` / `"location"`
-3. 删除 `__pycache__/` 后再打包
+1. 修改 `build.py` 顶部 `VERSION` 常量（**版本号唯一来源**）
+2. 运行 `python build.py` 校验一致性（5 处：`bl_info` / `VERSION` / manifest / 文档头 / 版本历史，含 Python 语法校验）
+3. `python build.py --sync` 自动同步版本号到所有位置
+4. `python build.py --package` 清理 `__pycache__` + 打 zip 到 `dist/`（校验不过拒绝打包）
+
+### 面板自检（v3.1.0）
+
+偏好设置 → 功能设置 →「检查面板状态」按钮（`operators/diag.py`）：
+- 面板 draw 当前是 本插件 / 原生 / 其他函数 / 动态分发器
+- 分发器中是否残留 `bl_pkg.addons_panel_draw`（扩展系统，与本插件并存会双绘）或本插件函数
+- `_IS_PATCHED` / `_ORIGINAL_ADDONS_DRAW` 状态
+- 收集逻辑为模块级 `collect_panel_diag()`，便于测试复用；结果同时输出到 Blender 控制台
 
 ### 调试技巧
 

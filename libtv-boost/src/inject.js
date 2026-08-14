@@ -1223,16 +1223,158 @@
     _obs.observe(document.body,{childList:true,subtree:true});
     if(document.querySelector(".react-flow")){_createBtn();_ltTryWelcome();}
   })();
-  var _ltStepTo=null;
+  /* ===== 电路板连线（避让式直角路由 v2）=====
+   * 替代旧版"固定先横后竖"的简单直角折线：
+   * 1. 起点/终点吸附到节点边缘（PCB 引出，不从中心乱穿）
+   * 2. 候选路径（L 形 + Z 形采样）逐一做节点避让检测（线段-矩形相交）
+   * 3. 选无障碍最短路径，转折处加圆角（二次贝塞尔）
+   * 4. 性能模式下降级为方向感知 L 形（跳过避让计算）
+   * 5. 节点包围盒统一转换到 SVG 用户坐标（getScreenCTM 逆矩阵），
+   *    与 path 的 getPointAtLength 坐标系一致
+   */
+  var _ltStepTo=null,_ltStepBoxes=null,_ltStepBoxSvg=null,_ltStepBoxAt=0,_ltStepRaf=0;
+  function _ltStepBoxCache(svg){
+    var now=Date.now();
+    if(_ltStepBoxes&&_ltStepBoxSvg===svg&&now-_ltStepBoxAt<200)return _ltStepBoxes;
+    var ctm=svg.getScreenCTM(),inv=ctm?ctm.inverse():null;
+    var boxes=[];
+    document.querySelectorAll(".react-flow__node").forEach(function(n){
+      var r=n.getBoundingClientRect();
+      if(inv){
+        var p1=svg.createSVGPoint(),p2=svg.createSVGPoint();
+        p1.x=r.left;p1.y=r.top;p2.x=r.left+r.width;p2.y=r.top+r.height;
+        var a=p1.matrixTransform(inv),b=p2.matrixTransform(inv);
+        boxes.push({x:a.x,y:a.y,w:b.x-a.x,h:b.y-a.y,id:n.getAttribute("data-id")||n.id||""});
+      }else{
+        boxes.push({x:r.left,y:r.top,w:r.width,h:r.height,id:n.getAttribute("data-id")||n.id||""});
+      }
+    });
+    _ltStepBoxes=boxes;_ltStepBoxSvg=svg;_ltStepBoxAt=now;
+    return boxes;
+  }
+  function _ltStepOnSeg(ax,ay,bx,by,cx,cy){
+    return cx>=Math.min(ax,bx)&&cx<=Math.max(ax,bx)&&cy>=Math.min(ay,by)&&cy<=Math.max(ay,by);
+  }
+  function _ltStepSegSeg(x1,y1,x2,y2,x3,y3,x4,y4){
+    function ccw(ax,ay,bx,by,cx,cy){return (cx-ax)*(by-ay)-(cy-ay)*(bx-ax);}
+    var d1=ccw(x3,y3,x4,y4,x1,y1),d2=ccw(x3,y3,x4,y4,x2,y2);
+    var d3=ccw(x1,y1,x2,y2,x3,y3),d4=ccw(x1,y1,x2,y2,x4,y4);
+    if(((d1>0&&d2<0)||(d1<0&&d2>0))&&((d3>0&&d4<0)||(d3<0&&d4>0)))return true;
+    if(d1===0&&_ltStepOnSeg(x3,y3,x4,y4,x1,y1))return true;
+    if(d2===0&&_ltStepOnSeg(x3,y3,x4,y4,x2,y2))return true;
+    if(d3===0&&_ltStepOnSeg(x1,y1,x2,y2,x3,y3))return true;
+    if(d4===0&&_ltStepOnSeg(x1,y1,x2,y2,x4,y4))return true;
+    return false;
+  }
+  function _ltStepSegRect(x1,y1,x2,y2,r){
+    if(x1>=r.x&&x1<=r.x+r.w&&y1>=r.y&&y1<=r.y+r.h)return true;
+    if(x2>=r.x&&x2<=r.x+r.w&&y2>=r.y&&y2<=r.y+r.h)return true;
+    var ex=r.x+r.w,ey=r.y+r.h;
+    return _ltStepSegSeg(x1,y1,x2,y2,r.x,r.y,ex,r.y)
+      ||_ltStepSegSeg(x1,y1,x2,y2,ex,r.y,ex,ey)
+      ||_ltStepSegSeg(x1,y1,x2,y2,ex,ey,r.x,ey)
+      ||_ltStepSegSeg(x1,y1,x2,y2,r.x,ey,r.x,r.y);
+  }
+  function _ltStepPathLen(pts){
+    var L=0;
+    for(var i=1;i<pts.length;i++){
+      L+=Math.sqrt((pts[i].x-pts[i-1].x)*(pts[i].x-pts[i-1].x)+(pts[i].y-pts[i-1].y)*(pts[i].y-pts[i-1].y));
+    }
+    return L;
+  }
+  function _ltStepPathHit(pts,boxes,exclude){
+    for(var i=1;i<pts.length;i++){
+      for(var b=0;b<boxes.length;b++){
+        if(exclude[boxes[b].id])continue;
+        if(_ltStepSegRect(pts[i-1].x,pts[i-1].y,pts[i].x,pts[i].y,boxes[b]))return true;
+      }
+    }
+    return false;
+  }
+  function _ltStepSnapEdge(x,y,tx,ty,r){
+    /* 把点 (x,y) 吸附到矩形 r 边缘（朝向目标 tx,ty），水平/垂直引出 */
+    var cx=r.x+r.w/2,cy=r.y+r.h/2;
+    if(Math.abs(tx-cx)>=Math.abs(ty-cy)){
+      var nx=tx>=cx?r.x+r.w:r.x;
+      return {x:nx,y:Math.max(r.y,Math.min(r.y+r.h,y))};
+    }
+    var ny=ty>=cy?r.y+r.h:r.y;
+    return {x:Math.max(r.x,Math.min(r.x+r.w,x)),y:ny};
+  }
+  function _ltStepRoute(sx,sy,ex,ey,boxes,exclude,simple){
+    var cands=[];
+    cands.push([{x:sx,y:sy},{x:ex,y:sy},{x:ex,y:ey}]);
+    cands.push([{x:sx,y:sy},{x:sx,y:ey},{x:ex,y:ey}]);
+    if(!simple){
+      /* 采样含外侧偏移点：起终点同线时也能向上/下/左/右绕行 */
+      var gap=60;
+      var xs=[sx-gap,sx+(ex-sx)*0.25,sx+(ex-sx)*0.5,sx+(ex-sx)*0.75,ex+gap,ex,sx];
+      for(var i=0;i<xs.length;i++){
+        var m=xs[i];
+        if(Math.abs(m-sx)<2&&Math.abs(m-ex)<2)continue;
+        cands.push([{x:sx,y:sy},{x:m,y:sy},{x:m,y:ey},{x:ex,y:ey}]);
+      }
+      var ys=[sy-gap,sy+(ey-sy)*0.25,sy+(ey-sy)*0.5,sy+(ey-sy)*0.75,ey+gap,ey,sy];
+      for(var j=0;j<ys.length;j++){
+        var m2=ys[j];
+        if(Math.abs(m2-sy)<2&&Math.abs(m2-ey)<2)continue;
+        cands.push([{x:sx,y:sy},{x:sx,y:m2},{x:ex,y:m2},{x:ex,y:ey}]);
+      }
+    }
+    var best=null,bestLen=Infinity;
+    for(var k=0;k<cands.length;k++){
+      var c=cands[k],L=_ltStepPathLen(c);
+      if((simple||!_ltStepPathHit(c,boxes,exclude))&&L<bestLen){best=c;bestLen=L;}
+    }
+    return best||cands[0];
+  }
+  function _ltStepD(pts,r){
+    /* 折线转 SVG d，转折处加圆角（二次贝塞尔 Q） */
+    var d="M "+pts[0].x+" "+pts[0].y;
+    for(var i=1;i<pts.length-1;i++){
+      var a=pts[i-1],b=pts[i],c=pts[i+1];
+      var la=Math.sqrt((b.x-a.x)*(b.x-a.x)+(b.y-a.y)*(b.y-a.y));
+      var lb=Math.sqrt((c.x-b.x)*(c.x-b.x)+(c.y-b.y)*(c.y-b.y));
+      if(la<r*2||lb<r*2){d+=" L "+b.x+" "+b.y;continue;}
+      d+=" L "+(b.x+(a.x-b.x)*r/la)+" "+(b.y+(a.y-b.y)*r/la)
+        +" Q "+b.x+" "+b.y+" "+(b.x+(c.x-b.x)*r/lb)+" "+(b.y+(c.y-b.y)*r/lb);
+    }
+    var last=pts[pts.length-1];
+    d+=" L "+last.x+" "+last.y;
+    return d;
+  }
   function _ltStepEdges(){
-    document.querySelectorAll(".react-flow__edges path").forEach(function(p){
+    var simple=document.body.classList.contains("perf-mode");
+    var paths=document.querySelectorAll(".react-flow__edges path");
+    var svg=null;
+    for(var i=0;i<paths.length;i++){
+      if(paths[i].ownerSVGElement){svg=paths[i].ownerSVGElement;break;}
+    }
+    var boxes=svg?_ltStepBoxCache(svg):[];
+    paths.forEach(function(p){
       var d=p.getAttribute("d")||"";
       if(d.indexOf("C")===-1)return;
       try{
         var len=p.getTotalLength();
         if(!len||isNaN(len))return;
         var s=p.getPointAtLength(0),e=p.getPointAtLength(len);
-        p.setAttribute("d","M "+s.x+" "+s.y+" L "+e.x+" "+s.y+" L "+e.x+" "+e.y);
+        var edgeEl=p.closest?p.closest(".react-flow__edge"):null;
+        var exclude={},sId="",eId="";
+        if(edgeEl){
+          var lb=(edgeEl.getAttribute("aria-label")||"").trim(),m=lb.match(/^Edge from (\S+) to (\S+)$/);
+          if(m){sId=m[1];eId=m[2];if(sId)exclude[sId]=1;if(eId)exclude[eId]=1;}
+        }
+        for(var b=0;b<boxes.length;b++){
+          if(boxes[b].id===sId){
+            var sp=_ltStepSnapEdge(s.x,s.y,e.x,e.y,boxes[b]);s={x:sp.x,y:sp.y};
+          }
+          if(boxes[b].id===eId){
+            var ep=_ltStepSnapEdge(e.x,e.y,s.x,s.y,boxes[b]);e={x:ep.x,y:ep.y};
+          }
+        }
+        var pts=_ltStepRoute(s.x,s.y,e.x,e.y,boxes,exclude,simple);
+        var r=Math.max(3,Math.min(8,Math.abs(e.x-s.x)/4,Math.abs(e.y-s.y)/4));
+        p.setAttribute("d",_ltStepD(pts,r));
       }catch(ex){}
     });
   }
@@ -1243,7 +1385,8 @@
     if(!ed){if(++_ltStepRetries>5)return;_ltStepTo=setTimeout(_ltStepApply,500);return;}
     _ltStepRetries=0;
     if(document.body.classList.contains("libtv-step-edges")){
-      _ltStepEdges();
+      if(_ltStepRaf)cancelAnimationFrame(_ltStepRaf);
+      _ltStepRaf=requestAnimationFrame(function(){_ltStepRaf=0;_ltStepEdges();});
       if(!_ltStepObs){
         var _ltStepParent=document.querySelector(".react-flow")||document.body;
         _ltStepObs=new MutationObserver(function(){_ltStepRetries=0;_ltStepApply();});

@@ -8,7 +8,7 @@
 bl_info = {
     "name": "插件双搜索",
     "author": "loNely",
-    "version": (3, 1, 0),
+        "version": (3, 1, 0),
     "blender": (4, 2, 0),
     "location": "编辑 > 偏好设置 > 插件",
     "description": "插件双搜索 & 快捷键搜索 & Profile & 健康概览",
@@ -65,6 +65,7 @@ from .operators.export import (
     DUAL_FIRSTROW_MT_export_menu,
 )
 from .operators.keymap import DUAL_FIRSTROW_OT_keymap_capture
+from .operators.diag import DUAL_FIRSTROW_OT_panel_diag
 
 # --- 面板 ---
 from .panels.addon_list import patch_addons_panel, unpatch_addons_panel
@@ -194,6 +195,12 @@ class DUAL_FIRSTROW_AP_addon_prefs(bpy.types.AddonPreferences):
         box.label(text=_T("功能设置", "Feature Settings"), icon="SETTINGS")
         box.separator(factor=0.3)
         box.prop(self, "dual_enable_keymap", text=_T("启用键位映射快捷键搜索", "Enable Keymap Shortcut Search"))
+        box.separator(factor=0.3)
+        box.operator(
+            "dual_firstrow_addon_search.panel_diag",
+            text=_T("检查面板状态（诊断重复搜索框等问题）", "Check Panel State (diagnose duplicate search bar)"),
+            icon="INFO",
+        )
         # --- 版权 ---
         row = layout.row(align=True)
         row.label(text=_T(
@@ -232,6 +239,7 @@ classes = (
     DUAL_FIRSTROW_OT_export_snapshot_markdown,
     DUAL_FIRSTROW_OT_export_snapshot_json,
     DUAL_FIRSTROW_OT_keymap_capture,
+    DUAL_FIRSTROW_OT_panel_diag,
     # Menus
     DUAL_FIRSTROW_MT_search_history,
     DUAL_FIRSTROW_MT_addon_actions,

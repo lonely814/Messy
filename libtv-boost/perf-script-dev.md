@@ -99,7 +99,7 @@ style.textContent = ['.react-flow__node {', '  border-radius: 12px;', ...].join(
 | `libtv-focus` | `body` | 专注模式（隐藏侧栏） | `_lt_focus` |
 | `libtv-chain` | `body` | 链高亮激活 | — |
 | `libtv-autochain` | `body` | 自动链模式 | `_lt_autochain` |
-| `libtv-step-edges` | `body` | 直角连线 | `_lt_step` |
+| `libtv-step-edges` | `body` | 电路板连线（避让式直角路由） | `_lt_step` |
 | `libtv-clean-home` | —（不再用 class） | 清爽模式：主页→项目页 | `_lt_clean` |
 
 ### 视觉改造（v1.9.3，v1.9.6 已移除）
@@ -208,7 +208,7 @@ MutationObserver 监听 `body`，检测右侧 AI Agent Drawer 的出现。当 dr
 | 提示词工具 | 模板 / AI / 主题 / 调色板 / 设置 tab |
 | 标签系统 | 四层结构：库→分类→分组→标签 |
 | 浮动按钮 | 可拖拽的提示词工具按钮（仅画布页面显示） |
-| 直角连线 | 贝塞尔→折线重写 |
+| 电路板连线 | 避让式直角路由（节点避让 + 边缘引出 + 圆角），`R` 键开关 |
 | 快捷键 | 11 个快捷键 handler |
 | 内容包 | 导出/导入 JSON |
 | 账号切换 | Cookie + localStorage 快照、多账号保存/切换/刷新/删除 |
@@ -314,7 +314,7 @@ sel.removeAllRanges(); sel.addRange(r);
 | `F` | 搜索面板开关 |
 | `P` | 提示词面板开关 |
 | `X` | 专注 toggle |
-| `R` | 直角连线 toggle |
+| `R` | 电路板连线 toggle（避让式直角路由） |
 | `?` / `/` | 帮助提示 pin |
 | `N` | 清爽模式 toggle（开启后主页→项目页） |
 
@@ -418,7 +418,9 @@ var _toggles = {
 - 油猴沙箱中创建的变量在注入脚本中不可见，反之亦然
 - `unsafeWindow` 需要 `@grant unsafeWindow`
 - edge 的 `aria-label` 可能包含不可见 Unicode 字符（零宽空格等），需 `.trim()` 后再匹配
-- 直角连线 Observer 观察 `.react-flow` 父级（非 `.react-flow__edges` 自身），防 React 重建后失效
+- 电路板连线 Observer 观察 `.react-flow` 父级（非 `.react-flow__edges` 自身），防 React 重建后失效；重写走 RAF 节流，节点包围盒 200ms TTL 缓存
+- 电路板连线避让计算在 SVG 用户坐标系进行：节点矩形经 `getScreenCTM().inverse()` 转换，与 `path.getPointAtLength()` 坐标统一；性能模式下降级为方向感知 L 形（跳过避让）
+- 算法回归测试：`node test-step-algo.js`（几何检测 / 边缘吸附 / 避让路由 / 圆角生成 23 例）
 - 图标扫描：MutationObserver(100ms) + 事件连扫(80/300/800/1500ms) + 1s 轮询三层兜底；图标为 body 浮动元素（fixed 定位 + 稳定性门），不进 React 树
 - 所有 `_lt_*` localStorage 键的读写统一定义在脚本中，无外部依赖
 - 编辑 `src/` 下的源码后必须执行 `node build.js` 重新生成 `.user.js`
