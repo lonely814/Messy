@@ -336,6 +336,8 @@ def _draw_boot_profiler(layout):
             row.label(text=_T(f"⬆ 比上次慢 {diff_val:.1f}s", f"⬆ {diff_val:.1f}s slower"), icon="SORT_DESC", translate=False)
 def _patched_addons_draw(self, context):
     """核心绘制逻辑 - 替换原生 USERPREF_PT_addons.draw"""
+    global _DRAW_LAYOUT_WRITTEN
+    _DRAW_LAYOUT_WRITTEN = False
     update_lang_cache()
     import addon_utils
 
@@ -363,6 +365,7 @@ def _patched_addons_draw(self, context):
     addons = addons_cache
 
     # --- 搜索行 ---
+    _DRAW_LAYOUT_WRITTEN = True
     split = layout.split(factor=0.55)
     row_search = split.row(align=True)
     row_actions = split.row(align=True)
@@ -655,9 +658,15 @@ def _patched_addons_draw(self, context):
 # --- 错误节流 ---
 _DRAW_ERROR_LAST_TIME = 0.0
 
+# 本次绘制是否已经向 layout 写入过内容（用于异常时判断能否安全回退原生面板）
+_DRAW_LAYOUT_WRITTEN = False
+
 def _safe_patched_addons_draw(self, context):
     """包装 _patched_addons_draw，异常时回退到原生 draw"""
     global _DRAW_ERROR_LAST_TIME
+    # 自愈：bl_pkg 等扩展若在本插件之后向面板 append 了绘制函数，
+    # 面板 draw 会被包成动态分发器导致双重绘制，这里先恢复为本插件函数。
+    _self_heal_patch()
     try:
         _patched_addons_draw(self, context)
     except Exception:
@@ -667,12 +676,64 @@ def _safe_patched_addons_draw(self, context):
             _DRAW_ERROR_LAST_TIME = now
             traceback.print_exc()
             print("[Dual Add-on Search] draw 出错，回退到原生面板")
-        if _ORIGINAL_ADDONS_DRAW:
+        if _DRAW_LAYOUT_WRITTEN:
+            # 自定义内容已写入 layout，此时再追加原生面板会在底部重复渲染
+            # 原生搜索框/列表（第二组搜索框），因此只显示错误提示。
+            try:
+                box = self.layout.box()
+                box.label(
+                    text="[Dual Add-on Search] 面板绘制出错，详见控制台",
+                    icon="ERROR",
+                    translate=False,
+                )
+            except Exception:
+                pass
+        elif _ORIGINAL_ADDONS_DRAW:
+            # 尚未写入任何内容，回退原生面板是干净无重复的
             _ORIGINAL_ADDONS_DRAW(self, context)
 
 # --- Patch 管理 ---
 _ORIGINAL_ADDONS_DRAW = None
 _IS_PATCHED = False
+
+
+def _self_heal_patch() -> None:
+    """自愈：处理 bl_pkg 等扩展在插件 patch 之后向面板 append 的情况。
+
+    Blender 4.2+ 面板 draw 支持动态追加（`panel.append`），内置扩展系统 bl_pkg
+    启动时会执行 `USERPREF_PT_addons.append(addons_panel_draw)`（原生搜索框 + 原生列表）。
+    若本插件（作为扩展）在 `prefs.addons` 中的启用顺序排在 bl_pkg 之前，
+    bl_pkg 的 append() 会把本插件的绘制函数包进动态分发器：
+
+        USERPREF_PT_addons.draw._draw_funcs = [本插件, addons_panel_draw]
+
+    导致每次绘制都在面板底部重复渲染原生搜索框和原生列表（第二组搜索框）。
+    这里检测到面板 draw 是动态分发器时，重新替换为本插件函数，
+    并同步更新保存的原生 draw 引用（注销时可正确恢复原生面板）。
+    """
+    global _ORIGINAL_ADDONS_DRAW, _IS_PATCHED
+    if not _IS_PATCHED:
+        return
+    panel_cls = _get_panel_class()
+    if panel_cls is None:
+        return
+    try:
+        cur = getattr(panel_cls, "draw", None)
+    except Exception:
+        return
+    if cur is _safe_patched_addons_draw:
+        return  # 已经是本插件函数，无需处理
+    if getattr(cur, "_draw_funcs", None) is not None:
+        # 当前 draw 是动态分发器（被 bl_pkg 等扩展重新包装）→ 重新替换。
+        # 保存原生引用，注销时会把本插件函数从分发器中剔除后恢复（见 unpatch_addons_panel）。
+        _ORIGINAL_ADDONS_DRAW = cur
+        panel_cls.draw = _safe_patched_addons_draw
+
+
+def _on_load_post_self_heal(dummy=None):
+    """启动完成后立即自愈，避免用户打开插件面板时出现一次双重绘制闪烁。"""
+    _self_heal_patch()
+
 
 def patch_addons_panel() -> bool:
     """替换原生插件面板 draw 方法"""
@@ -688,8 +749,18 @@ def patch_addons_panel() -> bool:
     _ORIGINAL_ADDONS_DRAW = getattr(panel_cls, "draw", None)
     panel_cls.draw = _safe_patched_addons_draw
     _IS_PATCHED = True
+
+    # 若 bl_pkg 在启动时排在本插件之后注册，会把我们包进动态分发器；
+    # load_post 在所有启动插件注册完成后触发，此时自愈可避免面板首次打开时的双重绘制。
+    try:
+        if _on_load_post_self_heal not in bpy.app.handlers.load_post:
+            bpy.app.handlers.load_post.append(_on_load_post_self_heal)
+    except Exception:
+        pass
+
     redraw_preferences()
     return True
+
 
 def unpatch_addons_panel() -> None:
     """恢复原生插件面板 draw 方法"""
@@ -700,7 +771,24 @@ def unpatch_addons_panel() -> None:
 
     panel_cls = _get_panel_class()
     if panel_cls is not None and _ORIGINAL_ADDONS_DRAW is not None:
-        panel_cls.draw = _ORIGINAL_ADDONS_DRAW
+        orig = _ORIGINAL_ADDONS_DRAW
+        # 自愈可能把"含本插件函数的分发器"存为原生引用；恢复时先剔除本插件函数，
+        # 避免插件注销后本插件的绘制仍被执行。
+        funcs = getattr(orig, "_draw_funcs", None)
+        if funcs is not None:
+            try:
+                cleaned = [f for f in funcs if f is not _safe_patched_addons_draw]
+                if len(cleaned) != len(funcs):
+                    funcs[:] = cleaned
+            except Exception:
+                pass
+        panel_cls.draw = orig
+
+    try:
+        if _on_load_post_self_heal in bpy.app.handlers.load_post:
+            bpy.app.handlers.load_post.remove(_on_load_post_self_heal)
+    except Exception:
+        pass
 
     _ORIGINAL_ADDONS_DRAW = None
     _IS_PATCHED = False

@@ -7,15 +7,15 @@
 
 bl_info = {
     "name": "插件双搜索",
-    "author": "lonely",
-    "version": (3, 0, 0),
+    "author": "loNely",
+    "version": (3, 0, 1),
     "blender": (4, 2, 0),
     "location": "编辑 > 偏好设置 > 插件",
     "description": "插件双搜索 & 快捷键搜索 & Profile & 健康概览",
     "category": "Interface",
 }
 
-VERSION = (3, 0, 0)
+VERSION = (3, 0, 1)
 
 import bpy
 from bpy.utils import register_classes_factory
@@ -197,8 +197,8 @@ class DUAL_FIRSTROW_AP_addon_prefs(bpy.types.AddonPreferences):
         # --- 版权 ---
         row = layout.row(align=True)
         row.label(text=_T(
-            "作者: lonely  |  兼容 Blender 4.2+",
-            "Author: lonely  |  Compatible: Blender 4.2+"
+            "作者: loNely  |  兼容 Blender 4.2+",
+            "Author: loNely  |  Compatible: Blender 4.2+"
         ), icon="BLENDER")
 
 

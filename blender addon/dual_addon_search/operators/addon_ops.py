@@ -124,7 +124,7 @@ class DUAL_FIRSTROW_OT_link_github(bpy.types.Operator):
     )
     repo: StringProperty(
         name="GitHub Repository",
-        description="格式: owner/repo (例如: CYX66/DualAddonSearch)",
+        description="格式: owner/repo (例如: loNely/DualAddonSearch)",
         default="",
     )
 
