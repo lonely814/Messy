@@ -8,14 +8,14 @@
 bl_info = {
     "name": "插件双搜索",
     "author": "loNely",
-    "version": (3, 0, 1),
+    "version": (3, 1, 0),
     "blender": (4, 2, 0),
     "location": "编辑 > 偏好设置 > 插件",
     "description": "插件双搜索 & 快捷键搜索 & Profile & 健康概览",
     "category": "Interface",
 }
 
-VERSION = (3, 0, 1)
+VERSION = (3, 1, 0)
 
 import bpy
 from bpy.utils import register_classes_factory

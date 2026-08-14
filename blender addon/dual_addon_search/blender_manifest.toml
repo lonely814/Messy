@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "dual_addon_search"
-version = "3.0.1"
+version = "3.1.0"
 name = "插件双搜索"
 tagline = "增强插件管理面板：双搜索、星标、标签、批量操作、快捷键搜索"
 maintainer = "loNely"
