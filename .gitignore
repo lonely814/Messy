@@ -2,4 +2,4 @@
 /.omo
 __pycache__
 .omo
-/dist/
+dist
