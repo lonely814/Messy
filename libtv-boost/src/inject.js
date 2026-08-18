@@ -7,34 +7,6 @@
         };
   var _ltAutoChain=localStorage.getItem("_lt_autochain")==="1";
   if(_ltAutoChain) document.body.classList.add("libtv-autochain");
-  var _ltClean=localStorage.getItem("_lt_clean")==="1";
-  /* 清爽模式 v2：开启后主页 → 项目页（旧 CSS 已删除，改跳转） */
-  function _ltIsHomePath(){
-    var p=location.pathname;
-    return p===""||p==="/"||p==="/zh"||p==="/index.html";
-  }
-  if(_ltClean&&_ltIsHomePath()) location.replace("/project");
-  /* 清爽模式 v2：拦截"回到主页/首页/logo"链接/按钮 → 项目页 */
-  document.addEventListener("click",function(e){
-    if(localStorage.getItem("_lt_clean")!=="1")return;
-    var el=e.target&&e.target.closest?e.target.closest("a[href],button,[role=\"button\"],[role=\"menuitem\"],[data-menu-item]"):null;
-    if(!el)return;
-    var href=(el.getAttribute&&el.getAttribute("href")||"").trim();
-    var aria=(el.getAttribute&&el.getAttribute("aria-label")||"");
-    var label=(aria+" "+(el.textContent||"")).trim();
-    var isHome=href==="/"||href==="/zh"||href==="/index.html"||href==="https://www.liblib.tv"||href==="https://www.liblib.tv/";
-    if(!isHome){
-      isHome=/回到主(站|页)|返回首页|回首页|主站/.test(label)
-        ||/(^|\s)(首页|主页)(\s|$)/.test(label)
-        ||(/LibTV/.test(aria)&&/首页|主页/.test(aria));
-    }
-    if(isHome){
-      e.preventDefault();
-      if(e.stopImmediatePropagation)e.stopImmediatePropagation();
-      else e.stopPropagation();
-      location.href="/project";
-    }
-  },true);
   var _ltGraphCache=null;
   function _ltGetGraph(){
     if(!_ltGraphCache){
@@ -887,15 +859,18 @@
     function _ltTagScan(){
       _ltScanStats.runs++;
       _ltScanStats.visible=0;_ltScanStats.nodeInp=0;_ltScanStats.tagInj=0;_ltScanStats.aiInj=0;
-      var els=document.querySelectorAll("textarea,input,[contenteditable]");
+      var els=document.querySelectorAll("textarea,input,[contenteditable]:not([contenteditable=\"false\"])");
       _ltScanStats.found=els.length;
       _ltScanStats.details=[];
       /* filter to only canvas node inputs (skip page-level search bars, etc.) */
+      /* 提示词编辑器识别：节点内 + 可编辑(textarea/contenteditable) + 编辑器白名单 class */
       function _ltIsNodeInput(el){
-        if(el.closest(".react-flow__node")!==null)return true;
-        if(el.closest("[data-id^=\"i-\"],[data-id^=\"n-\"],[data-id^=\"m-\"]")!==null)return true;
-        /* liblib \u753b\u5e03\u65b0\u7248\u8bdd\u6846\u5f0f\u8f93\u5165\uff08ChatRichInput\uff09\u53ca\u5404\u79cd\u63d0\u793a\u8bcd\u7f16\u8f91\u5668 */
-        return el.closest("[class*=\"ChatRichInput\"],[class*=\"RichInput\"],[class*=\"chat-rich\"],[class*=\"prompt-editor\"],[class*=\"PromptEditor\"],[class*=\"canvas-prompt\"]")!==null;
+        if(!el.closest(".react-flow__node"))return false;
+        var _ce=el.getAttribute&&el.getAttribute("contenteditable");
+        if(_ce==="false")return false;
+        if(el.tagName==="TEXTAREA")return true;
+        if(!el.closest("[contenteditable]"))return false;
+        return el.closest("[class*=\"ChatRichInput\"],[class*=\"RichInput\"],[class*=\"chat-rich\"],[class*=\"prompt-editor\"],[class*=\"PromptEditor\"],[class*=\"canvas-prompt\"],[class*=\"text-fg-default\"]")!==null;
       }
       var _ltSkipTypes={hidden:1,checkbox:1,radio:1,button:1,submit:1,reset:1,file:1,image:1};
 
@@ -946,22 +921,17 @@
     /* 浮动图标管理 */
     var _ltFloatIcons=[];
     function _ltSyncOne(f){
-      if(!f.ta.isConnected||!f.ta.getClientRects||!f.ta.getClientRects().length){_ltHideIcons(f);f._pend=false;return;}
+      if(!f.ta.isConnected||!f.ta.getClientRects||!f.ta.getClientRects().length){_ltHideIcons(f);return;}
       var r=f.ta.getBoundingClientRect();
-      if(r.width<=0||r.height<=0){_ltHideIcons(f);f._pend=false;return;}
-      /* 稳定性门：矩形稳定后才显示，避免面板动画期间位置跳变 */
-      var lr=f._lr||{left:1e9,top:1e9,width:1e9,height:1e9};
-      var d=Math.abs(lr.left-r.left)+Math.abs(lr.top-r.top)+Math.abs(lr.width-r.width)+Math.abs(lr.height-r.height);
+      if(r.width<=0||r.height<=0){_ltHideIcons(f);return;}
+      /* 位置直接跟随（画布拖动高频场景，pend 会造成滞后） */
       f._lr={left:r.left,top:r.top,width:r.width,height:r.height};
-      if(d>=8){f._pend=true;return;}
-      f._pend=false;
+      
       if(f.tagIcon){f.tagIcon.style.left=(r.right-6-24)+"px";f.tagIcon.style.top=(r.bottom-6-24)+"px";f.tagIcon.style.display="flex";}
       if(f.aiIcon){f.aiIcon.style.left=(r.right-6-24-44)+"px";f.aiIcon.style.top=(r.bottom-6-24)+"px";f.aiIcon.style.display="flex";}
     }
     function _ltHideIcons(f){if(f.tagIcon)f.tagIcon.style.display="none";if(f.aiIcon)f.aiIcon.style.display="none";}
-    var _ltSyncT=null;
     function _ltSyncPositions(){
-      var pend=false;
       for(var i=_ltFloatIcons.length-1;i>=0;i--){
         var f=_ltFloatIcons[i];
         if(!f.ta.isConnected||!document.body.contains(f.ta)){
@@ -971,12 +941,39 @@
           continue;
         }
         _ltSyncOne(f);
-        if(f._pend)pend=true;
       }
-      if(pend&&!_ltSyncT){_ltSyncT=setTimeout(function(){_ltSyncT=null;_ltSyncPositions();},150);}
     }
     document.addEventListener("scroll",_ltSyncPositions,true);
     window.addEventListener("resize",_ltSyncPositions);
+    /* 画布平移/缩放同步：React Flow viewport 的 transform 变化 → 实时跟图标 */
+    var _ltVpObs=null;
+    function _ltWatchViewport(){
+      var vp=document.querySelector(".react-flow__viewport");
+      if(!vp){_ltVpObs=null;return;}
+      if(_ltVpObs&&_ltVpObs.el===vp)return;
+      if(_ltVpObs&&_ltVpObs.obs)_ltVpObs.obs.disconnect();
+      var obs=new MutationObserver(function(){_ltSyncPositions();});
+      obs.observe(vp,{attributes:true,attributeFilter:["transform","style"]});
+      _ltVpObs={el:vp,obs:obs};
+    }
+    var _ltDragRAF=null;
+    function _ltDragStart(){
+      if(_ltDragRAF)return;
+      function loop(){_ltSyncPositions();_ltDragRAF=requestAnimationFrame(loop);}
+      _ltDragRAF=requestAnimationFrame(loop);
+    }
+    function _ltDragEnd(){
+      if(_ltDragRAF){cancelAnimationFrame(_ltDragRAF);_ltDragRAF=null;}
+      _ltSyncPositions();
+    }
+    document.addEventListener("pointerdown",function(e){
+      var t=e.target&&e.target.closest?e.target.closest(".react-flow__pane,.react-flow__viewport"):null;
+      if(t){_ltWatchViewport();_ltDragStart();}
+    },true);
+    document.addEventListener("pointerup",_ltDragEnd,true);
+    document.addEventListener("pointercancel",_ltDragEnd,true);
+    setInterval(_ltWatchViewport,2000);
+    _ltWatchViewport();
     setInterval(_ltTagScan,1000);
         var _ltTagTimer=null;
     function _ltTagSchedule(delay){if(_ltTagTimer)clearTimeout(_ltTagTimer);_ltTagTimer=setTimeout(_ltTagScan,delay||100);}
@@ -1468,13 +1465,6 @@
       document.body.classList.toggle("libtv-step-edges");
       try{localStorage.setItem("_lt_step",document.body.classList.contains("libtv-step-edges")?"1":"0");}catch(ex){}
       _ltStepApply();
-      return;
-    }
-    if(e.key==="n"||e.key==="N"){
-      e.preventDefault(); e.stopPropagation();
-      var _on=localStorage.getItem("_lt_clean")!=="1";
-      try{localStorage.setItem("_lt_clean",_on?"1":"0");}catch(ex){}
-      if(_on&&_ltIsHomePath()) location.replace("/project");
       return;
     }
     if(e.key==="?"||e.key==="/"){

@@ -4,7 +4,7 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、标签系统、画布主题、设置面板等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.10.7  |  **作者：** oocc00  |  **协议：** MIT
+**当前版本：** 1.10.8  |  **作者：** oocc00  |  **协议：** MIT
 
 ## 文件结构
 
@@ -100,7 +100,6 @@ style.textContent = ['.react-flow__node {', '  border-radius: 12px;', ...].join(
 | `libtv-chain` | `body` | 链高亮激活 | — |
 | `libtv-autochain` | `body` | 自动链模式 | `_lt_autochain` |
 | `libtv-step-edges` | `body` | 电路板连线（避让式直角路由） | `_lt_step` |
-| `libtv-clean-home` | —（不再用 class） | 清爽模式：主页→项目页 | `_lt_clean` |
 
 ### 视觉改造（v1.9.3，v1.9.6 已移除）
 
@@ -116,29 +115,11 @@ style.textContent = ['.react-flow__node {', '  border-radius: 12px;', ...].join(
 | 画布背景 | ~~多色渐变辉光（跟随主题 accent 色）~~ | ❌ 已移除 |
 | 面板打开 | ~~画布自动压暗（`brightness(0.7) saturate(0.5)`）~~ | ❌ 已移除 |
 | ~~性能模式~~ | ~~一键关闭所有玻璃/发光/动画效果~~ | — |
-| 清爽首页 | ~~CSS 布局优化 + 隐藏干扰元素~~（v1.10.7 已删除，站点改版选择器失效） | ❌ 已移除，改为跳转 |
+| 清爽首页 | ~~CSS 布局优化 + 隐藏干扰元素~~（v1.10.7 改为跳转，v1.10.8 站点频繁改版，完全移除） | ❌ 已移除 |
 
 > ⚠️ `transform` 属性被 React Flow 用于节点定位，CSS 中不能覆盖。所有视觉效果使用 `box-shadow` / `filter` / `backdrop-filter` 实现。
 
 开关类名在 `src/style.css` + `src/inject.js`（快捷键 handler）+ `src/inject.js`（设置面板）三处同步维护。
-
-### 清爽模式（v1.10.7，替代旧清爽首页 CSS）
-
-旧版清爽首页 CSS（v1.9.4）已删除——站点改版后 Tailwind 类名全部失效。清爽模式改为**跳转逻辑**：
-
-| 触发点 | 行为 |
-|--------|------|
-| 打开主页 | 开启清爽模式后访问 `https://www.liblib.tv/`（根路径）自动 `location.replace("/project")` |
-| 点击链接/按钮 | 拦截「回到主站/回到主页/首页/logo」等链接与菜单按钮（`a[href]` / `button` / `[role=menuitem]` / `[data-menu-item]`，aria-label 或 href 匹配），改写为 `/project` |
-| `N` 键 | 切换开关；开启时若在主页立即跳转 |
-
-**实现（`src/inject.js`）：**
-- `_ltIsHomePath()` 判断当前是否主页根路径（`` / `/` / `/zh` / `/index.html`）
-- 入口处：`if(_ltClean && _ltIsHomePath()) location.replace("/project")`
-- 捕获阶段 click 监听：匹配 `a[href]`、`button`、`[role=menuitem]`、`[data-menu-item]`，`href === "/"` 或 aria-label/文本含「回到主站/回到主页/首页/主页/主站」（独立词边界，避免误伤「个人主页」），`preventDefault + stopImmediatePropagation` 后跳 `/project`
-- 不再使用 `body.libtv-clean-home` class，FPS 面板 ♡ 标志改读 `localStorage._lt_clean`
-
-> ⚠️ 链接拦截只在 `localStorage._lt_clean === "1"` 时生效；脚本匹配 `*://*.liblib.tv/canvas*` 与 `https://www.liblib.tv/*`，主页与项目页都在覆盖范围内。
 
 ### CSS 主题变量
 
@@ -316,7 +297,6 @@ sel.removeAllRanges(); sel.addRange(r);
 | `X` | 专注 toggle |
 | `R` | 电路板连线 toggle（避让式直角路由） |
 | `?` / `/` | 帮助提示 pin |
-| `N` | 清爽模式 toggle（开启后主页→项目页） |
 
 #### 设置面板
 
@@ -324,7 +304,7 @@ sel.removeAllRanges(); sel.addRange(r);
 
 | 分区 | 实现 |
 |------|------|
-| 开关 | 5 个 toggle（性能/隐藏图片/隐藏连线/隐藏网格/专注），操作 `localStorage._lt_*` + `body.classList`（清爽模式仅 `N` 键，不走设置面板） |
+| 开关 | 5 个 toggle（性能/隐藏图片/隐藏连线/隐藏网格/专注），操作 `localStorage._lt_*` + `body.classList` |
 | API | URL / Key / Model，存 `localStorage._lt_prompt_api` |
 | 数据管理 | 3 项（标签库/当前库/历史）+ 导出全部配置 + 内容包导出/导入 |
 | 关于 | 版本号 |
@@ -368,7 +348,7 @@ localStorage._lt_accounts（主）
 | `_lt_recent` | 已插入标签历史 |
 | `_lt_autochain` | 自动连线开关 |
 | `_lt_first_run` | 首次引导标识 |
-| `_lt_perf`, `_lt_hide`, `_lt_grid`, `_lt_edges`, `_lt_focus`, `_lt_step`, `_lt_clean` | 开关状态（`_lt_clean`：清爽模式，主页→项目页跳转） |
+| `_lt_perf`, `_lt_hide`, `_lt_grid`, `_lt_edges`, `_lt_focus`, `_lt_step` | 开关状态 |
 
 ## 第六节：菜单 + 持久化（`src/main.js`）
 
@@ -545,16 +525,19 @@ node --check src/inject.js
 
 ## 更新日志
 
+### v1.10.8
+**清爽模式完全移除 + 图标系统修复**
+- 清爽模式完全移除：站点频繁改版，不再维护（删除跳转逻辑 / 链接拦截 / `N` 键 / FPS ♡ 标志 / 文档章节）
+- 图标误显示修复：`_ltIsNodeInput` 从「节点内任意输入框」收窄为「节点内 + 可编辑 + 编辑器白名单 class」
+- 适配新版画布：可见提示词编辑区 class 改为 `text-fg-default`，加入白名单
+- 修复 @ 引用标签误显示：排除 `contenteditable="false"`（mention 标签如 `<图1>` 不再出现图标）
+
 ### v1.10.7
-**清爽模式重做：CSS 隐藏 → 主页跳转项目页**
-- 站点改版后旧清爽首页 CSS（Tailwind 类名选择器）全部失效，已删除全部 250+ 行样式
+**清爽模式重做：CSS 隐藏 → 主页跳转项目页（v1.10.8 已完全移除）**
+- 站点改版后旧清爽首页 CSS（Tailwind 类名选择器）全部失效，删除全部 250+ 行样式
 - 清爽模式改为跳转逻辑：开启后访问主页 `www.liblib.tv/` 根路径自动 `location.replace("/project")`
-- 拦截「回到主站/回到主页/首页/logo」链接与 Mantine 下拉菜单按钮（button / menuitem / data-menu-item），改写为 `/project`，主页广告页不再停留
-- `N` 键保留：切换开关，开启时若在主页立即跳转
-- 不再使用 `body.libtv-clean-home` class；FPS 面板 ♡ 标志改读 `localStorage._lt_clean`
-- 设置面板开关从 6 个减为 5 个（清爽模式仅 `N` 键控制）
-- 修复 Mantine 下拉菜单按钮漏网：拦截范围从 `a[href]` 扩展至 `button` / `[role=menuitem]` / `[data-menu-item]`，`stopImmediatePropagation` 切断 React 导航链
-- 「个人主页」不再误伤：主页词匹配改为独立词边界（`(^|\s)(首页|主页)(\s|$)`）+ 明确短语（回到主站/返回首页/回首页/主站）
+- 拦截「回到主站/回到主页/首页/logo」链接与 Mantine 下拉菜单按钮（button / menuitem / data-menu-item）
+- `N` 键切换开关；不再使用 `body.libtv-clean-home` class
 
 ### v1.10.6
 **AI 增强体验**

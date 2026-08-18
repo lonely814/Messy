@@ -42,7 +42,7 @@ mindmap
 > [!TIP]
 > 针对 libtv 场景深度优化的画布渲染加速脚本，优化重绘逻辑、降低内存占用，大幅提升高分辨率画布下的平移、缩放、绘制操作流畅度，显著减少卡顿掉帧。
 
-当前版本 **v1.10.7** · 完整版本历史见 `libtv-boost/perf-script-dev.md`
+当前版本 **v1.10.8** · 完整版本历史见 `libtv-boost/perf-script-dev.md`
 
 #### ⚡ Infinite Canvas Turbo
 

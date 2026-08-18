@@ -40,7 +40,7 @@
     var helpEl = document.createElement('div');
     helpEl.id = 'libtv-help';
     helpEl.classList.add('libtv-hide');
-    helpEl.textContent = '画布\n  G 网格   T 性能   H 隐藏   L 连线\n  C 全链   R 直角   X 专注\n工具\n  F 搜索   P 提示词   N 清爽   ? 帮助';
+    helpEl.textContent = '画布\n  G 网格   T 性能   H 隐藏   L 连线\n  C 全链   R 直角   X 专注\n工具\n  F 搜索   P 提示词   ? 帮助';
     document.body.appendChild(helpEl);
     function _showHelp(){ if(helpEl) helpEl.classList.remove('libtv-hide'); }
     function _hideHelp(){ if(helpEl && !helpEl.classList.contains('libtv-pin')) helpEl.classList.add('libtv-hide'); }
@@ -89,7 +89,6 @@
             if (document.body.classList.contains('libtv-autochain')) flags += '<span class="fps-flag">⟷</span>';
             if (document.body.classList.contains('libtv-focus')) flags += '<span class="fps-flag">◎</span>';
             if (document.body.classList.contains('libtv-step-edges')) flags += '<span class="fps-flag">└</span>';
-            try { if (localStorage.getItem('_lt_clean') === '1') flags += '<span class="fps-flag">♡</span>'; } catch(e) {}
             var nTotal = document.querySelectorAll('.react-flow__node').length;
 
             // 缩放级别
