@@ -7,7 +7,6 @@
 // @description  LibTV 画布增强 · 性能优化 · AI 提示词 · 标签 · 模板 · 主题
 // @match        *://*.iblib.tv/canvas*
 // @match        *://*.liblib.tv/canvas*
-// @match        https://www.liblib.tv/*
 // @run-at       document-idle
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
@@ -50,7 +49,20 @@
     helpEl.classList.add('libtv-hide');
     helpEl.textContent = '画布\n  G 网格   T 性能   H 隐藏   L 连线\n  C 全链   R 直角   X 专注\n工具\n  F 搜索   P 提示词   ? 帮助';
     document.body.appendChild(helpEl);
-    function _showHelp(){ if(helpEl) helpEl.classList.remove('libtv-hide'); }
+    function _showHelp(){
+        if(!helpEl) return;
+        /* 先解除隐藏再测量，保证拿到真实尺寸；left/top 定位时必须清掉 CSS 里的 right/bottom（同时生效会把 fixed 卡片双向拉伸） */
+        helpEl.classList.remove('libtv-hide');
+        var r = fpsEl.getBoundingClientRect();
+        var hw = helpEl.offsetWidth || 260, hh = helpEl.offsetHeight || 160;
+        helpEl.style.right = 'auto';
+        helpEl.style.bottom = 'auto';
+        helpEl.style.left = Math.max(8, Math.min(r.left, window.innerWidth - hw - 8)) + 'px';
+        /* 优先放 FPS 面板正上方，空间不够则放下方 */
+        var t = r.top - hh - 10;
+        if(t < 8) t = r.bottom + 10;
+        helpEl.style.top = Math.max(8, t) + 'px';
+    }
     function _hideHelp(){ if(helpEl && !helpEl.classList.contains('libtv-pin')) helpEl.classList.add('libtv-hide'); }
     if(fpsEl){ fpsEl.addEventListener('mouseenter', _showHelp); fpsEl.addEventListener('mouseleave', _hideHelp); }
 
@@ -410,6 +422,7 @@
             }
             var txt = info.join('\n');
             var div = document.createElement('div');
+            div.id = 'lt-diag';
             div.style.cssText = 'position:fixed;top:10px;left:10px;z-index:999999;background:rgba(0,0,0,0.92);color:#0f0;padding:12px;border-radius:8px;font:10px/1.4 monospace;max-width:700px;max-height:80vh;overflow:auto;pointer-events:auto;';
             div.innerHTML = '<div style="font-weight:bold;margin-bottom:6px;color:#fff;">🔍 诊断</div><pre style="margin:0;">' + txt.replace(/</g,'&lt;') + '</pre><div style="margin-top:6px;display:flex;gap:6px;"><button id="lt-dbg-copy" style="padding:2px 12px;cursor:pointer;">📋 复制</button><button id="lt-dbg-close" style="padding:2px 12px;cursor:pointer;">关闭</button></div>';
             document.body.appendChild(div);
@@ -417,7 +430,7 @@
                 navigator.clipboard.writeText(txt).then(function(){ document.getElementById('lt-dbg-copy').textContent = '✅ 已复制'; });
             };
             document.getElementById('lt-dbg-close').onclick = function(){ div.remove(); };
-        } catch(e){ try{_ltToast(e.message);}catch(ex){} }
+        } catch(e){ try{ if(unsafeWindow._ltToast) unsafeWindow._ltToast(e.message); else console.error('[LibTV] 诊断错误:', e); }catch(ex){} }
     });
 })();
 

@@ -4,19 +4,19 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、标签系统、画布主题、设置面板等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.10.9  |  **作者：** oocc00  |  **协议：** MIT
+**当前版本：** 1.10.10  |  **作者：** oocc00  |  **协议：** MIT
 
 ## 文件结构
 
-| 文件 | 说明 |
-|------|------|
-| `src/style.css` | **CSS 源码** — 639 行，完整 IDE 语法高亮/自动补全/颜色预览 |
-| `src/inject.js` | **注入脚本源码** — 1877 行，页面上下文执行的 JS IIFE |
-| `src/main.js` | **主模板** — 油猴 IIFE 骨架，含 `__INJECT_CSS__` / `__INJECT_SCRIPT__` 占位符 |
-| `build.js` | **构建脚本** — 零依赖 Node 脚本，组装源码 → `.user.js` |
-| `libtv-boost.user.js` | **构建产出** — 拖进 Tampermonkey 安装。不要直接编辑此文件 |
-| `perf-script-dev.md` | 本文档 |
-| `libtv-content-pack.json` | 内容包导出示例 |
+| 文件                        | 说明                                                                |
+| ------------------------- | ----------------------------------------------------------------- |
+| `src/style.css`           | **CSS 源码** — 638 行，完整 IDE 语法高亮/自动补全/颜色预览                          |
+| `src/inject.js`           | **注入脚本源码** — 2246 行，页面上下文执行的 JS IIFE                              | **注入脚本源码** — 2088 行，页面上下文执行的 JS IIFE                              |
+| `src/main.js`             | **主模板** — 油猴 IIFE 骨架，含 `__INJECT_CSS__` / `__INJECT_SCRIPT__` 占位符 |
+| `build.js`                | **构建脚本** — 零依赖 Node 脚本，组装源码 → `.user.js`                          |
+| `libtv-boost.user.js`     | **构建产出** — 拖进 Tampermonkey 安装。不要直接编辑此文件                           |
+| `perf-script-dev.md`      | 本文档                                                               |
+| `libtv-content-pack.json` | 内容包导出示例                                                           |
 
 **工作流：** 编辑 `src/` 下的源码 → `node build.js` → 产出 `libtv-boost.user.js`。
 
@@ -32,6 +32,7 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 - **页面上下文（`src/inject.js`，通过 `<script>` 注入）**：只有 `window`，**没有 `unsafeWindow` 标识符**，也没有 `GM_*`（`GM_xmlhttpRequest` 等）。
 
 **跨上下文传东西的规则**：
+
 - 沙箱 → 页面：沙箱里 `unsafeWindow.__xxx = ...`（因为沙箱的 `unsafeWindow` 实际指向页面 `window`），页面里用 `window.__xxx` 取。**绝不要在页面上下文写 `unsafeWindow`**（会抛 `unsafeWindow is not defined`）。
 - 页面 → 沙箱：把函数挂到 `window._xxx`，沙箱用 `unsafeWindow._xxx` 调用。
 
@@ -40,14 +41,15 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 ### 2. 版本号只在 `build.js` 维护
 
 - 唯一真相源：`build.js` 顶部的 `const VERSION`。改版本只改这一处。
-- 源码里版本用 `__VERSION__` 占位符，构建时自动注入（`@version` 元数据 + 设置面板关于区）。**不要去源码里手写版本号**。
+- 源码里版本用占位符，构建时从 build.js 顶部 `VERSION` 常量自动注入。**不要去源码里手写版本号**：
+  - `src/main.js` 用 `__VERSION__`（→ `@version` 元数据）
+  - `src/inject.js` 用 `__LT_VER__`（→ 设置面板「关于」版本徽章，v1.10.10 起接入）
 - 文档里的版本号（概述、更新日志）需手动同步。
 
 ### 3. 改动后必须提交进 git
 
 - 曾经发生过：会话中对 `src/` 的编辑写到了临时副本、未落回仓库，导致 CORS 修复等改动**全部丢失、git 里也查无此项**（任何历史 commit 都没有）。
 - **纪律**：每完成一个功能/修复，立刻 `node --check` + `node build.js` + `git commit`。不要依赖"会话结束自动保存"。
-- `.omo/plans/` 计划目录已被误删，目前无独立计划文件，开发向信息以本文档为准。
 
 ### 4. 第三方网关 CORS 是常态问题，GM_xmlhttpRequest 是标准解法
 
@@ -74,10 +76,11 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 `build.js` 是一个零依赖（仅 `node:fs` / `node:path`）的纯字符串处理脚本。
 
 **构建过程：**
+
 1. 读取 `src/style.css`，按行分割，每行转成单引号字符串（自动转义 `\` / `'` / CRLF）
 2. 读取 `src/inject.js`，同上处理
 3. 读取 `src/main.js` 模板，将 CSS 数组替换 `__INJECT_CSS__`，注入脚本数组替换 `__INJECT_SCRIPT__`
-4. 将 `build.js` 顶部的 `VERSION` 常量注入所有 `__VERSION__` 占位符（`@version` 元数据 + 设置面板关于区）
+4. 将 `build.js` 顶部的 `VERSION` 常量注入占位符：main.js 的 `__VERSION__`（`@version` 元数据）、inject.js 的 `__LT_VER__`（设置面板「关于」徽章）
 5. 写出 `libtv-boost.user.js`
 
 **版本号维护：** 统一在 `build.js` 顶部 `VERSION` 常量修改，构建时自动注入，不再手动改源码。文档中的版本号仍需手动同步。
@@ -85,6 +88,7 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 **加新文件的流程：** 在 `build.js` 的 `build()` 函数中加一行 `read()` + `replace()` 链即可。
 
 **语法验证：**
+
 ```bash
 node build.js                              # 构建
 node --check libtv-boost.user.js           # 验证产出语法
@@ -95,11 +99,11 @@ node --check src/inject.js                 # 直接验证注入脚本语法（�
 
 `build.js` 将 `src/` 下的源码组装进 `src/main.js` 模板，产出单文件 `.user.js`。
 
-| 源代码 | 对应运行时位置 | 说明 |
-|--------|--------------|------|
-| `src/main.js` | IIFE 外层 | 油猴沙箱上下文：FPS 面板、流动光效、Drawer 适配、菜单开关、诊断 |
-| `src/inject.js` | `<script>` 注入到页面上下文 | 所有画布交互逻辑：链高亮、搜索、标签、提示词、主题、快捷键、设置面板 |
-| `src/style.css` | `style.textContent = [...]` | 所有视觉样式，通过构建自动嵌入 |
+| 源代码             | 对应运行时位置                     | 说明                                    |
+| --------------- | --------------------------- | ------------------------------------- |
+| `src/main.js`   | IIFE 外层                     | 油猴沙箱上下文：FPS 面板、流动光效、Drawer 适配、菜单开关、诊断 |
+| `src/inject.js` | `<script>` 注入到页面上下文         | 所有画布交互逻辑：链高亮、搜索、标签、提示词、主题、快捷键、设置面板    |
+| `src/style.css` | `style.textContent = [...]` | 所有视觉样式，通过构建自动嵌入                       |
 
 ### 双沙箱通信
 
@@ -153,6 +157,7 @@ function _ltXHR(opts){
 ```
 
 构建产出等价于：
+
 ```js
 style.textContent = ['.react-flow__node {', '  border-radius: 12px;', ...].join('\n');
 ```
@@ -163,32 +168,32 @@ style.textContent = ['.react-flow__node {', '  border-radius: 12px;', ...].join(
 
 通过 body 类或元素类控制显隐：
 
-| 类名 | 作用元素 | 功能 | localStorage |
-|------|---------|------|-------------|
-| `perf-mode` | `body` | 去阴影/模糊/动画/滤镜 | `_lt_perf` |
-| `perf-hide-imgs` | `body` | 隐藏节点图片 | `_lt_hide` |
-| `perf-no-grid` | `.react-flow__background` | 隐藏网格 | `_lt_grid` |
-| `perf-hide-edges` | `.react-flow__edges` | 隐藏连线 | `_lt_edges` |
-| `libtv-focus` | `body` | 专注模式（隐藏侧栏） | `_lt_focus` |
-| `libtv-chain` | `body` | 链高亮激活 | — |
-| `libtv-autochain` | `body` | 自动链模式 | `_lt_autochain` |
-| `libtv-step-edges` | `body` | 电路板连线（避让式直角路由） | `_lt_step` |
+| 类名                 | 作用元素                      | 功能             | localStorage    |
+| ------------------ | ------------------------- | -------------- | --------------- |
+| `perf-mode`        | `body`                    | 去阴影/模糊/动画/滤镜   | `_lt_perf`      |
+| `perf-hide-imgs`   | `body`                    | 隐藏节点图片         | `_lt_hide`      |
+| `perf-no-grid`     | `.react-flow__background` | 隐藏网格           | `_lt_grid`      |
+| `perf-hide-edges`  | `.react-flow__edges`      | 隐藏连线           | `_lt_edges`     |
+| `libtv-focus`      | `body`                    | 专注模式（隐藏侧栏）     | `_lt_focus`     |
+| `libtv-chain`      | `body`                    | 链高亮激活          | —               |
+| `libtv-autochain`  | `body`                    | 自动链模式          | `_lt_autochain` |
+| `libtv-step-edges` | `body`                    | 电路板连线（避让式直角路由） | `_lt_step`      |
 
 ### 视觉改造（v1.9.3，v1.9.6 已移除）
 
 以下视觉改造在 v1.9.6 中已全部移除（因导致节点缩放 bug），节点恢复 React Flow 原生外观：
 
-| ~~改造项~~ | ~~效果~~ | 状态 |
-|-----------|---------|------|
-| 节点卡片 | ~~玻璃质感（`backdrop-filter: blur(8px)` + 微透明背景 + 微边框）~~ | ❌ 已移除 |
-| 节点悬浮 | ~~hover 时边框提亮 + 阴影上浮~~ | ❌ 已移除 |
-| 选中节点 | ~~全息光晕（`box-shadow` 四层叠加）+ 边框变 accent 色~~ | ❌ 已移除 |
-| 连线 | ~~2px 粗 + hover 发光描边~~ | ❌ 已移除 |
-| 链高亮连线 | ~~2.8px + 8px 发光滤镜~~ | ❌ 已移除 |
-| 画布背景 | ~~多色渐变辉光（跟随主题 accent 色）~~ | ❌ 已移除 |
-| 面板打开 | ~~画布自动压暗（`brightness(0.7) saturate(0.5)`）~~ | ❌ 已移除 |
-| ~~性能模式~~ | ~~一键关闭所有玻璃/发光/动画效果~~ | — |
-| 清爽首页 | ~~CSS 布局优化 + 隐藏干扰元素~~（v1.10.7 改为跳转，v1.10.8 站点频繁改版，完全移除） | ❌ 已移除 |
+| ~~改造项~~  | ~~效果~~                                                  | 状态    |
+| -------- | ------------------------------------------------------- | ----- |
+| 节点卡片     | ~~玻璃质感（`backdrop-filter: blur(8px)` + 微透明背景 + 微边框）~~    | ❌ 已移除 |
+| 节点悬浮     | ~~hover 时边框提亮 + 阴影上浮~~                                  | ❌ 已移除 |
+| 选中节点     | ~~全息光晕（`box-shadow` 四层叠加）+ 边框变 accent 色~~               | ❌ 已移除 |
+| 连线       | ~~2px 粗 + hover 发光描边~~                                  | ❌ 已移除 |
+| 链高亮连线    | ~~2.8px + 8px 发光滤镜~~                                    | ❌ 已移除 |
+| 画布背景     | ~~多色渐变辉光（跟随主题 accent 色）~~                               | ❌ 已移除 |
+| 面板打开     | ~~画布自动压暗（`brightness(0.7) saturate(0.5)`）~~             | ❌ 已移除 |
+| ~~性能模式~~ | ~~一键关闭所有玻璃/发光/动画效果~~                                    | —     |
+| 清爽首页     | ~~CSS 布局优化 + 隐藏干扰元素~~（v1.10.7 改为跳转，v1.10.8 站点频繁改版，完全移除） | ❌ 已移除 |
 
 > ⚠️ `transform` 属性被 React Flow 用于节点定位，CSS 中不能覆盖。所有视觉效果使用 `box-shadow` / `filter` / `backdrop-filter` 实现。
 
@@ -198,37 +203,38 @@ style.textContent = ['.react-flow__node {', '  border-radius: 12px;', ...].join(
 
 `:root` 定义的 CSS 变量：
 
-| 变量 | 含义 | 默认值 |
-|------|------|--------|
-| `--accent` | 主色调 | `#6366f1` |
-| `--accent-light` | 亮色调 | `#818cf8` |
-| `--accent-dark` | 暗色调 | `#4f46e5` |
-| `--accent-rgb` | RGB（逗号分隔） | `99,102,241` |
-| `--canvas-bg` | 画布背景 | `#0f0f0f` |
-| `--node-bg` | 节点背景 | `#1a1a2e` |
-| `--border-color` | 节点边框 | `rgba(255,255,255,0.12)` |
-| `--edge-color` | 连线色 | `rgba(255,255,255,0.08)` |
+| 变量               | 含义        | 默认值                      |
+| ---------------- | --------- | ------------------------ |
+| `--accent`       | 主色调       | `#6366f1`                |
+| `--accent-light` | 亮色调       | `#818cf8`                |
+| `--accent-dark`  | 暗色调       | `#4f46e5`                |
+| `--accent-rgb`   | RGB（逗号分隔） | `99,102,241`             |
+| `--canvas-bg`    | 画布背景      | `#0f0f0f`                |
+| `--node-bg`      | 节点背景      | `#1a1a2e`                |
+| `--border-color` | 节点边框      | `rgba(255,255,255,0.12)` |
+| `--edge-color`   | 连线色       | `rgba(255,255,255,0.08)` |
 
 ### 设置面板 CSS
 
 设置面板使用独立样式（不与提示词面板共用）：
 
-| 选择器 | 用途 |
-|--------|------|
-| `.lt-settings` | 面板容器（居中对齐，霓虹玻璃） |
-| `.lt-settings-head` / `.lt-settings-close` | 头部 + 关闭 |
-| `.lt-settings-body` | 滚动内容区 |
-| `.lt-settings-sec` / `.lt-settings-stitle` | 分区标题 |
-| `.lt-settings-toggle` / `.lt-settings-switch` | 滑动开关 |
-| `.lt-settings-btn` / `-primary` / `-ghost` / `-sm` | 按钮 |
-| `.lt-settings-row` / `.lt-settings-inp` | 输入行 |
-| `.lt-settings-dlist` / `.lt-settings-ditem` / `.lt-settings-dclear` | 数据管理清单 |
-| `.lt-settings-about` | 关于区 |
-| `.lt-settings-cpbtns` | 内容包按钮行 |
+| 选择器                                                                 | 用途              |
+| ------------------------------------------------------------------- | --------------- |
+| `.lt-settings`                                                      | 面板容器（居中对齐，霓虹玻璃） |
+| `.lt-settings-head` / `.lt-settings-close`                          | 头部 + 关闭         |
+| `.lt-settings-body`                                                 | 滚动内容区           |
+| `.lt-settings-sec` / `.lt-settings-stitle`                          | 分区标题            |
+| `.lt-settings-toggle` / `.lt-settings-switch`                       | 滑动开关            |
+| `.lt-settings-btn` / `-primary` / `-ghost` / `-sm`                  | 按钮              |
+| `.lt-settings-row` / `.lt-settings-inp`                             | 输入行             |
+| `.lt-settings-dlist` / `.lt-settings-ditem` / `.lt-settings-dclear` | 数据管理清单          |
+| `.lt-settings-about`                                                | 关于区             |
+| `.lt-settings-cpbtns`                                               | 内容包按钮行          |
 
 ## 第二节：FPS 面板（`src/main.js`）
 
 DOM 创建 + 拖拽 + RAF 循环：
+
 - `#libtv-fps` 浮动面板，显示 FPS、缩放、节点数、开关状态
 - 可拖拽（mousedown/mousemove/mouseup）
 - 悬停时显示快捷键提示卡片 `#libtv-help`
@@ -238,13 +244,15 @@ DOM 创建 + 拖拽 + RAF 循环：
 全屏 SVG overlay（`#libtv-glow`），`z-index:50`，`pointer-events:none`。
 
 对每个 `.react-flow__node.selected` 生成沿节点边框运动的双流光（双层 × 180° 对位）：
+
 - 结构：模糊光带（accentLight，7px，13% 周长）+ 白色亮线（2px，13% 周长），第二条 offset+周长/2
 - 色调：读取 `--accent` / `--accent-light`
 - 动画周期：7000ms/圈，每节点独立计时（t0），固定从顶边中点出发
 - 光晕：`feGaussianBlur(stdDeviation=6)`（固定，不随缩放）
 - 性能：元素缓存（帧内只改 dashoffset/opacity，零 DOM 重建）、30fps 节流、200ms 淡入 / 150ms 淡出
 - 性能模式下自动隐藏
-## 第四节：AI Agent Drawer 适配（`src/main.js`）
+  
+  ## 第四节：AI Agent Drawer 适配（`src/main.js`）
 
 MutationObserver 监听 `body`，检测右侧 AI Agent Drawer 的出现。当 drawer 打开时，将 FPS 面板和浮动按钮右推避免遮挡。
 
@@ -254,21 +262,21 @@ MutationObserver 监听 `body`，检测右侧 AI Agent Drawer 的出现。当 dr
 
 ### 子模块
 
-| 子模块 | 功能 |
-|--------|------|
-| 链高亮引擎 | BFS 图遍历、`_ltAutoChain` 自动模式 |
-| 连线 hover 高亮 | mouseover/mouseout 切换 `.libtv-edge-active` |
-| 节点搜索 | 浮动搜索面板，按文本过滤节点 |
-| 提示词工具 | 模板 / AI / 主题 / 调色板 / 设置 tab |
-| 标签系统 | 四层结构：库→分类→分组→标签 |
-| 浮动按钮 | 可拖拽的提示词工具按钮（仅画布页面显示） |
-| 电路板连线 | 避让式直角路由（节点避让 + 边缘引出 + 圆角），`R` 键开关 |
-| 快捷键 | 11 个快捷键 handler |
-| 内容包 | 导出/导入 JSON |
-| 账号切换 | Cookie + localStorage 快照、多账号保存/切换/刷新/删除 |
-| 首次引导 | `_ltShowWelcome()` + 帮助面板（设置页可重新弹出） |
-| 设置面板 | `_ltSettingsPanel()` 函数 |
-| AI 增强重构 | 预设策略(润色/扩写/缩写/翻译) + 自定义 system prompt + 原文对比结果区 |
+| 子模块         | 功能                                              |
+| ----------- | ----------------------------------------------- |
+| 链高亮引擎       | BFS 图遍历、`_ltAutoChain` 自动模式                     |
+| 连线 hover 高亮 | mouseover/mouseout 切换 `.libtv-edge-active`      |
+| 节点搜索        | 浮动搜索面板，按文本过滤节点                                  |
+| 提示词工具       | 模板 / AI / 主题 / 调色板 / 设置 tab                     |
+| 标签系统        | 四层结构：库→分类→分组→标签                                 |
+| 浮动按钮        | 可拖拽的提示词工具按钮（仅画布页面显示）                            |
+| 电路板连线       | 避让式直角路由（节点避让 + 边缘引出 + 圆角），`R` 键开关               |
+| 快捷键         | 11 个快捷键 handler                                 |
+| 内容包         | 导出/导入 JSON                                      |
+| 账号切换        | Cookie + localStorage 快照、多账号保存/切换/刷新/删除         |
+| 首次引导        | `_ltShowWelcome()` + 帮助面板（设置页可重新弹出）             |
+| 设置面板        | `_ltSettingsPanel()` 函数                         |
+| AI 增强重构     | 预设策略(润色/扩写/缩写/翻译) + 自定义 system prompt + 原文对比结果区 |
 
 #### 链高亮引擎
 
@@ -277,6 +285,7 @@ var _ltAutoChain = localStorage.getItem("_lt_autochain") === "1";
 ```
 
 点击节点时 BFS 遍历上下游：
+
 1. `_ltGetGraph()` — 读取 `.react-flow__edge` 的 `aria-label`，格式 `Edge from X to Y`
 2. **关键：aria-label 前有不可见字符**，须用 `.trim()` 后再正则匹配
 3. 遍历出所有相连节点，添加 `.libtv-chain-node` / `.libtv-chain-edge` 类
@@ -300,23 +309,29 @@ _ltTagLibs = {
 _ltCurLib        // 当前库名（localStorage._lt_cur_lib）
 _ltTagActiveCat  // 当前分类索引
 _ltRecentTags    // 已插入历史（localStorage._lt_recent）
+
+**API 相关键（v1.10.10）：**
+_lt_prompt_api   // 当前生效配置 {id,url,key,model}
+_lt_api_presets  // 预设列表 [{id,name,url,key,model}]
+_lt_models_cache|{base}|{key}  // 模型列表缓存（24h 过期，换地址/Key 自动失效）
 ```
 
 **核心函数：**
 
-| 函数 | 作用 |
-|------|------|
-| `_ltShowTagMenu(ta)` | 打开标签面板，绑定事件 |
-| `_ltCloseTagMenu()` | 关闭标签面板 |
-| `_ltRenderTagMenu()` | 渲染面板：库下拉、分类 Tab、内容区 |
-| `_ltRenderCat(cat)` | 渲染某分类的内容 |
-| `_ltRenderSearch()` | 全局搜索结果 |
-| `_ltInsertTagAtCursor(text)` | 光标位置插入文本 |
-| `_ltEsc(s)` | HTML 转义（防 XSS） |
+| 函数                           | 作用                  |
+| ---------------------------- | ------------------- |
+| `_ltShowTagMenu(ta)`         | 打开标签面板，绑定事件         |
+| `_ltCloseTagMenu()`          | 关闭标签面板              |
+| `_ltRenderTagMenu()`         | 渲染面板：库下拉、分类 Tab、内容区 |
+| `_ltRenderCat(cat)`          | 渲染某分类的内容            |
+| `_ltRenderSearch()`          | 全局搜索结果              |
+| `_ltInsertTagAtCursor(text)` | 光标位置插入文本            |
+| `_ltEsc(s)`                  | HTML 转义（防 XSS）      |
 
 **文本插入机制：**
 
 textarea / input\[type=text\]：
+
 ```js
 var proto = ta.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
 var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
@@ -325,6 +340,7 @@ ta.dispatchEvent(new Event('input', {bubbles: true}));
 ```
 
 contentEditable：
+
 ```js
 var sel = window.getSelection();
 var r = sel.getRangeAt(0);
@@ -339,6 +355,7 @@ sel.removeAllRanges(); sel.addRange(r);
 #### 主题系统
 
 **预设数据结构：**
+
 ```js
 { n:"靛蓝", a:"#6366f1", l:"#818cf8", d:"#4f46e5",
   ar:"99,102,241", alr:"129,140,248",
@@ -347,6 +364,7 @@ sel.removeAllRanges(); sel.addRange(r);
 ```
 
 29 套预设按 `cat` 分组渲染：
+
 - **dark**（18）：靛蓝、翡翠、玫瑰、琥珀、天蓝、紫色、暗夜绿、赛博朋克、暖棕复古、暗紫、墨绿、深红、钴蓝、石墨、霓虹紫、午夜蓝、橄榄绿、熔岩橙
 - **light**（7）：极简白、灰银、暖白、淡紫、粉彩、淡青、奶油
 - **high**（4）：高对比、高对比蓝、高对比黄黑、高对比绿黑
@@ -357,53 +375,58 @@ sel.removeAllRanges(); sel.addRange(r);
 
 所有 handler 在 keydown 事件中。input/textarea 中忽略，Ctrl/Meta/Alt 按下时忽略。
 
-| 键 | 功能 |
-|----|------|
-| `Escape` | 关闭面板 + 清除链高亮 |
-| `G` | 网格 toggle |
-| `T` | 性能 toggle |
-| `H` | 隐藏图片 toggle |
-| `L` | 隐藏连线 toggle |
-| `C` | 自动链 toggle |
-| `F` | 搜索面板开关 |
-| `P` | 提示词面板开关 |
-| `X` | 专注 toggle |
-| `R` | 电路板连线 toggle（避让式直角路由） |
-| `?` / `/` | 帮助提示 pin |
+| 键         | 功能                    |
+| --------- | --------------------- |
+| `Escape`  | 关闭面板 + 清除链高亮          |
+| `G`       | 网格 toggle             |
+| `T`       | 性能 toggle             |
+| `H`       | 隐藏图片 toggle           |
+| `L`       | 隐藏连线 toggle           |
+| `C`       | 自动链 toggle            |
+| `F`       | 搜索面板开关                |
+| `P`       | 提示词面板开关               |
+| `X`       | 专注 toggle             |
+| `R`       | 电路板连线 toggle（避让式直角路由） |
+| `?` / `/` | 帮助提示 pin              |
 
 #### 设置面板
 
 `_ltSettingsPanel()` 函数（`src/inject.js`）创建独立浮动面板：
 
-| 分区 | 实现 |
-|------|------|
-| 开关 | 5 个 toggle（性能/隐藏图片/隐藏连线/隐藏网格/专注），操作 `localStorage._lt_*` + `body.classList` |
-| API | URL / Key / Model，存 `localStorage._lt_prompt_api` |
-| 数据管理 | 3 项（标签库/当前库/历史）+ 导出全部配置 + 内容包导出/导入 |
-| 关于 | 版本号 |
+| 分区   | 实现                                                                          |
+| ---- | --------------------------------------------------------------------------- |
+| 开关   | 5 个 toggle（性能/隐藏图片/隐藏连线/隐藏网格/专注），操作 `localStorage._lt_*` + `body.classList` |
+| API  | URL / Key / Model，存 `localStorage._lt_prompt_api`                           |
+| 数据管理 | 3 项（标签库/当前库/历史）+ 导出全部配置 + 内容包导出/导入                                          |
+| 关于   | 版本号                                                                         |
 
 **AI API 请求机制（v1.10.8 重构）：**
+
 - 对话 `_ltAIChat()` 与模型拉取 `_ltFetchModels()` 统一走 `_ltXHR()` 封装，优先 `GM_xmlhttpRequest`（油猴扩展代发，**绕过 CORS**），不可用回退原生 `fetch`。
 - 模型列表拉取多端点探测：按 URL 是否带 `/v1` 智能排序，依次尝试 `/v1/models` → `/models`，404 自动回退下一个；解析兼容 `data` 与 `models` 两种字段。
 - 错误可诊断：`_ltModelsErrDesc()` 把 `TypeError`（请求失败）与 HTTP 错误区分提示，避免笼统的 "Failed to fetch"。
 
 入口：
+
 - 油猴菜单 `⚙ 设置` → `unsafeWindow._ltOpenSettings()`
 - 提示词面板「设置」tab → 关闭面板 + 调用 `_ltSettingsPanel()`
 
 #### 账号切换系统
 
 **数据流：**
+
 1. `_ltAccSave(name)` → 保存当前 cookie + localStorage 快照到 `_lt_accounts`
 2. `_ltAccSwitch(id)` → 恢复目标账号的 cookie + localStorage, 然后 `location.reload()`
 3. `_ltAccList()` → 每次调用触发 `_ltAccTryRestore()` 自动恢复
 
 **三级兜底备份（v1.10.2）：**
+
 ```
 localStorage._lt_accounts（主）
   → cookie._lt_acc_bak（一级备份，60 天）
     → IndexedDB._lt_boost（二级备份：对象仓库 b）
 ```
+
 - 每次保存/刷新/删除账号时同时写 cookie + IndexedDB
 - `_ltAccTryRestore()` 判断 localStorage 丢失后依次尝试 cookie → IndexedDB
 - 页面加载时异步从 IndexedDB 提前恢复（`_ltIDBGet` + 回调写回）
@@ -411,22 +434,22 @@ localStorage._lt_accounts（主）
 
 **所有 `_lt_` localStorage 键：**
 
-| key | 用途 |
-|-----|------|
-| `_lt_accounts` | 多账号列表 |
-| `_lt_theme` | 主题预设 |
-| `_lt_prompts` | AI 提示词模板 |
-| `_lt_prompt_api` | AI API 配置（URL + model） |
-| `_lt_ai_sys` | 自定义 system prompt |
-| `_lt_ai_custom_presets` | 自定义预设列表 |
-| `_lt_pal_recent` | 取色器最近色（20 色） |
-| `_lt_pal_fav` | 取色器收藏 |
-| `_lt_tag_libs` | 标签库 |
-| `_lt_cur_lib` | 当前标签库名 |
-| `_lt_recent` | 已插入标签历史 |
-| `_lt_autochain` | 自动连线开关 |
-| `_lt_first_run` | 首次引导标识 |
-| `_lt_perf`, `_lt_hide`, `_lt_grid`, `_lt_edges`, `_lt_focus`, `_lt_step` | 开关状态 |
+| key                                                                      | 用途                     |
+| ------------------------------------------------------------------------ | ---------------------- |
+| `_lt_accounts`                                                           | 多账号列表                  |
+| `_lt_theme`                                                              | 主题预设                   |
+| `_lt_prompts`                                                            | AI 提示词模板               |
+| `_lt_prompt_api`                                                         | AI API 配置（URL + model） |
+| `_lt_ai_sys`                                                             | 自定义 system prompt      |
+| `_lt_ai_custom_presets`                                                  | 自定义预设列表                |
+| `_lt_pal_recent`                                                         | 取色器最近色（20 色）           |
+| `_lt_pal_fav`                                                            | 取色器收藏                  |
+| `_lt_tag_libs`                                                           | 标签库                    |
+| `_lt_cur_lib`                                                            | 当前标签库名                 |
+| `_lt_recent`                                                             | 已插入标签历史                |
+| `_lt_autochain`                                                          | 自动连线开关                 |
+| `_lt_first_run`                                                          | 首次引导标识                 |
+| `_lt_perf`, `_lt_hide`, `_lt_grid`, `_lt_edges`, `_lt_focus`, `_lt_step` | 开关状态                   |
 
 ## 第六节：菜单 + 持久化（`src/main.js`）
 
@@ -446,12 +469,14 @@ var _toggles = {
 `_read()` / `_apply()` / `_click()` 负责 localStorage ↔ body class 同步。
 
 油猴菜单（2 项）：
+
 - `⚙ 设置` → `unsafeWindow._ltOpenSettings()`
 - `🔍 诊断` → DOM 诊断面板
 
 ## 内容包
 
 导出结构：
+
 ```json
 {
   "app": "libtv-boost",
@@ -500,11 +525,11 @@ hook.textContent = [/* build 自动生成的数组 */].join('\n');
 
 > 旧版的三重转义陷阱（层①：数组元素格式转义）**已由 `build.js` 自动处理**。开发者只需关心两层：
 
-| 层 | 上下文 | 转义目标 | 示例 |
-|---|--------|---------|------|
-| ~~①~~ | ~~数组元素 `'...'`~~ | ~~`build.js` 自动处理，无需手动操作~~ | 已自动化 |
-| ① (原②) | 注入脚本中的 JS 字符串：`"..."` | 双引号字符串内的转义 | `\"` → `"`, `\\` → `\` |
-| ② (原③) | HTML 属性值 | HTML entity | `&` → `&amp;` |
+| 层      | 上下文                   | 转义目标                       | 示例                     |
+| ------ | --------------------- | -------------------------- | ---------------------- |
+| ~~①~~  | ~~数组元素 `'...'`~~      | ~~`build.js` 自动处理，无需手动操作~~ | 已自动化                   |
+| ① (原②) | 注入脚本中的 JS 字符串：`"..."` | 双引号字符串内的转义                 | `\"` → `"`, `\\` → `\` |
+| ② (原③) | HTML 属性值              | HTML entity                | `&` → `&amp;`          |
 
 **注入脚本（`src/inject.js`）是正常 JS 文件，字符串行为就是标准 JS：**
 
@@ -514,11 +539,13 @@ hook.textContent = [/* build 自动生成的数组 */].join('\n');
 ```
 
 **调试方法：** 直接对源文件做 `node --check`：
+
 ```bash
 node --check src/inject.js
 ```
 
 **判断出错层次的速查：**
+
 - `node --check src/inject.js` 报错 → JS 字符串语法错误
 - `node --check src/inject.js` 通过但浏览器里效果不对 → HTML 转义问题（`_ltEsc()` 漏调）
 - `node build.js` 报错或产出文件语法错误 → `build.js` 的转义逻辑有 bug
@@ -527,14 +554,14 @@ node --check src/inject.js
 
 已应用的现代 CSS 特性（PC-only，不需要 `@media (hover)`）：
 
-| 特性 | 用途 | 数量 |
-|------|------|------|
-| `color-mix()` | 替代 `rgba(var(--accent-rgb), N)` | 37 处 |
-| `@starting-style` | 面板入场过渡（display: none → block 时） | 6 个面板 |
-| `scrollbar-gutter: stable` | 防滚动条出现导致布局偏移 | 7 个容器 |
-| `text-wrap: balance` | 标题自动断行 | 6 处 |
-| `content-visibility: auto` | 长列表跳过屏外渲染 | 3 个列表 |
-| `backdrop-filter: blur(20px)` | 全屏输入毛玻璃 | 1 处 |
+| 特性                            | 用途                              | 数量    |
+| ----------------------------- | ------------------------------- | ----- |
+| `color-mix()`                 | 替代 `rgba(var(--accent-rgb), N)` | 37 处  |
+| `@starting-style`             | 面板入场过渡（display: none → block 时） | 6 个面板 |
+| `scrollbar-gutter: stable`    | 防滚动条出现导致布局偏移                    | 7 个容器 |
+| `text-wrap: balance`          | 标题自动断行                          | 6 处   |
+| `content-visibility: auto`    | 长列表跳过屏外渲染                       | 3 个列表 |
+| `backdrop-filter: blur(20px)` | 全屏输入毛玻璃                         | 1 处   |
 
 过渡曲线统一使用 `var(--ease-out): cubic-bezier(0.23, 1, 0.32, 1)`，取代 `ease`。
 
@@ -594,14 +621,15 @@ node --check src/inject.js
 
 ### 8. 版本纪律
 
-- 修复期保持同一版本号，用户确认效果后再统一发布（本次 1.10.6~1.10.10 合并为一条 1.10.6）
-- 合并发布时把中间版本的 changelog 合并为一条，避免文档膨胀
+- 修复期保持同一版本号，用户确认效果后再统一发布；合并发布时把中间版本的 changelog 合并为一条，避免文档膨胀
 
 ### 9. 视觉重做要保留原始风貌
+
 - **现象**：光效重做先试三层彗星（被否）、再试纯模糊单层（被否），用户最终认可「最初的双层质感 + 顺滑机制」
 - **教训**：用户对已有视觉有感情。重做时先保留原视觉骨架、只修问题（顺滑度/时机/性能），不要换概念；参数迭代比概念替换安全
 
 ### 10. 第三方网关 CORS 必须用 `GM_xmlhttpRequest` 绕过
+
 - **现象**：自定义 HTTPS 网关在 Postman/后端都能连，但脚本里 `fetch` 直连报 `Failed to fetch`，DeepSeek/本地 llama 却正常。
 - **根因**：`fetch` 跑在页面上下文，跨域（liblib.tv ≠ 网关域名）会触发浏览器 CORS 预检；自托管/中转网关常不返 `Access-Control-Allow-Origin`，预检失败 → 浏览器直接拦截，连真正的请求都不发。DeepSeek 官方带 CORS 头、本地 llama 走 localhost 豁免，所以能连。
 - **方案**：改用油猴特权 API `GM_xmlhttpRequest`，由扩展在沙箱外代发，**不受页面 CORS 约束**。沙箱（main.js）把 `GM_xmlhttpRequest` 挂到 `window.__ltGMXHR`，注入脚本（页面上下文）用 `window.__ltGMXHR` 调用。
@@ -610,30 +638,65 @@ node --check src/inject.js
 
 ## 更新日志
 
-### v1.10.8
-**清爽模式完全移除 + 图标系统修复 + AI 网关 CORS 绕过**
-- 清爽模式完全移除：站点频繁改版，不再维护（删除跳转逻辑 / 链接拦截 / `N` 键 / FPS ♡ 标志 / 文档章节）
-- 图标误显示修复：`_ltIsNodeInput` 从「节点内任意输入框」收窄为「节点内 + 可编辑 + 编辑器白名单 class」
-- 适配新版画布：可见提示词编辑区 class 改为 `text-fg-default`，加入白名单
-- 修复 @ 引用标签误显示：排除 `contenteditable="false"`（mention 标签如 `<图1>` 不再出现图标）
-- **AI 请求改用 `GM_xmlhttpRequest` 代发（绕过 CORS）**：第三方网关（未配置 CORS 头）现在可直接拉取模型/对话；`_ltAIChat` 与 `_ltFetchModels` 统一走 `_ltXHR()` 封装，沙箱透传 `window.__ltGMXHR`，不可用时回退原生 `fetch`
-- **模型拉取多端点探测**：按 URL 是否带 `/v1` 智能排序，依次尝试 `/v1/models` → `/models`，404 自动回退；错误提示区分 CORS/网络不通（见踩坑记录第 10 条）
-- **初次引导面板（`_ltShowWelcome`）移除「清爽模式」残留项**：上一轮移除清爽模式时漏删了引导面板快捷键速览里的 `<kbd>N</kbd> 清爽模式`，本次补齐
+### v1.10.10（代码审查修复批次，2026-08-23）
+
+**Bug 修复**
+
+- **切换预设不再吞空模型名**：`_ltFillPreset` 保留预设原始 model（本地 Llama 留空由网关用默认模型），deepseek-v4-flash 兜底只在请求层生效
+- **设置面板开关初始状态**：移除误加的 `perf-mode` 短路，每个开关独立读 `_lt_`+key
+- **DeepSeek 预设默认模型**：`deepseek-chat` → `deepseek-v4-flash`（旧名已于 2026-07-24 停用）
+- **IndexedDB 启动恢复真实生效**：`_ltIDBSet/_ltIDBGet` 从 `_ltPromptPanel` 内部提升至 IIFE 顶层——此前顶层调用抛 ReferenceError 被 try/catch 静默吞掉，v1.10.6 的该修复实际从未生效（踩坑记录 #6 残留）
+- **账号备份损坏数据不再堵死兜底链**：cookie/IndexedDB 恢复前先 `_ltAccValid`（JSON 数组校验），损坏值不再写入 localStorage 挡住下一级恢复
+- **Escape 关闭清单补全**：新增 lt-settings / lt-ai-panel / lt-acc-panel / lt-cp-overlay / welcome（关闭即写入首次引导标记）；移除死引用 lt-debug，诊断面板补 `id=lt-diag` 并纳入清单
+- **hover 连线高亮 O(1) 化**：新增节点→连线倒排索引 `_ltEdgeIdx`（与 `_ltGraphCache` 同步失效），替代每次 mouseover 全量遍历边+正则
+- **全站 match 移除**：删 `@match https://www.liblib.tv/*`，脚本只在 canvas 页注入，非画布页不再空转 FPS/光效/Observer
+
+**健壮性**
+
+- 新增 `_ltJ(k,d)` 安全 JSON 读取：内容包导出、设置面板、AI 面板、调色板 recent/fav、`_ltPromptRefresh` 等 8 处顶层 `JSON.parse(localStorage)` 全部加固
+- 搜索节点选择器转义 data-id（含引号/反斜杠不再抛错），失败回退线性扫描
+- AI 面板执行时重读 `_lt_prompt_api`（面板打开期间切换预设立即生效）
+- `_ltToast` 导出到 window，main.js 诊断菜单错误提示经 `unsafeWindow._ltToast` 真正可达
+- 拉模型端点顺序：base 以 /v1 结尾时首选 /models，不再先打必 404 的 /v1/v1/models
+- 帮助卡片跟随 FPS 面板当前位置（面板可拖拽后不再固定右下角）；修复 top/bottom 同时生效导致 fixed 卡片纵向拉伸的定位异常
+- **模型列表缓存**：按「API base + Key」维度存 `_lt_models_cache|{base}|{key}`，24h 过期；拉取优先命中缓存免网络，列表头部提供「🔄 重新拉取」强制刷新；打开设置面板时命中缓存直接展示
+- **新预设改为面板内联输入**：替代原生 prompt 弹窗，回车保存、Esc 取消
+- **三处下拉全部自绘化（原生 select 弹层不受 CSS 控制，Windows 浅色主题下白底黑字突兀）**：
+  - 新增顶层通用组件 `_ltDropdown`（button + 自绘弹层，接口兼容 value/onchange/setList，弹层观感复用 `.lt-model-item` 毛玻璃风格）；弹层经 `_ltFloatPop` 助手挂 `document.body` + `position:fixed`（z-index 100007），**不受面板容器 `overflow:hidden` 裁剪**，随滚动跟随按钮，下方空间不足自动翻上方
+  - 设置面板「预设」下拉 → 自绘（原 `<select>` 保留为 1px 隐藏元素同步 value，`_ltApiSaveForm` 等读取点零改动）；新增/删除预设后 setList 同步
+  - 提示词面板 AI tab 与独立 AI 面板的模型下拉 → `_ltModelSelect` 自绘版（button 触发 + 弹层列表，缓存优先自动填充，⟳ 强制刷新，当前项 accent 色 + ✓ + 滚动到可视区）
+  - 选中即写回 `_lt_prompt_api` 并同步预设；`_ltApiBase`/`_ltFetchModels`/`_ltModelsCache*`/`_ltModelsErrDesc` 提升为 IIFE 顶层共用
+- CSS 去重：`.lt-tag-item:hover` 重复规则删一条
+- **设置面板「关于」版本徽章硬编码修复**：徽章此前手写版本号（v1.10.10 发布时漏改显示 v1.10.9），现改 `__LT_VER__` 占位符由 build.js 统一注入，与 `@version` 同源永不再漏
 
 ### v1.10.9
+
 **状态栏配置信息简化**
-- 提示词增强面板（`ltp-ai-status`）与 AI 增强面板（`lt-ap-status`）底部的「已配置」状态栏，不再展示完整 API 地址（URL 含协议/端口/路径，过长且泄露），改为「模型方 + 模型名称」：`已配置 {host} · {model}`（如 `已配置 950814.xyz · deepseek-chat`）；无模型名时仅显示 `已配置 {host}`，未配置时提示去设置面板配置
+
+- 提示词增强面板（`ltp-ai-status`）与 AI 增强面板（`lt-ap-status`）底部的「已配置」状态栏，不再展示完整 API 地址，改为「模型方 + 模型名称」：`已配置 {host} · {model}`
 - 新增 `_ltHost()` 辅助：从 API 地址提取 host（去掉协议/端口/path）作为「模型方」展示
 
+### v1.10.8
+
+**图标系统修复 + AI 网关 CORS 绕过**（清爽模式已彻底移除，历史见 v1.10.7）
+
+- 图标误显示修复：`_ltIsNodeInput` 从「节点内任意输入框」收窄为「节点内 + 可编辑 + 编辑器白名单 class」
+- 适配新版画布：可见提示词编辑区 class 改为 `text-fg-default`
+- 修复 @ 引用标签误显示：排除 `contenteditable="false"`（mention 标签如 `<图1>` 不再出现图标）
+- 引导面板快捷键速览移除残留的 `<kbd>N</kbd> 清爽模式` 项
+- **AI 请求改用 `GM_xmlhttpRequest` 代发（绕过 CORS）**：`_ltAIChat` / `_ltFetchModels` 走 `_ltXHR()` 封装，透传 `window.__ltGMXHR`，回退原生 fetch
+- **模型拉取多端点探测**：`/v1/models` → `/models`，404 回退（详见踩坑记录第 10 条）
+
 ### v1.10.7
-**清爽模式重做：CSS 隐藏 → 主页跳转项目页（v1.10.8 已完全移除）**
-- 站点改版后旧清爽首页 CSS（Tailwind 类名选择器）全部失效，删除全部 250+ 行样式
-- 清爽模式改为跳转逻辑：开启后访问主页 `www.liblib.tv/` 根路径自动 `location.replace("/project")`
-- 拦截「回到主站/回到主页/首页/logo」链接与 Mantine 下拉菜单按钮（button / menuitem / data-menu-item）
-- `N` 键切换开关；不再使用 `body.libtv-clean-home` class
+
+**清爽模式最终移除**（v1.10.4~1.10.6 曾重做为跳转逻辑，现整体下线）
+
+- 删除清爽首页全部逻辑 / 链接拦截 / `N` 键 / FPS ♡ 标志 / 文档章节
 
 ### v1.10.6
+
 **AI 增强体验**
+
 - 版本号自动注入：build.js 顶部 VERSION 常量统一维护，@version 元数据与设置面板关于区构建时自动注入
 - API Key 显隐切换：设置面板 Key 输入框新增 👁 按钮
 - 执行按钮状态化：生成成功后按钮变「🔄 重新生成」，清空结果后恢复「执行」
@@ -642,21 +705,25 @@ node --check src/inject.js
 - 浮动图标层级修正：z-index 从 2147483646 降至 99990（面板 99999~100002 之上、页面 UI 之下，弹出面板不再被图标遮挡）
 
 **图标系统重写（适配 liblib 新版画布）**
+
 - 适配 ChatRichInput 富文本输入：页面已无 textarea，节点白名单新增 ChatRichInput/RichInput/chat-rich/prompt-editor 等 class 匹配
 - 浮动图标架构：标签/AI 图标挂载 document.body（fixed 定位），彻底脱离 React 渲染树，富文本高频重渲染不再清除图标
 - 选择器放宽为 `textarea,input,[contenteditable]`（过滤按钮类），可见性改用 getClientRects（兼容 fixed 悬浮面板）
 - 响应优化：事件后 80/300/800/1500ms 连扫 + 1s 轮询兜底；稳定性门（矩形稳定后才显示，面板动画期间不闪现）
 
 **流动光效重写**
+
 - 双层双流光：模糊光带（accent 13% 周长）+ 白色亮线双层，180° 对位第二条；固定从顶边中点出发（消除随机跳位）、200ms 淡入/150ms 淡出、元素缓存零重建、30fps 渲染、模糊固定 6px
 - 迭代教训：三层彗星/纯模糊均被否，最终回到原始双层质感 + 顺滑机制
 
 **健壮性与诊断**
+
 - 修复注入脚本顶层调用 `_ltIDBGet` 加载即崩（ReferenceError）
 - `_lt_prompts` / `_lt_prompt_api` / `_lt_theme` / `_lt_tag_libs` / `_lt_recent` 五处顶层 JSON.parse 异常兜底，数据损坏不再杀死整个脚本
 - 图标扫描自检接入油猴菜单「🔍 诊断」：输入框详情（tag/type/可见性/节点归属）+ 浮动图标状态（连接/显示/坐标）
 
 ### v1.10.5
+
 - **面板拖拽**：标签面板 / AI 增强面板按住头部可自由拖动（自动排除内部可交互元素，标签面板缩放仍可用）
 - **AI 面板定位**：改为面板左下角对齐 AI 按钮左上角，实测尺寸定位 + 视口内自动收敛
 - **AI 配置面板大改**：新增连接测试（严格校验：必须返回有效 choices 才算成功，消除假阳性）、多预设管理（+ 新预设 / 切换 / 删除，默认预置 DeepSeek 与本地 Llama 两个预设）、拉取模型列表（GET `{base}/models`，兼容 `data[]` / `models[]` 两种响应）
@@ -666,16 +733,18 @@ node --check src/inject.js
 - **错误可排查**：AI 调用失败信息携带实际请求 URL（`@ ...`）与模型名（`| model=...`）
 
 ### v1.10.4
+
 - **修复 Mantine 全局规则误杀节点面板**：移除 `[id$="-target"][id^="mantine-"] { display:none }`，节点面板内按钮/图片容器恢复正常
 - **设置面板新增项目链接**：关于区加入 GitHub / Greasy Fork / ScriptCat 三个跳转图标
 
 ### v1.10.3
+
 - **内容包扩充**：AI 自定义预设（`_lt_ai_custom_presets`）+ 自定义 system prompt（`_lt_ai_sys`）加入导出导入
 - **API 默认值自动写入**：首次加载时自动将 deepseek 地址和模型写进 localStorage，不再需要手动点保存
 
 ### v1.10.2
+
 - **多账号切换数据丢修复**：IndexedDB 三级兜底备份（localStorage → cookie → IndexedDB），退出登录不再丢账号
-- **清爽模式持久化修复**：`_lt_clean` 页面加载时恢复 `libtv-clean-home` class
 - **性能模式毛玻璃修复**：增加 `-webkit-backdrop-filter: none` 覆盖，补全高专用性选择器的毛玻璃禁用
 - **CSS 持续打磨**：color-mix / @starting-style / scrollbar-gutter / text-wrap / content-visibility / backdrop-filter
 - **过渡曲线统一**：全部 `ease` → `var(--ease-out)` / `var(--ease-in-out)`
@@ -684,65 +753,54 @@ node --check src/inject.js
 - **广告按钮隐藏**：`[data-tag="CornerMark"]` 替代旧版 class 选择器
 
 ### v1.10.1
+
 - AI 面板定位重构：从图标按钮位置弹出（右上对齐），替代屏幕居中
 - 按钮样式修复：使用内联样式替代 `.ltp-btn` CSS 类（因作用域限定于 `#libtv-prompt`）
 - 布局修正：任务标签、textarea、自定义 system prompt padding 统一对齐
 - 删除无用 CSS 规则 `#lt-ai-panel .ltp-status`
 
 ### v1.10.0
+
 - 输入框内联 AI 快捷按钮（🤖），点击直接运行当前预设策略
 - 结果预览弹窗，支持预设切换、替换/复制/取消操作
 - 未配置 API 时引导至设置面板
 - 图标跟随输入内容自动显示/隐藏
 
 ### v1.9.11
-- **构建系统重构**：单体 `.user.js` 拆分为模块化 `src/` 目录（`style.css` / `inject.js` / `main.js`）+ `build.js` 构建脚本
-- 开发工作流：编辑 `src/` 下源码 → `node build.js` 组装
-- CSS 改为纯 `.css` 文件，获得完整 IDE 语法高亮、自动补全、颜色预览
-- 注入脚本改为纯 `.js` 文件，`node --check src/inject.js` 直接验证语法
-- 数组格式的引号/逗号/转义由构建自动处理，不再手动维护
+
+- **构建系统重构**：单体 `.user.js` 拆分为模块化 `src/`（`style.css` / `inject.js` / `main.js`）+ `build.js`；CSS/JS 改为独立文件，获 IDE 支持与 `node --check` 直验，数组引号/转义由构建自动处理
 
 ### v1.9.10
-- 提示词模板列表重构：`prompt()` 改为内联表单弹窗（名称/分类/内容独立输入区）
-- 列表项改为分类徽章 + 预览 (120字/2行) + 始终可见的操作按钮（复制/查看/编辑/删除）
-- 新增查看弹窗：选中模板可查看完整内容 + 一键复制
-- 点击模板非按钮区域自动执行复制
+
+- 提示词模板列表重构：内联表单弹窗 + 分类徽章 + 预览 + 常驻操作按钮（复制/查看/编辑/删除）
 
 ### v1.9.9
-- AI 增强 tab 重构：预设策略任务（✨润色 📏扩写 ✂️缩写 🌐中→英 🌐英→中）+ ⚙自定义 system prompt（localStorage 自动保存）
-- 结果区改为原文/增强结果对比布局，显式「写回源输入框」「复制」按钮，替代旧版点击文本写入
-- `Ctrl+Enter` 快捷执行、textarea 自动增高
-- 多账号切换功能（Cookie + localStorage 快照、保存/切换/刷新/删除）
-- 账号入口放在提示词面板头部 👤 按钮，面板浮动在按钮下方
-- 首次使用引导面板（`_ltShowWelcome`，首次进画布弹出，设置 > 关于可重新显示）
-- 修复 AI 请求 `r.json()` 未检查 `r.ok` 导致的 "Unexpected end of JSON input"（HTTP 错误时 body 为空）
-- 修复欢迎面板 MutationObserver 定时器堆积导致的鬼畜（`_ltWelcomePending` 标志位 + DOM 存在性检查）
+
+- AI 增强 tab 重构：预设策略（润色/扩写/缩写/中英互译）+ 自定义 system prompt；结果区改为对比布局
+- 新增多账号切换（Cookie + localStorage 快照）；首次引导面板 `_ltShowWelcome`；修复 AI 请求未检查 `r.ok` 与欢迎面板定时器堆积
 
 ### v1.9.8
-- 首次使用引导面板（520px 毛玻璃卡片、快捷键速览/功能标签/小提示、3 秒延迟防加载拦截）
-- 设置 > 关于新增「帮助 / 重新显示引导」按钮
+
+- 首次使用引导面板（毛玻璃卡片 + 快捷键速览/功能标签/小提示）
 
 ### v1.9.7
-- 面板 CSS 全部改用 CSS 变量（`var(--accent-light)` / `rgba(var(--accent-light-rgb), X)`），切主题时面板边框/阴影/按钮色/聚焦色自动跟随
-- 主题预设从 14 个扩充到 29 个（+9 dark +4 light +2 high-contrast）
+
+- 面板 CSS 改用 CSS 变量，切主题时自动跟随；主题预设 14 → 29 个
 
 ### v1.9.6
-- 移除所有节点视觉美化 CSS（玻璃质感、全息投影、连线发光、画布辉光、面板压暗）— 修复远距缩放节点自动变大的 bug
-- 悬浮按钮改为 `_createBtn`/`_removeBtn` + `MutationObserver` 监听 `.react-flow` 出现/消失，只在画布页面显示
-- 版本号 1.9.3→1.9.6、图标换 GitHub raw、署名 `oocc00`、MIT 协议
-- 性能优化：移除重复的 `_ltTagScan` / `console.log` / FPS 后台空帧 / 重复 `var` / `alert()`→`_ltToast` / `localStorage` try/catch / 未使用 CSS 变量
-- **修复 hook 注入缺少 try/catch 导致静默失败** — 注入脚本数组语法错误时外层 IIFE 整段挂掉，标签/提示词/AI/设置面板全部不执行。加 try/catch 后错误暴露 + 恢复 `setInterval` 轮询兜底
+
+- 移除节点视觉美化 CSS（修复远距缩放变大 bug）；悬浮按钮改 `_createBtn`/`_removeBtn` + MutationObserver 仅画布页显示
+- **修复 hook 注入缺 try/catch 静默失败**：注入脚本语法错误致整段 IIFE 挂掉，加 try/catch 后暴露错误并恢复轮询兜底
 
 ### v1.9.5
-- 悬浮提示词按钮仅在画布页面（`.react-flow` 存在时）显示，非画布页面（首页等）不再出现
-- 修复清爽首页开关导致设置面板/Toast 无法显示的问题（移除设置面板 CSS 的 `body.libtv-clean-home` 前缀）
+
+- 悬浮提示词按钮仅画布页（`.react-flow` 存在）显示
 
 ### v1.9.4
-- 新增清爽首页开关（`N` 键 / 设置面板 toggle），首页/全部项目页布局优化 + 隐藏干扰元素
-- 页面视觉微调：节点玻璃质感、选中全息光晕、连线 hover 发光、画布多色渐变辉光、面板打开自动压暗、Toast 通知
-- 新增 AI Agent Drawer 适配（MutationObserver 右推 FPS/浮动按钮）
-- 新增流动光效 SVG overlay
+
+- 新增 AI Agent Drawer 适配（MutationObserver 右推 FPS/浮动按钮）、流动光效 SVG overlay
 
 ### v1.8.3
+
 - 首页/全部项目页布局优化 CSS（1200px/1800px 限宽、3/6 列网格、卡片尺寸、面包屑、分区标题等）
 - 隐藏干扰元素（顶部 Banner、会员超市、帮助按钮、Mantine 图标、轮播/AI 输入区等）

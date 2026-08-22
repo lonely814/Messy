@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const VERSION = '1.10.9';
+const VERSION = '1.10.10';
 const ROOT = __dirname;
 const SRC = path.join(ROOT, 'src');
 const OUT = path.join(ROOT, 'libtv-boost.user.js');
@@ -35,8 +35,10 @@ function read(name) {
 
 function build() {
   // 1. Convert source files to array format
+  // 版本占位符先在源文本上替换（设置面板「关于」徽章等页内版本展示）
+  const inject = read('inject.js').replace(/__LT_VER__/g, VERSION);
   const cssLines = toArrayLines(read('style.css'));
-  const injectLines = toArrayLines(read('inject.js'));
+  const injectLines = toArrayLines(inject);
 
   // 2. Read template and replace markers
   let main = read('main.js');
