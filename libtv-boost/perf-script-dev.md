@@ -4,14 +4,14 @@
 
 Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供性能优化、视觉增强、AI 提示词工具、标签系统、画布主题、设置面板等功能。匹配 `*://*.liblib.tv/*` 和 `*://*.iblib.tv/*` 域名。
 
-**当前版本：** 1.10.8  |  **作者：** oocc00  |  **协议：** MIT
+**当前版本：** 1.10.9  |  **作者：** oocc00  |  **协议：** MIT
 
 ## 文件结构
 
 | 文件 | 说明 |
 |------|------|
-| `src/style.css` | **CSS 源码** — 840 行，完整 IDE 语法高亮/自动补全/颜色预览 |
-| `src/inject.js` | **注入脚本源码** — 1178 行，页面上下文执行的 JS IIFE |
+| `src/style.css` | **CSS 源码** — 639 行，完整 IDE 语法高亮/自动补全/颜色预览 |
+| `src/inject.js` | **注入脚本源码** — 1877 行，页面上下文执行的 JS IIFE |
 | `src/main.js` | **主模板** — 油猴 IIFE 骨架，含 `__INJECT_CSS__` / `__INJECT_SCRIPT__` 占位符 |
 | `build.js` | **构建脚本** — 零依赖 Node 脚本，组装源码 → `.user.js` |
 | `libtv-boost.user.js` | **构建产出** — 拖进 Tampermonkey 安装。不要直接编辑此文件 |
@@ -19,6 +19,55 @@ Tampermonkey 油猴脚本，为 liblib.tv / iblib.tv 的 React Flow 画布提供
 | `libtv-content-pack.json` | 内容包导出示例 |
 
 **工作流：** 编辑 `src/` 下的源码 → `node build.js` → 产出 `libtv-boost.user.js`。
+
+## 开发交接（给下个会话 / 协作者）
+
+> 这一节是「非显而易见、且容易重蹈覆辙」的信息汇总。常规实现细节见下方各节与「踩坑记录」。
+
+### 1. 最反直觉的架构约定：双沙箱 + GM 特权 API 透传
+
+脚本运行在**两个上下文**，这是本项目最容易踩坑的地方：
+
+- **油猴沙箱（`src/main.js`）**：有 `unsafeWindow`、`GM_*` 特权 API。
+- **页面上下文（`src/inject.js`，通过 `<script>` 注入）**：只有 `window`，**没有 `unsafeWindow` 标识符**，也没有 `GM_*`（`GM_xmlhttpRequest` 等）。
+
+**跨上下文传东西的规则**：
+- 沙箱 → 页面：沙箱里 `unsafeWindow.__xxx = ...`（因为沙箱的 `unsafeWindow` 实际指向页面 `window`），页面里用 `window.__xxx` 取。**绝不要在页面上下文写 `unsafeWindow`**（会抛 `unsafeWindow is not defined`）。
+- 页面 → 沙箱：把函数挂到 `window._xxx`，沙箱用 `unsafeWindow._xxx` 调用。
+
+**AI 请求必须用 `GM_xmlhttpRequest` 代发**（见第 4 点），相关透传已在 main.js 写好：`unsafeWindow.__ltGMXHR = GM_xmlhttpRequest`；inject.js 里封装为 `_ltXHR()`。**不要再改回原生 `fetch` 直连**——那会重新引入 CORS 问题。
+
+### 2. 版本号只在 `build.js` 维护
+
+- 唯一真相源：`build.js` 顶部的 `const VERSION`。改版本只改这一处。
+- 源码里版本用 `__VERSION__` 占位符，构建时自动注入（`@version` 元数据 + 设置面板关于区）。**不要去源码里手写版本号**。
+- 文档里的版本号（概述、更新日志）需手动同步。
+
+### 3. 改动后必须提交进 git
+
+- 曾经发生过：会话中对 `src/` 的编辑写到了临时副本、未落回仓库，导致 CORS 修复等改动**全部丢失、git 里也查无此项**（任何历史 commit 都没有）。
+- **纪律**：每完成一个功能/修复，立刻 `node --check` + `node build.js` + `git commit`。不要依赖"会话结束自动保存"。
+- `.omo/plans/` 计划目录已被误删，目前无独立计划文件，开发向信息以本文档为准。
+
+### 4. 第三方网关 CORS 是常态问题，GM_xmlhttpRequest 是标准解法
+
+- 现象：用户自托管/中转网关（如 `https://xxx:16666/v1`）在 Postman、后端、其他软件都能连，但脚本里 `fetch` 直连报 `Failed to fetch`，而 DeepSeek（官方带 CORS 头）、本地 llama（`localhost` 豁免）却能连。
+- 根因：页面上下文的 `fetch` 跨域触发浏览器 CORS 预检，网关没返 `Access-Control-Allow-Origin` 就被拦。
+- 解法：一律走 `GM_xmlhttpRequest`（油猴扩展代发，绕过页面 CORS）。已实现 `_ltXHR()` 封装，对话/拉模型都走它，回退原生 `fetch` 仅作兜底。
+- 拉模型用多端点探测 `/v1/models` → `/models`，404 自动回退。
+- 详见「踩坑记录」第 10 条。
+
+### 5. 已知待优化 / 后续方向（供参考，非必须）
+
+- AI 面板错误提示可更细（区分鉴权 401、网关格式不符等）。
+- 模型列表未做本地缓存，每次点「拉取」都重新请求；可考虑缓存到 localStorage 减少请求。
+- 连接测试目前只发 `ping`，对部分只认特定 body 的网关兼容性可增强。
+- 站点（liblib.tv）DOM 结构会改版，所有选择器需保留"自证/兜底"能力（见踩坑记录第 3 条）。
+
+### 6. 测试入口
+
+- `node --check src/inject.js` / `node --check libtv-boost.user.js`：语法校验（无需浏览器）。
+- `test-step-algo.js`：电路板连线算法（`_ltStep*`）的几何单测，用 DOM stub 抽取 inject.js 对应代码块跑通，改连线算法后必跑。
 
 ## 构建系统
 
@@ -66,6 +115,30 @@ unsafeWindow._ltContent          ← window._ltContent
 ```
 
 注入脚本中的 `_lt*` 变量在 IIFE 内部，不污染全局。暴露给外层的接口通过 `window._lt*` 显式导出。
+
+> ⚠️ **页面上下文里没有 `unsafeWindow` 标识符。** `unsafeWindow` 只存在于油猴沙箱（main.js）。沙箱里的 `unsafeWindow` 实际指向页面 `window`，所以 `unsafeWindow.__ltGMXHR = GM_xmlhttpRequest` 会把函数挂到页面的 `window.__ltGMXHR` 上；注入脚本必须用 `window.__ltGMXHR` 去取，不能用 `unsafeWindow`（否则报 `unsafeWindow is not defined`）。详见「踩坑记录」第 10 条。
+
+#### 油猴特权 API 透传（CORS 绕过）
+
+AI 对话与模型拉取原本用页面上下文的 `fetch` 直连第三方网关，会被浏览器 **CORS** 拦截（自托管/中转网关常不返 CORS 头，而 Postman、后端调用不受影响）。解决方案：用油猴特权 API `GM_xmlhttpRequest` 由扩展代发请求，绕过页面 CORS。
+
+模式（单向透传：沙箱 → 页面）：
+
+```js
+// main.js（油猴沙箱，有 unsafeWindow / GM_*）
+try { unsafeWindow.__ltGMXHR = GM_xmlhttpRequest; } catch(e) {}
+
+// inject.js（页面上下文，只有 window）
+function _ltXHR(opts){
+  var gm = window && window.__ltGMXHR;   // 注意：不是 unsafeWindow
+  if (gm) return new Promise(function(res,rej){ /* GM 代发，绕过 CORS */ });
+  return fetch(opts.url, opts);          // 兜底：原生 fetch（仍受 CORS 约束）
+}
+```
+
+- 元信息需声明 `@grant GM_xmlhttpRequest` 与 `@connect *`（通配，分发后不会逐个域名弹确认）。
+- `_ltAIChat()` 与 `_ltFetchModels()` 全部改用 `_ltXHR()` 封装，保持原 Promise 接口，上层逻辑零改动。
+- `GM_xmlhttpRequest` 的 `onload` 返回 `{status, responseText}`，需自行判 `status` 与 `JSON.parse`。
 
 ## 第一节：CSS 注入（`src/style.css`）
 
@@ -309,6 +382,11 @@ sel.removeAllRanges(); sel.addRange(r);
 | 数据管理 | 3 项（标签库/当前库/历史）+ 导出全部配置 + 内容包导出/导入 |
 | 关于 | 版本号 |
 
+**AI API 请求机制（v1.10.8 重构）：**
+- 对话 `_ltAIChat()` 与模型拉取 `_ltFetchModels()` 统一走 `_ltXHR()` 封装，优先 `GM_xmlhttpRequest`（油猴扩展代发，**绕过 CORS**），不可用回退原生 `fetch`。
+- 模型列表拉取多端点探测：按 URL 是否带 `/v1` 智能排序，依次尝试 `/v1/models` → `/models`，404 自动回退下一个；解析兼容 `data` 与 `models` 两种字段。
+- 错误可诊断：`_ltModelsErrDesc()` 把 `TypeError`（请求失败）与 HTTP 错误区分提示，避免笼统的 "Failed to fetch"。
+
 入口：
 - 油猴菜单 `⚙ 设置` → `unsafeWindow._ltOpenSettings()`
 - 提示词面板「设置」tab → 关闭面板 + 调用 `_ltSettingsPanel()`
@@ -523,14 +601,29 @@ node --check src/inject.js
 - **现象**：光效重做先试三层彗星（被否）、再试纯模糊单层（被否），用户最终认可「最初的双层质感 + 顺滑机制」
 - **教训**：用户对已有视觉有感情。重做时先保留原视觉骨架、只修问题（顺滑度/时机/性能），不要换概念；参数迭代比概念替换安全
 
+### 10. 第三方网关 CORS 必须用 `GM_xmlhttpRequest` 绕过
+- **现象**：自定义 HTTPS 网关在 Postman/后端都能连，但脚本里 `fetch` 直连报 `Failed to fetch`，DeepSeek/本地 llama 却正常。
+- **根因**：`fetch` 跑在页面上下文，跨域（liblib.tv ≠ 网关域名）会触发浏览器 CORS 预检；自托管/中转网关常不返 `Access-Control-Allow-Origin`，预检失败 → 浏览器直接拦截，连真正的请求都不发。DeepSeek 官方带 CORS 头、本地 llama 走 localhost 豁免，所以能连。
+- **方案**：改用油猴特权 API `GM_xmlhttpRequest`，由扩展在沙箱外代发，**不受页面 CORS 约束**。沙箱（main.js）把 `GM_xmlhttpRequest` 挂到 `window.__ltGMXHR`，注入脚本（页面上下文）用 `window.__ltGMXHR` 调用。
+- **🪤 大坑：`unsafeWindow is not defined`**。`unsafeWindow` 只在油猴沙箱（main.js）里存在，页面上下文**没有这个标识符**。沙箱里的 `unsafeWindow` 实际指向页面 `window`，所以 `unsafeWindow.__ltGMXHR = GM_xmlhttpRequest` 是把函数挂到页面 `window` 上；注入脚本必须用 `window.__ltGMXHR` 取，写成 `unsafeWindow.__ltGMXHR` 会抛 `unsafeWindow is not defined`。
+- **分发注意**：元信息需 `@grant GM_xmlhttpRequest` + `@connect *`（通配，避免逐个域名弹确认）；首次安装油猴会请求一次权限，用户允许即可。
+
 ## 更新日志
 
 ### v1.10.8
-**清爽模式完全移除 + 图标系统修复**
+**清爽模式完全移除 + 图标系统修复 + AI 网关 CORS 绕过**
 - 清爽模式完全移除：站点频繁改版，不再维护（删除跳转逻辑 / 链接拦截 / `N` 键 / FPS ♡ 标志 / 文档章节）
 - 图标误显示修复：`_ltIsNodeInput` 从「节点内任意输入框」收窄为「节点内 + 可编辑 + 编辑器白名单 class」
 - 适配新版画布：可见提示词编辑区 class 改为 `text-fg-default`，加入白名单
 - 修复 @ 引用标签误显示：排除 `contenteditable="false"`（mention 标签如 `<图1>` 不再出现图标）
+- **AI 请求改用 `GM_xmlhttpRequest` 代发（绕过 CORS）**：第三方网关（未配置 CORS 头）现在可直接拉取模型/对话；`_ltAIChat` 与 `_ltFetchModels` 统一走 `_ltXHR()` 封装，沙箱透传 `window.__ltGMXHR`，不可用时回退原生 `fetch`
+- **模型拉取多端点探测**：按 URL 是否带 `/v1` 智能排序，依次尝试 `/v1/models` → `/models`，404 自动回退；错误提示区分 CORS/网络不通（见踩坑记录第 10 条）
+- **初次引导面板（`_ltShowWelcome`）移除「清爽模式」残留项**：上一轮移除清爽模式时漏删了引导面板快捷键速览里的 `<kbd>N</kbd> 清爽模式`，本次补齐
+
+### v1.10.9
+**状态栏配置信息简化**
+- 提示词增强面板（`ltp-ai-status`）与 AI 增强面板（`lt-ap-status`）底部的「已配置」状态栏，不再展示完整 API 地址（URL 含协议/端口/路径，过长且泄露），改为「模型方 + 模型名称」：`已配置 {host} · {model}`（如 `已配置 950814.xyz · deepseek-chat`）；无模型名时仅显示 `已配置 {host}`，未配置时提示去设置面板配置
+- 新增 `_ltHost()` 辅助：从 API 地址提取 host（去掉协议/端口/path）作为「模型方」展示
 
 ### v1.10.7
 **清爽模式重做：CSS 隐藏 → 主页跳转项目页（v1.10.8 已完全移除）**

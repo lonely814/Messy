@@ -11,10 +11,18 @@
 // @run-at       document-idle
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
+// @grant        GM_xmlhttpRequest
+// @connect      *
 // ==/UserScript==
 
 (function(){
     'use strict';
+
+    (function(){
+        'use strict';
+        // 将油猴特权 API 透传给页面上下文的注入脚本（inject.js 通过 window 访问）
+        try { unsafeWindow.__ltGMXHR = GM_xmlhttpRequest; } catch(e) {}
+    })();
 
     /* =========================================================
      *  1. CSS 注入

@@ -1,4 +1,33 @@
 (function(){
+  /* GM_xmlhttpRequest 封装：绕过浏览器 CORS，由油猴扩展特权上下文代发请求。
+     main.js（油猴沙箱）已把 GM_xmlhttpRequest 挂到页面 window.__ltGMXHR，
+     此处通过 window 访问（注入脚本运行在页面上下文，无 unsafeWindow 标识符）。
+     不可用时回退到原生 fetch。返回 Promise<{r:{ok,status}, t:string}>，接口对齐原 fetch 用法。 */
+  function _ltXHR(opts){
+    var gm=window&&window.__ltGMXHR;
+    if(gm){
+      return new Promise(function(res,rej){
+        try{
+          gm({
+            method:opts.method||'GET',
+            url:opts.url,
+            headers:opts.headers||{},
+            data:opts.body,
+            timeout:60000,
+            onload:function(resp){
+              var status=resp.status||0;
+              res({r:{ok:status>=200&&status<300,status:status},t:resp.responseText||''});
+            },
+            onerror:function(){rej(new TypeError('Failed to fetch'));},
+            ontimeout:function(){rej(new TypeError('Failed to fetch (timeout)'));}
+          });
+        }catch(e){rej(e);}
+      });
+    }
+    // 回退：原生 fetch（仍受 CORS 约束，仅作为兜底）
+    return fetch(opts.url,{method:opts.method,headers:opts.headers,body:opts.body})
+      .then(function(r){return r.text().then(function(t){return {r:r,t:t};});});
+  }
   function _ltClearChain(){
     document.body.classList.remove("libtv-chain");
     document.querySelectorAll(".libtv-chain-node,.libtv-chain-edge").forEach(function(e){
@@ -277,7 +306,7 @@
           +'<div class="ltp-ai-preset-list" id="ltp-ai-preset-list"></div></div>'
           +'<div class="ltp-ai-actions"><button class="ltp-btn ltp-btn-primary" id="ltp-ai-go">🚀 执行</button><button class="ltp-btn ltp-btn-ghost" id="ltp-ai-fill">从输入框获取</button><button class="ltp-btn ltp-btn-ghost" id="ltp-ai-clear">清空</button></div>'
           +'<div id="ltp-ai-result" class="ltp-ai-result" style="display:none"></div>'
-          +'<div class="ltp-status" id="ltp-ai-status">'+(api.url?"已配置 "+api.url:"未配置 API，请在⚙设置中配置")+'</div>';
+          +'<div class="ltp-status" id="ltp-ai-status">'+(api.url?("已配置 "+_ltEsc(_ltHost(api.url))+(api.model?(" · "+_ltEsc(api.model)):"")):"未配置 API，请在⚙设置中配置")+'</div>';
         /* custom init */
         var _ltCustomEl=document.getElementById("ltp-ai-custom");_ltCustomEl.style.display="none";
         /* auto-height textarea */
@@ -746,8 +775,7 @@
       function next(){
         var u=attempts[i++];
         if(!u){rej(new Error(lastErr||"\u6240\u6709\u7aef\u70b9\u5747\u5931\u8d25"));return;}
-        fetch(u,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify(body)})
-        .then(function(r){return r.text().then(function(t){return {r:r,t:t};});})
+        _ltXHR({method:"POST",url:u,headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify(body)})
         .then(function(o){
           if(!o.r.ok){
             lastErr="HTTP "+o.r.status+(o.t?" "+o.t.slice(0,150):"")+" @ "+u;
@@ -1037,7 +1065,7 @@
         +'<div style="padding:0 12px 4px;flex-shrink:0;"><textarea id="lt-ap-input" class="ltp-ai-input" placeholder="\u5728\u6b64\u8f93\u5165\u63d0\u793a\u8bcd..." rows="2" style="width:100%;box-sizing:border-box;"></textarea></div>'
         +'<div style="padding:4px 12px 6px;display:flex;gap:6px;flex-shrink:0;"><button style="'+_btnP+'" id="lt-ap-go">\u2728 \u6267\u884c</button><button style="'+_btnG+'" id="lt-ap-fill">\u4ece\u8f93\u5165\u6846\u83b7\u53d6</button><button style="'+_btnG+'" id="lt-ap-clr">\u6e05\u7a7a</button></div>'
         +'<div id="lt-ap-result" style="display:none;flex:1;overflow-y:auto;padding:4px 12px 6px;white-space:pre-wrap;word-break:break-word;font-size:12px;"></div>'
-        +'<div style="padding:4px 12px 8px;flex-shrink:0;"><span style="font-size:11px;color:rgba(255,255,255,0.3);" id="lt-ap-status">'+(api.url?"\u5df2\u914d\u7f6e "+_ltEsc(api.url):"\u672a\u914d\u7f6e API")+'</span></div>';
+        +'<div style="padding:4px 12px 8px;flex-shrink:0;"><span style="font-size:11px;color:rgba(255,255,255,0.3);" id="lt-ap-status">'+(api.url?("\u5df2\u914d\u7f6e "+_ltEsc(_ltHost(api.url))+(api.model?(" · "+_ltEsc(api.model)):"")):"\u672a\u914d\u7f6e API")+'</span></div>';
       document.body.appendChild(div);
       /* align panel bottom-left to icon top-left, measured after layout */
       var pw=div.offsetWidth||440,ph=div.offsetHeight||470;
@@ -1199,7 +1227,6 @@
         +"<div class=\"item\"><kbd>X</kbd>\u4e13\u6ce8\u6a21\u5f0f</div>"
         +"<div class=\"item\"><kbd>F</kbd>\u641c\u7d22\u8282\u70b9</div>"
         +"<div class=\"item\"><kbd>P</kbd>\u63d0\u793a\u8bcd\u5de5\u5177</div>"
-        +"<div class=\"item\"><kbd>N</kbd>\u6e05\u723d\u6a21\u5f0f</div>"
         +"<div class=\"item\"><kbd>?</kbd>\u5e2e\u52a9\u5feb\u7167</div>"
         +"</div>"
         +"<div class=\"sec-title\">\u529f\u80fd\u6a21\u5757</div>"
@@ -1475,6 +1502,8 @@
     }
   }, true);
   function _ltEsc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+  /* 从 API 地址提取「模型方」（host，去掉协议/端口/path），用于状态栏简洁展示 */
+  function _ltHost(u){try{return new URL(u).host;}catch(e){return u?String(u).replace(/^https?:\/\//,'').replace(/\/.*$/,''):'';}}
   function _ltToast(msg, dur){var e=document.getElementById("_ltToast");if(!e){e=document.createElement("div");e.id="_ltToast";Object.assign(e.style,{position:"fixed",bottom:"20px",left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.8)",color:"#fff",padding:"8px 18px",borderRadius:"6px",zIndex:99999,fontSize:"14px",pointerEvents:"none",transition:"opacity .3s",opacity:"0"});document.body.appendChild(e)}e.textContent=msg;e.style.opacity="1";clearTimeout(e._t);e._t=setTimeout(function(){e.style.opacity="0"},dur||2000);}
   function _ltBuildContentPack(){
     var prompts=JSON.parse(localStorage.getItem("_lt_prompts")||"[]");
@@ -1753,27 +1782,64 @@ function _ltSettingsPanel(){
         var content=d.choices&&d.choices[0]&&d.choices[0].message?String(d.choices[0].message.content||""):"";
         _ltApiStatus("\u2705 \u8fde\u63a5\u6210\u529f ("+ms+"ms"+(content?" \u2022 "+content.slice(0,20):"")+")",true);
       })
-      .catch(function(err){_ltApiStatus("\u2716 \u8fde\u63a5\u5931\u8d25: "+err.message,false);})
+      .catch(function(err){_ltApiStatus("\u2716 \u8fde\u63a5\u5931\u8d25: "+_ltModelsErrDesc(err,url),false);})
       .finally(function(){btn.disabled=false;});
     };
+    /* \u62c9\u53d6\u6a21\u578b\u5217\u8868\uff1a\u591a\u7aef\u70b9\u63a2\u6d4b + \u53cb\u597d\u9519\u8bef\u8bca\u65ad */
+    function _ltModelsErrDesc(err,url){
+      // \u73b0\u5728\u8bf7\u6c42\u8d70 GM_xmlhttpRequest\uff08\u6cb9\u732b\u6269\u5c55\u4ee3\u53d1\uff0c\u5df2\u7ed5\u8fc7 CORS\uff09\u3002
+      // \u82e5\u4ecd\u5931\u8d25\u5e76\u629b TypeError\uff0c\u8bf4\u660e\u662f\u7f51\u7edc\u5c42\u95ee\u9898\uff1a\u5730\u5740/\u7aef\u53e3\u4e0d\u901a\u3001\u88ab\u5899\u3001\u6216\u7f51\u5173\u62d2\u7edd\u6269\u5c55\u8bf7\u6c42\u3002
+      if(err&&err.name==="TypeError"){
+        var tip=[];
+        if(/^http:\/\//i.test(url))tip.push("\u5f53\u524d\u9875\u9762\u4e3a HTTPS\uff0c\u4f46\u7f51\u5173\u662f HTTP\uff0c\u8bf7\u6539\u7528 https:// \u6216\u672c\u5730\u4ee3\u7406");
+        tip.push("\u8bf7\u786e\u8ba4\uff1a\u2460\u7f51\u5173\u5730\u5740/\u7aef\u53e3\u53ef\u8bbf\u95ee\uff08\u53ef\u7528\u5176\u4ed6\u8f6f\u4ef6\u9a8c\u8bc1\uff09 \u2461\u6ca1\u6709\u88ab\u9632\u706b\u5899/\u4ee3\u7406\u62e6\u622a \u2462\u63d0\u793a\u8bcd Key \u4e0e\u8be5\u7f51\u5173\u5339\u914d");
+        return "\u8bf7\u6c42\u5931\u8d25\uff08\u7f51\u7edc\u4e0d\u901a/\u5730\u5740\u9519\u8bef/\u88ab\u62e6\u622a\uff09: "+tip.join("\uff1b");
+      }
+      return err?err.message:"\u672a\u77e5\u9519\u8bef";
+    }
+    function _ltFetchModels(base,key,paths){
+      var i=0;
+      return new Promise(function(res,rej){
+        function next(){
+          var p=paths[i++];
+          if(!p)return rej(new Error("\u6240\u6709 /models \u7aef\u70b9\u5747\u5931\u8d25"));
+          var u=base+p;
+          _ltXHR({url:u,headers:{"Authorization":"Bearer "+key}})
+          .then(function(o){
+            if(!o.r.ok){
+              if(o.r.status===404&&i<paths.length)return next();
+              throw new Error("HTTP "+o.r.status+(o.t?" "+o.t.slice(0,120):"")+" @ "+u);
+            }
+            var d;try{d=JSON.parse(o.t);}catch(e){d=null;}
+            var list=(d&&(d.data||d.models)||[]).map(function(m){return typeof m==="string"?m:(m.id||m.name||"");}).filter(Boolean).sort();
+            if(!list.length){
+              if(i<paths.length)return next();
+              throw new Error("\u672a\u627e\u5230\u6a21\u578b\u5217\u8868");
+            }
+            res(list);
+          })
+          .catch(function(err){rej(err);});
+        }
+        next();
+      });
+    }
     document.getElementById("lt-set-model-fetch").onclick=function(){
       var url=_ltSetUrl.value.trim(),key=_ltSetKey.value.trim();
       var btn=this;
       if(!url){_ltApiStatus("\u26a0 \u8bf7\u5148\u586b\u5199 API \u5730\u5740",false);return;}
       var base=_ltApiBase(url);
       if(!base){_ltApiStatus("\u2716 \u65e0\u6cd5\u8bc6\u522b API \u5730\u5740",false);return;}
+      // \u7aef\u70b9\u5019\u9009\uff1a\u4f18\u5148 /v1/models\uff08OpenAI \u517c\u5bb9\u6807\u51c6\uff09\uff0c\u56de\u9000 /models
+      var paths=base.replace(/\/v1$/,'').length!==base.length?["/v1/models","/models"]:["/models","/v1/models"];
       var box=document.getElementById("lt-set-model-list");
       btn.disabled=true;box.style.display="block";box.innerHTML="\u62c9\u53d6\u4e2d...";
-      fetch(base+"/models",{headers:{"Authorization":"Bearer "+key}})
-      .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+(t?" "+t.slice(0,120):""));});return r.json();})
-      .then(function(d){
+      _ltFetchModels(base,key,paths)
+      .then(function(list){
         _ltApiPersist();
-        var list=(d.data||d.models||[]).map(function(m){return typeof m==="string"?m:(m.id||m.name||"");}).filter(Boolean).sort();
-        if(!list.length)throw new Error("\u672a\u627e\u5230\u6a21\u578b\u5217\u8868");
         _ltRenderModelList(list);
         _ltApiStatus("\u2705 \u62c9\u53d6\u5230 "+list.length+" \u4e2a\u6a21\u578b",true);
       })
-      .catch(function(err){box.style.display="none";box.innerHTML="";_ltApiStatus("\u2716 \u62c9\u53d6\u5931\u8d25: "+err.message,false);})
+      .catch(function(err){box.style.display="none";box.innerHTML="";_ltApiStatus("\u2716 \u62c9\u53d6\u5931\u8d25: "+_ltModelsErrDesc(err,url),false);})
       .finally(function(){btn.disabled=false;});
     };
     /* \u6570\u636e\u6e05\u5355 */

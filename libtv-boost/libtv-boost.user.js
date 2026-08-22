@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
-// @version      1.10.8
+// @version      1.10.9
 // @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/libtv-boost/libtv-boost-icon.png
 // @license      MIT
 // @author       oocc00
@@ -11,10 +11,18 @@
 // @run-at       document-idle
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
+// @grant        GM_xmlhttpRequest
+// @connect      *
 // ==/UserScript==
 
 (function(){
     'use strict';
+
+    (function(){
+        'use strict';
+        // 将油猴特权 API 透传给页面上下文的注入脚本（inject.js 通过 window 访问）
+        try { unsafeWindow.__ltGMXHR = GM_xmlhttpRequest; } catch(e) {}
+    })();
 
     /* =========================================================
      *  1. CSS 注入
@@ -935,6 +943,35 @@
     try {
         hook = document.createElement('script');
         hook.textContent = ['(function(){',
+'  /* GM_xmlhttpRequest 封装：绕过浏览器 CORS，由油猴扩展特权上下文代发请求。',
+'     main.js（油猴沙箱）已把 GM_xmlhttpRequest 挂到页面 window.__ltGMXHR，',
+'     此处通过 window 访问（注入脚本运行在页面上下文，无 unsafeWindow 标识符）。',
+'     不可用时回退到原生 fetch。返回 Promise<{r:{ok,status}, t:string}>，接口对齐原 fetch 用法。 */',
+'  function _ltXHR(opts){',
+'    var gm=window&&window.__ltGMXHR;',
+'    if(gm){',
+'      return new Promise(function(res,rej){',
+'        try{',
+'          gm({',
+'            method:opts.method||\'GET\',',
+'            url:opts.url,',
+'            headers:opts.headers||{},',
+'            data:opts.body,',
+'            timeout:60000,',
+'            onload:function(resp){',
+'              var status=resp.status||0;',
+'              res({r:{ok:status>=200&&status<300,status:status},t:resp.responseText||\'\'});',
+'            },',
+'            onerror:function(){rej(new TypeError(\'Failed to fetch\'));},',
+'            ontimeout:function(){rej(new TypeError(\'Failed to fetch (timeout)\'));}',
+'          });',
+'        }catch(e){rej(e);}',
+'      });',
+'    }',
+'    // 回退：原生 fetch（仍受 CORS 约束，仅作为兜底）',
+'    return fetch(opts.url,{method:opts.method,headers:opts.headers,body:opts.body})',
+'      .then(function(r){return r.text().then(function(t){return {r:r,t:t};});});',
+'  }',
 '  function _ltClearChain(){',
 '    document.body.classList.remove("libtv-chain");',
 '    document.querySelectorAll(".libtv-chain-node,.libtv-chain-edge").forEach(function(e){',
@@ -1213,7 +1250,7 @@
 '          +\'<div class="ltp-ai-preset-list" id="ltp-ai-preset-list"></div></div>\'',
 '          +\'<div class="ltp-ai-actions"><button class="ltp-btn ltp-btn-primary" id="ltp-ai-go">🚀 执行</button><button class="ltp-btn ltp-btn-ghost" id="ltp-ai-fill">从输入框获取</button><button class="ltp-btn ltp-btn-ghost" id="ltp-ai-clear">清空</button></div>\'',
 '          +\'<div id="ltp-ai-result" class="ltp-ai-result" style="display:none"></div>\'',
-'          +\'<div class="ltp-status" id="ltp-ai-status">\'+(api.url?"已配置 "+api.url:"未配置 API，请在⚙设置中配置")+\'</div>\';',
+'          +\'<div class="ltp-status" id="ltp-ai-status">\'+(api.url?("已配置 "+_ltEsc(_ltHost(api.url))+(api.model?(" · "+_ltEsc(api.model)):"")):"未配置 API，请在⚙设置中配置")+\'</div>\';',
 '        /* custom init */',
 '        var _ltCustomEl=document.getElementById("ltp-ai-custom");_ltCustomEl.style.display="none";',
 '        /* auto-height textarea */',
@@ -1682,8 +1719,7 @@
 '      function next(){',
 '        var u=attempts[i++];',
 '        if(!u){rej(new Error(lastErr||"\\u6240\\u6709\\u7aef\\u70b9\\u5747\\u5931\\u8d25"));return;}',
-'        fetch(u,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify(body)})',
-'        .then(function(r){return r.text().then(function(t){return {r:r,t:t};});})',
+'        _ltXHR({method:"POST",url:u,headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify(body)})',
 '        .then(function(o){',
 '          if(!o.r.ok){',
 '            lastErr="HTTP "+o.r.status+(o.t?" "+o.t.slice(0,150):"")+" @ "+u;',
@@ -1973,7 +2009,7 @@
 '        +\'<div style="padding:0 12px 4px;flex-shrink:0;"><textarea id="lt-ap-input" class="ltp-ai-input" placeholder="\\u5728\\u6b64\\u8f93\\u5165\\u63d0\\u793a\\u8bcd..." rows="2" style="width:100%;box-sizing:border-box;"></textarea></div>\'',
 '        +\'<div style="padding:4px 12px 6px;display:flex;gap:6px;flex-shrink:0;"><button style="\'+_btnP+\'" id="lt-ap-go">\\u2728 \\u6267\\u884c</button><button style="\'+_btnG+\'" id="lt-ap-fill">\\u4ece\\u8f93\\u5165\\u6846\\u83b7\\u53d6</button><button style="\'+_btnG+\'" id="lt-ap-clr">\\u6e05\\u7a7a</button></div>\'',
 '        +\'<div id="lt-ap-result" style="display:none;flex:1;overflow-y:auto;padding:4px 12px 6px;white-space:pre-wrap;word-break:break-word;font-size:12px;"></div>\'',
-'        +\'<div style="padding:4px 12px 8px;flex-shrink:0;"><span style="font-size:11px;color:rgba(255,255,255,0.3);" id="lt-ap-status">\'+(api.url?"\\u5df2\\u914d\\u7f6e "+_ltEsc(api.url):"\\u672a\\u914d\\u7f6e API")+\'</span></div>\';',
+'        +\'<div style="padding:4px 12px 8px;flex-shrink:0;"><span style="font-size:11px;color:rgba(255,255,255,0.3);" id="lt-ap-status">\'+(api.url?("\\u5df2\\u914d\\u7f6e "+_ltEsc(_ltHost(api.url))+(api.model?(" · "+_ltEsc(api.model)):"")):"\\u672a\\u914d\\u7f6e API")+\'</span></div>\';',
 '      document.body.appendChild(div);',
 '      /* align panel bottom-left to icon top-left, measured after layout */',
 '      var pw=div.offsetWidth||440,ph=div.offsetHeight||470;',
@@ -2135,7 +2171,6 @@
 '        +"<div class=\\"item\\"><kbd>X</kbd>\\u4e13\\u6ce8\\u6a21\\u5f0f</div>"',
 '        +"<div class=\\"item\\"><kbd>F</kbd>\\u641c\\u7d22\\u8282\\u70b9</div>"',
 '        +"<div class=\\"item\\"><kbd>P</kbd>\\u63d0\\u793a\\u8bcd\\u5de5\\u5177</div>"',
-'        +"<div class=\\"item\\"><kbd>N</kbd>\\u6e05\\u723d\\u6a21\\u5f0f</div>"',
 '        +"<div class=\\"item\\"><kbd>?</kbd>\\u5e2e\\u52a9\\u5feb\\u7167</div>"',
 '        +"</div>"',
 '        +"<div class=\\"sec-title\\">\\u529f\\u80fd\\u6a21\\u5757</div>"',
@@ -2411,6 +2446,8 @@
 '    }',
 '  }, true);',
 '  function _ltEsc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}',
+'  /* 从 API 地址提取「模型方」（host，去掉协议/端口/path），用于状态栏简洁展示 */',
+'  function _ltHost(u){try{return new URL(u).host;}catch(e){return u?String(u).replace(/^https?:\\/\\//,\'\').replace(/\\/.*$/,\'\'):\'\';}}',
 '  function _ltToast(msg, dur){var e=document.getElementById("_ltToast");if(!e){e=document.createElement("div");e.id="_ltToast";Object.assign(e.style,{position:"fixed",bottom:"20px",left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.8)",color:"#fff",padding:"8px 18px",borderRadius:"6px",zIndex:99999,fontSize:"14px",pointerEvents:"none",transition:"opacity .3s",opacity:"0"});document.body.appendChild(e)}e.textContent=msg;e.style.opacity="1";clearTimeout(e._t);e._t=setTimeout(function(){e.style.opacity="0"},dur||2000);}',
 '  function _ltBuildContentPack(){',
 '    var prompts=JSON.parse(localStorage.getItem("_lt_prompts")||"[]");',
@@ -2572,7 +2609,7 @@
 '      +"</div>";',
 '    /* \\u5173\\u4e8e */',
 '    h+="<div class=\\"lt-settings-sec\\ lt-sec-about\\"><div class=\\"lt-settings-stitle\\">\\u5173\\u4e8e</div>"',
-'      +"<div class=\\"lt-settings-about\\"><span class=\\"lt-ver-badge\\"><span class=\\"lt-ver-dot\\"></span>v1.10.8</span><div style=\\"margin-top:8px;font-size:13px;color:rgba(255,255,255,0.55);font-weight:600;\\">LibTV Canvas Boost</div>\\u4e13\\u4e3a liblib.tv \\u753b\\u5e03\\u6253\\u9020\\u7684\\u589e\\u5f3a\\u5de5\\u5177\\u3002\\u4f18\\u5316\\u6e32\\u67d3\\u6027\\u80fd\\uff0c\\u6d41\\u7545\\u64cd\\u4f5c\\u5927\\u753b\\u5e03\\uff1b\\u5185\\u7f6e AI \\u63d0\\u793a\\u8bcd\\u52a9\\u624b\\uff08\\u6da6\\u8272/\\u6269\\u5199/\\u7ffb\\u8bd1\\uff09\\u3001\\u6807\\u7b7e\\u7ba1\\u7406\\u3001\\u63d0\\u793a\\u8bcd\\u6a21\\u677f\\u3001\\u53d8\\u91cf\\u7cfb\\u7edf\\u3001\\u753b\\u5e03\\u4e3b\\u9898\\u914d\\u8272\\u4e0e\\u591a\\u79cd\\u89c6\\u89c9\\u8f85\\u52a9\\uff0c\\u8ba9\\u5de5\\u4f5c\\u6d41\\u66f4\\u9ad8\\u6548\\u3002<div style=\\"margin-top:12px;display:flex;gap:10px;\\"><a href=\\"https://github.com/lonely814/Messy\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"currentColor\\"><path d=\\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z\\"/></svg>GitHub</a><a href=\\"https://greasyfork.org/zh-CN/scripts/586841-libtv-canvas-boost\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\"><path d=\\"M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5\\"/></svg>Greasy Fork</a><a href=\\"https://scriptcat.org/zh-CN/script-show-page/7117\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M12 20h9\\"/><path d=\\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\\"/></svg>ScriptCat</a></div></div>"',
+'      +"<div class=\\"lt-settings-about\\"><span class=\\"lt-ver-badge\\"><span class=\\"lt-ver-dot\\"></span>v1.10.9</span><div style=\\"margin-top:8px;font-size:13px;color:rgba(255,255,255,0.55);font-weight:600;\\">LibTV Canvas Boost</div>\\u4e13\\u4e3a liblib.tv \\u753b\\u5e03\\u6253\\u9020\\u7684\\u589e\\u5f3a\\u5de5\\u5177\\u3002\\u4f18\\u5316\\u6e32\\u67d3\\u6027\\u80fd\\uff0c\\u6d41\\u7545\\u64cd\\u4f5c\\u5927\\u753b\\u5e03\\uff1b\\u5185\\u7f6e AI \\u63d0\\u793a\\u8bcd\\u52a9\\u624b\\uff08\\u6da6\\u8272/\\u6269\\u5199/\\u7ffb\\u8bd1\\uff09\\u3001\\u6807\\u7b7e\\u7ba1\\u7406\\u3001\\u63d0\\u793a\\u8bcd\\u6a21\\u677f\\u3001\\u53d8\\u91cf\\u7cfb\\u7edf\\u3001\\u753b\\u5e03\\u4e3b\\u9898\\u914d\\u8272\\u4e0e\\u591a\\u79cd\\u89c6\\u89c9\\u8f85\\u52a9\\uff0c\\u8ba9\\u5de5\\u4f5c\\u6d41\\u66f4\\u9ad8\\u6548\\u3002<div style=\\"margin-top:12px;display:flex;gap:10px;\\"><a href=\\"https://github.com/lonely814/Messy\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"currentColor\\"><path d=\\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z\\"/></svg>GitHub</a><a href=\\"https://greasyfork.org/zh-CN/scripts/586841-libtv-canvas-boost\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\"><path d=\\"M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5\\"/></svg>Greasy Fork</a><a href=\\"https://scriptcat.org/zh-CN/script-show-page/7117\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M12 20h9\\"/><path d=\\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\\"/></svg>ScriptCat</a></div></div>"',
 '      +"<div style=\\"margin-top:12px;display:flex;gap:6px;\\"><button class=\\"lt-settings-btn lt-settings-btn-primary lt-settings-btn-sm\\" id=\\"lt-set-help\\">\\u5e2e\\u52a9 / \\u91cd\\u65b0\\u663e\\u793a\\u5f15\\u5bfc</button></div>"',
 '      +"</div>";',
 '    h+="</div>";',
@@ -2689,27 +2726,64 @@
 '        var content=d.choices&&d.choices[0]&&d.choices[0].message?String(d.choices[0].message.content||""):"";',
 '        _ltApiStatus("\\u2705 \\u8fde\\u63a5\\u6210\\u529f ("+ms+"ms"+(content?" \\u2022 "+content.slice(0,20):"")+")",true);',
 '      })',
-'      .catch(function(err){_ltApiStatus("\\u2716 \\u8fde\\u63a5\\u5931\\u8d25: "+err.message,false);})',
+'      .catch(function(err){_ltApiStatus("\\u2716 \\u8fde\\u63a5\\u5931\\u8d25: "+_ltModelsErrDesc(err,url),false);})',
 '      .finally(function(){btn.disabled=false;});',
 '    };',
+'    /* \\u62c9\\u53d6\\u6a21\\u578b\\u5217\\u8868\\uff1a\\u591a\\u7aef\\u70b9\\u63a2\\u6d4b + \\u53cb\\u597d\\u9519\\u8bef\\u8bca\\u65ad */',
+'    function _ltModelsErrDesc(err,url){',
+'      // \\u73b0\\u5728\\u8bf7\\u6c42\\u8d70 GM_xmlhttpRequest\\uff08\\u6cb9\\u732b\\u6269\\u5c55\\u4ee3\\u53d1\\uff0c\\u5df2\\u7ed5\\u8fc7 CORS\\uff09\\u3002',
+'      // \\u82e5\\u4ecd\\u5931\\u8d25\\u5e76\\u629b TypeError\\uff0c\\u8bf4\\u660e\\u662f\\u7f51\\u7edc\\u5c42\\u95ee\\u9898\\uff1a\\u5730\\u5740/\\u7aef\\u53e3\\u4e0d\\u901a\\u3001\\u88ab\\u5899\\u3001\\u6216\\u7f51\\u5173\\u62d2\\u7edd\\u6269\\u5c55\\u8bf7\\u6c42\\u3002',
+'      if(err&&err.name==="TypeError"){',
+'        var tip=[];',
+'        if(/^http:\\/\\//i.test(url))tip.push("\\u5f53\\u524d\\u9875\\u9762\\u4e3a HTTPS\\uff0c\\u4f46\\u7f51\\u5173\\u662f HTTP\\uff0c\\u8bf7\\u6539\\u7528 https:// \\u6216\\u672c\\u5730\\u4ee3\\u7406");',
+'        tip.push("\\u8bf7\\u786e\\u8ba4\\uff1a\\u2460\\u7f51\\u5173\\u5730\\u5740/\\u7aef\\u53e3\\u53ef\\u8bbf\\u95ee\\uff08\\u53ef\\u7528\\u5176\\u4ed6\\u8f6f\\u4ef6\\u9a8c\\u8bc1\\uff09 \\u2461\\u6ca1\\u6709\\u88ab\\u9632\\u706b\\u5899/\\u4ee3\\u7406\\u62e6\\u622a \\u2462\\u63d0\\u793a\\u8bcd Key \\u4e0e\\u8be5\\u7f51\\u5173\\u5339\\u914d");',
+'        return "\\u8bf7\\u6c42\\u5931\\u8d25\\uff08\\u7f51\\u7edc\\u4e0d\\u901a/\\u5730\\u5740\\u9519\\u8bef/\\u88ab\\u62e6\\u622a\\uff09: "+tip.join("\\uff1b");',
+'      }',
+'      return err?err.message:"\\u672a\\u77e5\\u9519\\u8bef";',
+'    }',
+'    function _ltFetchModels(base,key,paths){',
+'      var i=0;',
+'      return new Promise(function(res,rej){',
+'        function next(){',
+'          var p=paths[i++];',
+'          if(!p)return rej(new Error("\\u6240\\u6709 /models \\u7aef\\u70b9\\u5747\\u5931\\u8d25"));',
+'          var u=base+p;',
+'          _ltXHR({url:u,headers:{"Authorization":"Bearer "+key}})',
+'          .then(function(o){',
+'            if(!o.r.ok){',
+'              if(o.r.status===404&&i<paths.length)return next();',
+'              throw new Error("HTTP "+o.r.status+(o.t?" "+o.t.slice(0,120):"")+" @ "+u);',
+'            }',
+'            var d;try{d=JSON.parse(o.t);}catch(e){d=null;}',
+'            var list=(d&&(d.data||d.models)||[]).map(function(m){return typeof m==="string"?m:(m.id||m.name||"");}).filter(Boolean).sort();',
+'            if(!list.length){',
+'              if(i<paths.length)return next();',
+'              throw new Error("\\u672a\\u627e\\u5230\\u6a21\\u578b\\u5217\\u8868");',
+'            }',
+'            res(list);',
+'          })',
+'          .catch(function(err){rej(err);});',
+'        }',
+'        next();',
+'      });',
+'    }',
 '    document.getElementById("lt-set-model-fetch").onclick=function(){',
 '      var url=_ltSetUrl.value.trim(),key=_ltSetKey.value.trim();',
 '      var btn=this;',
 '      if(!url){_ltApiStatus("\\u26a0 \\u8bf7\\u5148\\u586b\\u5199 API \\u5730\\u5740",false);return;}',
 '      var base=_ltApiBase(url);',
 '      if(!base){_ltApiStatus("\\u2716 \\u65e0\\u6cd5\\u8bc6\\u522b API \\u5730\\u5740",false);return;}',
+'      // \\u7aef\\u70b9\\u5019\\u9009\\uff1a\\u4f18\\u5148 /v1/models\\uff08OpenAI \\u517c\\u5bb9\\u6807\\u51c6\\uff09\\uff0c\\u56de\\u9000 /models',
+'      var paths=base.replace(/\\/v1$/,\'\').length!==base.length?["/v1/models","/models"]:["/models","/v1/models"];',
 '      var box=document.getElementById("lt-set-model-list");',
 '      btn.disabled=true;box.style.display="block";box.innerHTML="\\u62c9\\u53d6\\u4e2d...";',
-'      fetch(base+"/models",{headers:{"Authorization":"Bearer "+key}})',
-'      .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+(t?" "+t.slice(0,120):""));});return r.json();})',
-'      .then(function(d){',
+'      _ltFetchModels(base,key,paths)',
+'      .then(function(list){',
 '        _ltApiPersist();',
-'        var list=(d.data||d.models||[]).map(function(m){return typeof m==="string"?m:(m.id||m.name||"");}).filter(Boolean).sort();',
-'        if(!list.length)throw new Error("\\u672a\\u627e\\u5230\\u6a21\\u578b\\u5217\\u8868");',
 '        _ltRenderModelList(list);',
 '        _ltApiStatus("\\u2705 \\u62c9\\u53d6\\u5230 "+list.length+" \\u4e2a\\u6a21\\u578b",true);',
 '      })',
-'      .catch(function(err){box.style.display="none";box.innerHTML="";_ltApiStatus("\\u2716 \\u62c9\\u53d6\\u5931\\u8d25: "+err.message,false);})',
+'      .catch(function(err){box.style.display="none";box.innerHTML="";_ltApiStatus("\\u2716 \\u62c9\\u53d6\\u5931\\u8d25: "+_ltModelsErrDesc(err,url),false);})',
 '      .finally(function(){btn.disabled=false;});',
 '    };',
 '    /* \\u6570\\u636e\\u6e05\\u5355 */',
