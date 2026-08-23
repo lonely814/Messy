@@ -2,15 +2,18 @@
 // @name         MultiMirror Download (HuggingFace + ComfyUI)
 // @name:zh-CN   多镜像下载 (HuggingFace + ComfyUI)
 // @namespace    https://huggingface.co/
-// @version      1.0.4
+// @version      1.1.0
 // @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/HuggingFace%2BComfyUI/icon.png
 // @description  Add hf-mirror (yellow) and ModelScope (purple) download buttons to Hugging Face file pages and the ComfyUI missing-model panel, plus a folder-open shortcut.
 // @description:zh-CN  在 Hugging Face 文件页与 ComfyUI 缺模型面板，为每个下载入口增加 hf-mirror（黄）与 ModelScope（紫）镜像按钮，并提供打开模型目录的快捷键。
 // @match        https://huggingface.co/*
-// @match        *://localhost/*
-// @match        *://127.0.0.1/*
+// @match        *://localhost:8188/*
+// @match        *://127.0.0.1:8188/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_registerMenuCommand
 // @author       oocc00
 // @connect      modelscope.cn
 // @connect      hf-mirror.com
@@ -24,12 +27,13 @@
   const HF_MIRROR_HOST = 'https://hf-mirror.com';
   const MODELSCOPE_HOST = 'https://modelscope.cn/models';
 
-  // 模型根目录（绝对路径）。填了你本机 ComfyUI 的 models 目录后，
-  // “打开目录”按钮会尝试用 file:// 打开对应子文件夹，并把绝对路径复制到剪贴板。
-  // 例：Windows   -> C:\\Users\\你的用户名\\ComfyUI\\models
-  //     macOS/Linux -> /home/你的用户名/ComfyUI/models
-  // 留空则只复制相对路径 models/<类型>/<文件名>（浏览器无法直接打开本地文件夹）。
-  const COMFY_MODELS_ROOT = '';
+  // 模型根目录（绝对路径）：经油猴菜单「设置 ComfyUI models 目录」配置，
+  // GM_setValue 存储，升级脚本不用改代码。配置后 📂 会尝试用 file:// 打开
+  // 对应子文件夹并把绝对路径复制到剪贴板；留空则只复制相对路径
+  // models/<类型>/<文件名>（浏览器无法直接打开本地文件夹）。
+  function getModelsRoot() {
+    return (GM_getValue('modelsRoot', '') || '').trim();
+  }
 
   const checkedModelScopeUrls = new Map();
 
@@ -102,21 +106,35 @@
     const isLink = !!options.url;
     const icon = document.createElement(isLink ? 'a' : 'div');
 
-    icon.className = `${options.className} ml-2 flex h-5 w-5 items-center justify-center rounded-sm border`;
+    // 不用 Tailwind 类：ComfyUI 页没有该框架，h-5/flex 等全部失效导致图标变形，故全内联
+    icon.className = options.className;
+    Object.assign(icon.style, {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '20px',
+      height: '20px',
+      marginLeft: '8px',
+      verticalAlign: 'middle',
+      borderRadius: '3px',
+      border: '1px solid ' + options.color,
+      backgroundColor: options.color,
+      color: options.textColor || '#ffffff',
+      flexShrink: '0',
+      cursor: 'pointer',
+      textDecoration: 'none'
+    });
+
     icon.title = options.title;
+    // 防 Chrome 页面翻译把 "MS" 当作语言代码(ms=Malay)翻成「马来语」
+    icon.setAttribute('translate', 'no');
+    icon.classList.add('notranslate');
 
     if (isLink) {
       icon.href = options.url;
       icon.target = '_blank';
       icon.rel = 'noreferrer noopener';
     }
-
-    icon.style.backgroundColor = options.color;
-    icon.style.borderColor = options.color;
-    icon.style.color = options.textColor || '#ffffff';
-    icon.style.flexShrink = '0';
-    icon.style.cursor = 'pointer';
-    icon.style.textDecoration = 'none';
 
     const label = options.label || '↗';
     icon.innerHTML = `<span style="font-size:11px;font-weight:700;line-height:1;">${label}</span>`;
@@ -215,7 +233,7 @@
       className: 'modelscope-mirror-icon',
       title: 'ModelScope 镜像下载',
       color: '#7c3aed',
-      label: 'MS',
+      label: '魔',
       url: modelScopeUrl
     });
 
@@ -263,20 +281,6 @@
     return map;
   }
 
-  function candidateNames(btn, anchorMap) {
-    let node = btn;
-    let text = '';
-    for (let i = 0; i < 5 && node; i++) {
-      text += ' ' + (node.textContent || '');
-      node = node.parentElement;
-    }
-    const hits = [];
-    for (const name of anchorMap.keys()) {
-      if (text.includes(name)) hits.push(name);
-    }
-    return hits;
-  }
-
   function resolveUrl(btn, anchorMap, assigned) {
     // 精确：行内只含一个候选文件名的元素即模型名
     let node = btn;
@@ -294,9 +298,8 @@
       }
       node = node.parentElement;
     }
-    // 兜底：取尚未被分配的候选
-    const cands = candidateNames(btn, anchorMap).filter((n) => !assigned.has(n));
-    return cands.length ? anchorMap.get(cands[0]) : null;
+    // 不做兜底：行文本含多个文件名时会配错对、下载错模型，宁可不显示按钮
+    return null;
   }
 
   async function addComfyModelScopeIcon(btn, modelScopeUrl) {
@@ -307,7 +310,7 @@
       className: 'comfy-modelscope-mirror',
       title: 'ModelScope 镜像下载',
       color: '#7c3aed',
-      label: 'MS',
+      label: '魔',
       url: modelScopeUrl
     });
 
@@ -341,15 +344,16 @@
     const relFolder = 'models/' + dir;
     const relFile = relFolder + '/' + filename;
 
-    if (COMFY_MODELS_ROOT) {
-      const root = COMFY_MODELS_ROOT.replace(/\\/g, '/').replace(/\/+$/, '');
+    const modelsRoot = getModelsRoot();
+    if (modelsRoot) {
+      const root = modelsRoot.replace(/\\/g, '/').replace(/\/+$/, '');
       const absFolder = root + '/' + dir;
       try { window.open('file:///' + absFolder); } catch (e) { /* 浏览器可能拦截 */ }
       GM_setClipboard(absFolder);
       console.log('[多镜像下载] 已尝试打开并复制绝对路径: ' + absFolder);
     } else {
       GM_setClipboard(relFile);
-      console.log('[多镜像下载] 未配置 COMFY_MODELS_ROOT，已复制相对路径: ' + relFile);
+      console.log('[多镜像下载] 未配置模型目录，已复制相对路径: ' + relFile);
     }
   }
 
@@ -359,7 +363,6 @@
       title: '打开模型目录 / 复制目标路径\nmodels/' + (directory || 'models') + '/' + filename,
       color: '#16a34a',
       label: '📂',
-      url: '',
       onClick: () => openModelFolder(directory, filename)
     });
     // 放到整行最右侧，与下载按钮（HF / MS）视觉上分开
@@ -413,8 +416,11 @@
   function start(patchFn) {
     patchFn();
 
+    // 节流：HF(React)/ComfyUI(画布) DOM 变动频繁，全量扫描必须防抖
+    let timer = 0;
     const observer = new MutationObserver(() => {
-      patchFn();
+      clearTimeout(timer);
+      timer = setTimeout(patchFn, 200);
     });
 
     observer.observe(document.body, {
@@ -431,5 +437,14 @@
     start(patchHuggingFace);
   } else if (isComfyPage) {
     start(patchComfyUI);
+
+    // 菜单只在 ComfyUI 页面出现，HF 页面不掺和
+    GM_registerMenuCommand('设置 ComfyUI models 目录', function () {
+      const v = prompt(
+        'ComfyUI models 绝对路径（留空则只复制相对路径）\n例：C:\\Users\\你\\ComfyUI\\models',
+        GM_getValue('modelsRoot', '')
+      );
+      if (v !== null) GM_setValue('modelsRoot', v.trim());
+    });
   }
 })();
