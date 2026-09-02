@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
-// @version      1.10.10
+// @version      1.10.11
 // @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/libtv-boost/libtv-boost-icon.png
 // @license      MIT
 // @author       oocc00
@@ -1916,6 +1916,12 @@
 '        tagIcon.onclick=function(e){e.stopPropagation();if(document.getElementById("lt-tag-menu"))_ltCloseTagMenu();else _ltShowTagMenu(ta);};',
 '        aiIcon.onclick=function(e){e.stopPropagation();_ltAIPanel(ta,aiIcon);};',
 '        _ltFloatIcons.push({ta:ta,tagIcon:tagIcon,aiIcon:aiIcon});',
+'        /* 打字时输入框长高不触发 scroll/resize，用 RO + input 实时跟随；',
+'           contenteditable 可能固定高度、长高的是外层节点，节点也一起观察 */',
+'        if(_ltTaRO){try{_ltTaRO.observe(ta);}catch(e){}',
+'          var nodeEl2=ta.closest(".react-flow__node");if(nodeEl2){try{_ltTaRO.observe(nodeEl2);}catch(e){}}}',
+'        _ltFloatIcons[_ltFloatIcons.length-1].nodeEl=nodeEl2;',
+'        ta.addEventListener("input",_ltSyncPositions);',
 '        _ltScanStats.tagInj++;_ltScanStats.aiInj++;',
 '        _ltSyncOne(_ltFloatIcons[_ltFloatIcons.length-1]);',
 '      });',
@@ -1923,6 +1929,7 @@
 '      _ltSyncPositions();',
 '      /* 诊断：当前浮动图标状态 */',
 '      _ltScanStats.icons=[];',
+'      _ltScanStats.vp=window.innerWidth+"x"+window.innerHeight+" v"+"1.10.11";',
 '      for(var _j=0;_j<_ltFloatIcons.length&&_j<5;_j++){',
 '        var _fi=_ltFloatIcons[_j];',
 '        _ltScanStats.icons.push("ta="+(_fi.ta.isConnected?1:0)+" tag="+(_fi.tagIcon?(_fi.tagIcon.style.display+"/"+((Math.round(parseFloat(_fi.tagIcon.style.left)))||0)+","+((Math.round(parseFloat(_fi.tagIcon.style.top)))||0)):"-")+" ai="+(_fi.aiIcon?(_fi.aiIcon.style.display+"/"+((Math.round(parseFloat(_fi.aiIcon.style.left)))||0)+","+((Math.round(parseFloat(_fi.aiIcon.style.top)))||0)):"-"));',
@@ -1930,6 +1937,8 @@
 '    }',
 '    /* 浮动图标管理 */',
 '    var _ltFloatIcons=[];',
+'    _ltScanStats.clamps=[];',
+'    var _ltTaRO=window.ResizeObserver?new ResizeObserver(function(){_ltSyncPositions();}):null;',
 '    function _ltSyncOne(f){',
 '      if(!f.ta.isConnected||!f.ta.getClientRects||!f.ta.getClientRects().length){_ltHideIcons(f);return;}',
 '      var r=f.ta.getBoundingClientRect();',
@@ -1937,14 +1946,23 @@
 '      /* 位置直接跟随（画布拖动高频场景，pend 会造成滞后） */',
 '      f._lr={left:r.left,top:r.top,width:r.width,height:r.height};',
 '      ',
-'      if(f.tagIcon){f.tagIcon.style.left=(r.right-6-24)+"px";f.tagIcon.style.top=(r.bottom-6-24)+"px";f.tagIcon.style.display="flex";}',
-'      if(f.aiIcon){f.aiIcon.style.left=(r.right-6-24-44)+"px";f.aiIcon.style.top=(r.bottom-6-24)+"px";f.aiIcon.style.display="flex";}',
+'      if(f.tagIcon||f.aiIcon){var vr=_ltVisibleRect(f.ta);var iy=Math.max(vr.top+4,Math.min(r.bottom-30,vr.bottom-30));var ix=Math.max(4,Math.min(r.right-30,window.innerWidth-30));var ax=Math.max(4,Math.min(r.right-74,window.innerWidth-74));if(f.tagIcon){f.tagIcon.style.left=ix+"px";f.tagIcon.style.top=iy+"px";f.tagIcon.style.display="flex";}if(f.aiIcon){f.aiIcon.style.left=ax+"px";f.aiIcon.style.top=iy+"px";f.aiIcon.style.display="flex";}',
+'        /* 钳制触发时记流水，诊断用 */',
+'        if((iy>r.bottom-30||ix<r.right-30)&&_ltScanStats.clamps){_ltScanStats.clamps.push("ta.bottom="+Math.round(r.bottom)+" right="+Math.round(r.right)+" panel=["+Math.round(vr.top)+","+Math.round(vr.bottom)+"] vp="+window.innerWidth+"x"+window.innerHeight);if(_ltScanStats.clamps.length>5)_ltScanStats.clamps.shift();}}',
 '    }',
 '    function _ltHideIcons(f){if(f.tagIcon)f.tagIcon.style.display="none";if(f.aiIcon)f.aiIcon.style.display="none";}',
+'    /* 钳制基准 = 最近滚动祖先可视区 ∩ 视口；否则图标会钉在视口底边而脱离面板内的输入框 */',
+'    function _ltVisibleRect(ta){',
+'      var el=ta.parentElement,best=null;',
+'      while(el&&el!==document.body){var cs=getComputedStyle(el);if(/(auto|scroll)/.test(cs.overflowY)){best=el;}el=el.parentElement;}',
+'      var pr=best?best.getBoundingClientRect():null;',
+'      return {top:Math.max(0,pr?pr.top:0),bottom:Math.min(window.innerHeight,pr?pr.bottom:window.innerHeight)};',
+'    }',
 '    function _ltSyncPositions(){',
 '      for(var i=_ltFloatIcons.length-1;i>=0;i--){',
 '        var f=_ltFloatIcons[i];',
 '        if(!f.ta.isConnected||!document.body.contains(f.ta)){',
+'          if(_ltTaRO){try{_ltTaRO.unobserve(f.ta);}catch(e){}if(f.nodeEl){try{_ltTaRO.unobserve(f.nodeEl);}catch(e){}}}',
 '          if(f.tagIcon)f.tagIcon.remove();',
 '          if(f.aiIcon)f.aiIcon.remove();',
 '          _ltFloatIcons.splice(i,1);',
@@ -2974,7 +2992,7 @@
 '      +"</div>";',
 '    /* \\u5173\\u4e8e */',
 '    h+="<div class=\\"lt-settings-sec\\ lt-sec-about\\"><div class=\\"lt-settings-stitle\\">\\u5173\\u4e8e</div>"',
-'      +"<div class=\\"lt-settings-about\\"><span class=\\"lt-ver-badge\\"><span class=\\"lt-ver-dot\\"></span>v1.10.10</span><div style=\\"margin-top:8px;font-size:13px;color:rgba(255,255,255,0.55);font-weight:600;\\">LibTV Canvas Boost</div>\\u4e13\\u4e3a liblib.tv \\u753b\\u5e03\\u6253\\u9020\\u7684\\u589e\\u5f3a\\u5de5\\u5177\\u3002\\u4f18\\u5316\\u6e32\\u67d3\\u6027\\u80fd\\uff0c\\u6d41\\u7545\\u64cd\\u4f5c\\u5927\\u753b\\u5e03\\uff1b\\u5185\\u7f6e AI \\u63d0\\u793a\\u8bcd\\u52a9\\u624b\\uff08\\u6da6\\u8272/\\u6269\\u5199/\\u7ffb\\u8bd1\\uff09\\u3001\\u6807\\u7b7e\\u7ba1\\u7406\\u3001\\u63d0\\u793a\\u8bcd\\u6a21\\u677f\\u3001\\u53d8\\u91cf\\u7cfb\\u7edf\\u3001\\u753b\\u5e03\\u4e3b\\u9898\\u914d\\u8272\\u4e0e\\u591a\\u79cd\\u89c6\\u89c9\\u8f85\\u52a9\\uff0c\\u8ba9\\u5de5\\u4f5c\\u6d41\\u66f4\\u9ad8\\u6548\\u3002<div style=\\"margin-top:12px;display:flex;gap:10px;\\"><a href=\\"https://github.com/lonely814/Messy\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"currentColor\\"><path d=\\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z\\"/></svg>GitHub</a><a href=\\"https://greasyfork.org/zh-CN/scripts/586841-libtv-canvas-boost\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\"><path d=\\"M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5\\"/></svg>Greasy Fork</a><a href=\\"https://scriptcat.org/zh-CN/script-show-page/7117\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M12 20h9\\"/><path d=\\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\\"/></svg>ScriptCat</a></div></div>"',
+'      +"<div class=\\"lt-settings-about\\"><span class=\\"lt-ver-badge\\"><span class=\\"lt-ver-dot\\"></span>v1.10.11</span><div style=\\"margin-top:8px;font-size:13px;color:rgba(255,255,255,0.55);font-weight:600;\\">LibTV Canvas Boost</div>\\u4e13\\u4e3a liblib.tv \\u753b\\u5e03\\u6253\\u9020\\u7684\\u589e\\u5f3a\\u5de5\\u5177\\u3002\\u4f18\\u5316\\u6e32\\u67d3\\u6027\\u80fd\\uff0c\\u6d41\\u7545\\u64cd\\u4f5c\\u5927\\u753b\\u5e03\\uff1b\\u5185\\u7f6e AI \\u63d0\\u793a\\u8bcd\\u52a9\\u624b\\uff08\\u6da6\\u8272/\\u6269\\u5199/\\u7ffb\\u8bd1\\uff09\\u3001\\u6807\\u7b7e\\u7ba1\\u7406\\u3001\\u63d0\\u793a\\u8bcd\\u6a21\\u677f\\u3001\\u53d8\\u91cf\\u7cfb\\u7edf\\u3001\\u753b\\u5e03\\u4e3b\\u9898\\u914d\\u8272\\u4e0e\\u591a\\u79cd\\u89c6\\u89c9\\u8f85\\u52a9\\uff0c\\u8ba9\\u5de5\\u4f5c\\u6d41\\u66f4\\u9ad8\\u6548\\u3002<div style=\\"margin-top:12px;display:flex;gap:10px;\\"><a href=\\"https://github.com/lonely814/Messy\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"currentColor\\"><path d=\\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z\\"/></svg>GitHub</a><a href=\\"https://greasyfork.org/zh-CN/scripts/586841-libtv-canvas-boost\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\"><path d=\\"M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5\\"/></svg>Greasy Fork</a><a href=\\"https://scriptcat.org/zh-CN/script-show-page/7117\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M12 20h9\\"/><path d=\\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\\"/></svg>ScriptCat</a></div></div>"',
 '      +"<div style=\\"margin-top:12px;display:flex;gap:6px;\\"><button class=\\"lt-settings-btn lt-settings-btn-primary lt-settings-btn-sm\\" id=\\"lt-set-help\\">\\u5e2e\\u52a9 / \\u91cd\\u65b0\\u663e\\u793a\\u5f15\\u5bfc</button></div>"',
 '      +"</div>";',
 '    h+="</div>";',
@@ -3304,8 +3322,12 @@
                     diag.details.forEach(function(d){ info.push('  ' + d); });
                 }
                 if(diag.icons && diag.icons.length){
-                    info.push('浮动图标状态 (注册 ' + diag.icons.length + ' 组):');
+                    info.push('浮动图标状态 (注册 ' + diag.icons.length + ' 组, 视口 ' + (diag.vp||'?') + '):');
                     diag.icons.forEach(function(d){ info.push('  ' + d); });
+                }
+                if(diag.clamps && diag.clamps.length){
+                    info.push('钳制触发记录 (最近 ' + diag.clamps.length + ' 次):');
+                    diag.clamps.forEach(function(d){ info.push('  ' + d); });
                 }
             } else {
                 info.push('');

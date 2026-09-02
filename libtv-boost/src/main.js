@@ -412,8 +412,12 @@
                     diag.details.forEach(function(d){ info.push('  ' + d); });
                 }
                 if(diag.icons && diag.icons.length){
-                    info.push('浮动图标状态 (注册 ' + diag.icons.length + ' 组):');
+                    info.push('浮动图标状态 (注册 ' + diag.icons.length + ' 组, 视口 ' + (diag.vp||'?') + '):');
                     diag.icons.forEach(function(d){ info.push('  ' + d); });
+                }
+                if(diag.clamps && diag.clamps.length){
+                    info.push('钳制触发记录 (最近 ' + diag.clamps.length + ' 次):');
+                    diag.clamps.forEach(function(d){ info.push('  ' + d); });
                 }
             } else {
                 info.push('');
