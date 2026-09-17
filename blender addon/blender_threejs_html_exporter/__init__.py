@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Three.js 独立 HTML 导出器",
     "author": "Gilles Tarnus / NexData",
-    "version": (2, 9, 0),
+    "version": (2, 11, 0),
     "blender": (3, 6, 0),
     "location": "文件 > 导出 > Three.js 独立 HTML (.html)",
     "description": "将场景导出为内嵌 GLB 模型的 Three.js 独立 HTML 文件",
@@ -12,6 +12,10 @@ import bpy
 import json
 import os
 import base64
+import gzip
+import math
+import mathutils
+import zlib
 import pathlib
 import re
 import tempfile
@@ -265,11 +269,68 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
   <input id="animationSlider" type="range" min="0" max="1000" value="0" step="1">
   <span id="animationTime">0.00 / 0.00 s</span>
 </div>
-<script type="importmap">
-${importmap}
+<script>
+// 载荷以 brotli/gzip 压缩后 base64 内嵌，用浏览器原生 DecompressionStream 解压，
+// 不引入任何解码库（比内嵌 base64 原始 GLB 小 5 倍左右）。
+// 压缩格式存于 meta，用动态 importmap 注入解压后的 blob URL，不依赖 "imports" 必须是内联值。
+window.__viewerMeta = ${viewer_meta};
 </script>
 
-<script type="module">
+<script>
+// 载荷解码管道：brotli/gzip/deflate base64 → 原生 DecompressionStream → blob URL →
+// 动态 importmap + 动态 module 注入。file:// 下可用（已实测）。
+// 任何一步失败都必须让用户看到原因，不能停在“加载中”。
+window.__viewerBooted = false;
+function fail(msg) {
+  const el = document.getElementById('loading');
+  if (el) el.innerHTML = '<span style="color:#dc2626">加载失败：' + msg + '</span>';
+  console.error(msg);
+}
+
+async function decompressToBytes(b64, format) {
+  const bin = base64ToBytes(b64);
+  if (format === null) return bin;
+  const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream(format));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+function base64ToBytes(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function blobURL(text, type) {
+  return URL.createObjectURL(new Blob([text], { type: type }));
+}
+
+(async () => {
+  if (window.__booted) return; // 模块重复执行时不要重复建场景
+  window.__booted = true;
+  const meta = window.__viewerMeta;
+  let imports = meta.runtimeCDN;
+  if (meta.runtimeFormat !== null) {
+    const bundle = JSON.parse(new TextDecoder().decode(await decompressToBytes(meta.runtime, meta.runtimeFormat)));
+    imports = {};
+    for (const [key, src] of Object.entries(bundle)) imports[key] = blobURL(src, 'text/javascript');
+  }
+  const im = document.createElement('script');
+  im.type = 'importmap';
+  im.textContent = JSON.stringify({ imports });
+  document.head.appendChild(im);
+
+  // 直接存字节，省掉 btoa/atob 往返（btoa 处理大二进制还会因 Latin1 限制报错）
+  window.__embeddedGLB = await decompressToBytes(meta.glb, meta.glbFormat);
+
+  const s = document.createElement('script');
+  s.type = 'module';
+  s.textContent = document.getElementById('viewer-source').textContent;
+  document.head.appendChild(s); // 模块自身在末尾启动，此时载荷已就绪
+})().catch(e => fail((e && e.message) || String(e)));
+</script>
+
+<script type="text/plain" id="viewer-source">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -280,10 +341,12 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
 
-const embeddedGLB = "${glb_base64}";
+const embeddedGLB = window.__embeddedGLB;
+const cameraData = ${camera_data}; // 场景相机初始机位，null 表示自动适配视图
 const edgeAngle = ${edge_angle};
 const environmentLighting = ${environment_lighting};
 const envIntensity = ${env_intensity}; // 查看器环境反射强度，导出选项
+const sceneLightScale = ${scene_light_scale}; // 灯光强度倍率，导出选项
 const envDataURL = "${env_data_url}";
 const aoDefault = ${ao_default};
 const aoStrength = ${ao_strength};
@@ -303,9 +366,6 @@ let viewFrustumSize = 10;
 let composer = null, renderPass = null, saoPass = null;
 let aoOn = aoDefault;
 
-init();
-loadEmbeddedGLB();
-animate();
 
 function init() {
   document.body.classList.toggle('dark', isDark);
@@ -353,33 +413,51 @@ function init() {
       pmrem.dispose();
     }
   } else {
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x777777, 1.3);
-    scene.add(hemi);
-    const dir1 = new THREE.DirectionalLight(0xffffff, 1.6);
-    dir1.position.set(5, 8, 7);
-    scene.add(dir1);
-    const dir2 = new THREE.DirectionalLight(0xffffff, 0.7);
-    dir2.position.set(-5, -4, -6);
-    scene.add(dir2);
+    // 灯光延到 GLB 加载回调里处理：那里才知道模型是否带了导出灯光
   }
 
   window.addEventListener('resize', onResize);
   window.addEventListener('contextmenu', e => e.preventDefault());
-  window.__viewer = { renderer, scene, camera }; // 测试/调试句柄
+  // camera 会被 replaceCamera() 换成新对象，用 getter 保证调试句柄不失效
+  window.__viewer = { renderer, scene, get camera() { return camera; } };
 }
 
-function base64ToArrayBuffer(base64) {
-  const binary = atob(base64);
-  const len = binary.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
+// 灯光：优先用 GLB 里导出的 Blender 灯光（KHR_lights_punctual，GLTFLoader 自动建成
+// THREE.Light 并加进 gltf.scene），否则用内置三点光兵底。
+// 灯光需要作用在整个场景上，因此从 model 里摘出来挂到 scene（world transform 不变）。
+function handleLightSetup(root) {
+  if (root) {
+    const lights = [];
+    root.traverse(o => { if (o.isLight) lights.push(o); });
+    if (lights.length) {
+      lights.forEach(l => {
+        l.intensity *= sceneLightScale;
+        scene.attach(l);
+      });
+      return;
+    }
+  }
+  if (environmentLighting) return;
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x777777, 1.3);
+  scene.add(hemi);
+  const dir1 = new THREE.DirectionalLight(0xffffff, 1.6);
+  dir1.position.set(5, 8, 7);
+  scene.add(dir1);
+  const dir2 = new THREE.DirectionalLight(0xffffff, 0.7);
+  dir2.position.set(-5, -4, -6);
+  scene.add(dir2);
+}
+
+function bootstrapViewer() {
+  if (window.__viewer) return; // 重复注入防护
+  init();
+  loadEmbeddedGLB();
+  animate();
 }
 
 function loadEmbeddedGLB() {
   const loader = new GLTFLoader();
-  const buffer = base64ToArrayBuffer(embeddedGLB);
-  loader.parse(buffer, '', gltf => {
+  loader.parse(embeddedGLB.buffer, '', gltf => {
     document.getElementById('loading').style.display = 'none';
     model = gltf.scene;
     scene.add(model);
@@ -393,6 +471,7 @@ function loadEmbeddedGLB() {
       });
     }
     normalizeAndFrame(model);
+    handleLightSetup(model);
     if (edgesVisible) buildEdges();
     buildTree();
     setupAnimations(gltf.animations || []);
@@ -471,16 +550,36 @@ function normalizeAndFrame(obj) {
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  obj.position.sub(center);
 
-  const dist = maxDim * 1.8;
-  viewFrustumSize = maxDim * 2.4;
+  if (cameraData) {
+    // 场景相机机位：模型保持世界坐标，视锥按导出值设置
+    viewFrustumSize = cameraData.ortho ? cameraData.orthoScale : maxDim * 2.4;
+  } else {
+    obj.position.sub(center);
+    viewFrustumSize = maxDim * 2.4;
+  }
   if (saoPass) saoPass.params.saoKernelRadius = maxDim * 0.06;
   camera.near = maxDim / 1000;
   camera.far = maxDim * 1000;
+
+  if (cameraData && !!cameraData.ortho !== isParallelCamera) {
+    isParallelCamera = !!cameraData.ortho;
+    replaceCamera(isParallelCamera);
+  }
+
+  if (cameraData) {
+    camera.position.fromArray(cameraData.position);
+    const forward = new THREE.Vector3().fromArray(cameraData.forward);
+    // 轨道中心放在模型中心所在平面，旋转时不会偏离模型
+    const distToCenter = camera.position.distanceTo(center) || maxDim;
+    controls.target.copy(camera.position).addScaledVector(forward, distToCenter);
+    if (camera.isPerspectiveCamera && cameraData.fov) camera.fov = cameraData.fov;
+  } else {
+    const dist = maxDim * 1.8;
+    camera.position.set(dist, dist * 0.75, dist);
+    controls.target.set(0, 0, 0);
+  }
   updateCameraProjection();
-  camera.position.set(dist, dist * 0.75, dist);
-  controls.target.set(0, 0, 0);
   controls.update();
 }
 
@@ -825,10 +924,37 @@ function animate() {
   controls.update();
   if (composer && aoOn) composer.render(); else renderer.render(scene, camera);
 }
+
+// 模块自身启动：导入是异步的，注入方无法等它定义完再调用，所以在此处自启。
+// 此时 window.__embeddedGLB 已由载荷管道写好（注入顺序保证）。
+bootstrapViewer();
 </script>
 </body>
 </html>
 '''
+
+
+def _compress_best(data):
+    """挑体积最小的压缩方案。返回 (base64 文本, DecompressionStream 格式名)。
+
+    格式名必须与浏览器 DecompressionStream 的取值一致：brotli / gzip / deflate。
+    无收益或压缩库不可用时返回 (None, None)，调用方回退到未压缩载荷。
+    """
+    best = None
+    for fmt, fn in (
+        ('brotli', lambda d: __import__('brotli').compress(d, quality=11)),
+        ('gzip', lambda d: gzip.compress(d, 9)),
+        ('deflate', lambda d: zlib.compress(d, 9)),
+    ):
+        try:
+            packed = fn(data)
+        except Exception:
+            continue
+        if best is None or len(packed) < len(best[1]):
+            best = (fmt, packed)
+    if best is None or len(best[1]) >= len(data):
+        return None, None
+    return base64.b64encode(best[1]).decode('ascii'), best[0]
 
 
 class HTML3D_OT_export(Operator, ExportHelper):
@@ -910,6 +1036,23 @@ class HTML3D_OT_export(Operator, ExportHelper):
         description="打开 HTML 时自动开启模型旋转",
         default=False,
     )
+    use_scene_camera: BoolProperty(
+        name="使用场景相机机位",
+        description="以场景当前活动相机的角度、距离与视角作为查看器初始机位；无相机时自动适配视图",
+        default=True,
+    )
+    export_lights: BoolProperty(
+        name="导出场景灯光",
+        description="将 Blender 灯光（点光/日射/聚光/面光）导出进内嵌 GLB，查看器用它们照明；关闭则使用内置三点光",
+        default=True,
+    )
+    light_scale: FloatProperty(
+        name="灯光强度倍率",
+        description="查看器端灯光强度系数；Blender 与 Three 的单位换算存在差异，可按需微调",
+        default=1.0,
+        min=0.0,
+        soft_max=4.0,
+    )
     texture_format: EnumProperty(
         name="纹理压缩",
         description="GLB 内嵌纹理格式；WebP 体积明显小于 PNG，浏览器原生支持，无需额外解码器",
@@ -962,6 +1105,31 @@ class HTML3D_OT_export(Operator, ExportHelper):
                 return True
         return False
 
+    @staticmethod
+    def _scene_camera_data(context):
+        """场景活动相机的初始机位（转换到 glTF/Three 的 Y-up 空间）。无相机返回 None。"""
+        cam = context.scene.camera
+        if cam is None or cam.data is None:
+            return None
+
+        def to_yup(v):
+            # Blender Z-up → glTF Y-up：(x, y, z) → (x, z, -y)
+            return [float(v.x), float(v.z), float(-v.y)]
+
+        matrix = cam.matrix_world
+        forward = -(matrix.to_3x3() @ mathutils.Vector((0.0, 0.0, 1.0)))
+        is_ortho = cam.data.type == 'ORTHO'
+        data = {
+            'position': to_yup(matrix.translation),
+            'forward': to_yup(forward),
+            'ortho': is_ortho,
+            'orthoScale': float(cam.data.ortho_scale),
+        }
+        if not is_ortho:
+            # Blender angle_y 即垂直视角，与 Three 的 PerspectiveCamera.fov 同义
+            data['fov'] = math.degrees(cam.data.angle_y)
+        return data
+
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "show_edges_default")
@@ -975,6 +1143,9 @@ class HTML3D_OT_export(Operator, ExportHelper):
         layout.prop(self, "ao_strength")
         layout.prop(self, "embed_runtime")
         layout.prop(self, "texture_format")
+        layout.prop(self, "use_scene_camera")
+        layout.prop(self, "export_lights")
+        layout.prop(self, "light_scale", slider=True)
         layout.prop(self, "auto_spin_default")
 
         has_anim = self._scene_has_animation(context)
@@ -998,7 +1169,6 @@ class HTML3D_OT_export(Operator, ExportHelper):
             export_apply=True,
             export_materials='EXPORT',
             export_yup=True,
-            export_lights=False,
             export_cameras=False,
         )
 
@@ -1029,6 +1199,7 @@ class HTML3D_OT_export(Operator, ExportHelper):
         add_enum_if_supported('export_animation_mode', self.animation_mode, ['ACTIVE_ACTIONS', 'ACTIONS', 'NLA_TRACKS', 'SCENE'])
         add_if_supported('export_frame_range', bool(self.export_frame_range))
         add_if_supported('export_force_sampling', True)
+        add_if_supported('export_lights', bool(self.export_lights))
         # 纹理格式：WebP 浏览器原生支持，体积明显小于 PNG，无需查看器侧解码器
         if self.texture_format != 'AUTO':
             add_enum_if_supported('export_image_format', self.texture_format, ['AUTO'])
@@ -1183,6 +1354,7 @@ class HTML3D_OT_export(Operator, ExportHelper):
 
     @staticmethod
     def _build_importmap(runtime):
+        """导出 CDN 回退用的裸 importmap（内嵌时改由查看器端动态构建）。"""
         if runtime:
             def data_url(data):
                 return 'data:text/javascript;base64,' + base64.b64encode(data).decode('ascii')
@@ -1242,11 +1414,12 @@ class HTML3D_OT_export(Operator, ExportHelper):
                 self.report({'WARNING'}, f"运行库下载失败，已回退为在线加载：{ex}")
 
         env_data_url = ''
+        cam_data = self._scene_camera_data(context) if self.use_scene_camera else None
         with tempfile.TemporaryDirectory() as tmpdir:
             glb_path = os.path.join(tmpdir, "scene_export.glb")
             self._export_glb(context, glb_path)
             with open(glb_path, 'rb') as f:
-                glb_b64 = base64.b64encode(f.read()).decode('ascii')
+                glb_bytes = f.read()
             if self.environment_lighting and self.export_world_env and context.scene.world:
                 try:
                     env_file = self._render_world_equirect(context, os.path.join(tmpdir, "world_env"))
@@ -1255,13 +1428,40 @@ class HTML3D_OT_export(Operator, ExportHelper):
                 except Exception as ex:
                     self.report({'WARNING'}, f"世界环境渲染失败，使用内置环境：{ex}")
 
+        # 载荷压缩：GLB 与运行库源码都压缩后内嵌，浏览器用原生 DecompressionStream 解压。
+        # 实测 GLB 缩到 1/5，three 运行库缩到 1/3。渲染进程无 DecompressionStream 时
+        # GLB 回退为未压缩 base64（仍可离线），运行库回退为 CDN。
+        glb_payload, glb_format = _compress_best(glb_bytes)
+        if glb_format is None:
+            glb_payload = base64.b64encode(glb_bytes).decode('ascii')
+
+        runtime_payload, runtime_format = None, None
+        if runtime_data:
+            sources = {key: value.decode('utf-8') for key, value in runtime_data.items()}
+            runtime_payload, runtime_format = _compress_best(
+                json.dumps(sources, ensure_ascii=False).encode('utf-8'))
+            if runtime_format is None:
+                runtime_data = None  # 压缩不可用时运行库走 CDN，比内嵌未压缩源码小
+
+        viewer_meta = json.dumps({
+            'runtimeFormat': runtime_format,
+            'runtime': runtime_payload,
+            'runtimeCDN': None if runtime_data else {
+                'three': THREE_CDN + 'build/three.module.js',
+                'three/addons/': THREE_CDN + 'examples/jsm/',
+            },
+            'glbFormat': glb_format,
+            'glb': glb_payload,
+        }, ensure_ascii=False, separators=(',', ':'))
+
         # string.Template 一次替换全部占位符：模板本身写单花括号，注入内容
-        # （base64、importmap JSON）中的花括号不受影响，无顺序依赖。
+        # （base64、meta JSON）中的花括号不受影响，无顺序依赖。
         html = Template(HTML_TEMPLATE).substitute(
             title=os.path.basename(output_path),
-            importmap=self._build_importmap(runtime_data),
+            viewer_meta=viewer_meta,
+            camera_data=json.dumps(cam_data, separators=(',', ':')) if cam_data else 'null',
+            scene_light_scale=str(self.light_scale),
             env_data_url=env_data_url,
-            glb_base64=glb_b64,
             edge_angle=str(self.edge_angle),
             show_edges_default='true' if self.show_edges_default else 'false',
             initial_theme_dark='true' if self.viewer_theme == 'DARK' else 'false',
@@ -1318,6 +1518,9 @@ class HTML3D_Settings(PropertyGroup):
     ao_strength: FloatProperty(name="遮蔽强度", default=0.5, min=0.0, soft_max=2.0)
     auto_spin_default: BoolProperty(name="自动旋转", default=False)
     embed_runtime: BoolProperty(name="内嵌运行库（离线可用）", default=True)
+    use_scene_camera: BoolProperty(name="使用场景相机机位", default=True)
+    export_lights: BoolProperty(name="导出场景灯光", default=True)
+    light_scale: FloatProperty(name="灯光强度倍率", default=1.0, min=0.0, soft_max=4.0)
     texture_format: EnumProperty(
         name="纹理压缩",
         items=[('AUTO', "自动", ""), ('JPEG', "JPEG", ""), ('WEBP', "WebP", "")],
@@ -1362,6 +1565,9 @@ class HTML3D_OT_panel_export(Operator):
             ao_strength=s.ao_strength,
             auto_spin_default=s.auto_spin_default,
             embed_runtime=s.embed_runtime,
+            use_scene_camera=s.use_scene_camera,
+            export_lights=s.export_lights,
+            light_scale=s.light_scale,
             texture_format=s.texture_format,
             export_animations=s.export_animations,
             export_frame_range=s.export_frame_range,
@@ -1501,6 +1707,9 @@ class HTML3D_PT_misc(Panel):
         layout.use_property_decorate = False
         layout.prop(s, "embed_runtime")
         layout.prop(s, "texture_format")
+        layout.prop(s, "use_scene_camera")
+        layout.prop(s, "export_lights")
+        layout.prop(s, "light_scale", slider=True)
         layout.prop(s, "auto_spin_default")
 
 
