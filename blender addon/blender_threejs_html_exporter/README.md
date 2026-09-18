@@ -85,13 +85,22 @@ MIT License，见 [LICENSE](LICENSE)。
 
 ## 冒烟测试
 
-在本目录执行（路径按本机安装位置调整）：
+在本目录执行（`<blender.exe>` 换成你机器上的实际路径，两台机器不同）：
 
 ```powershell
 # --python-exit-code 1 必加：否则 Blender 吞掉脚本异常，测试失败也返回 0
-& "D:\Blender\stable\blender\blender.exe" --background --factory-startup --python-exit-code 1 --python tests/smoke_test.py
+& "<blender.exe>" --background --factory-startup --python-exit-code 1 --python tests/smoke_test.py
 ```
 
-成功时输出 `SMOKE_TEST_OK`。
+常见路径示例：家庭机 `D:\Blender\stable\blender\blender.exe`；公司机 `C:\Blender\stable\blender-5.2.0-windows-x64\blender.exe`。
 
-测试导出带动画的立方体，并校验内嵌 GLB 的网格与动画数据。
+成功时输出 `SMOKE_TEST_OK`。测试导出带动画的立方体，并校验内嵌 GLB 的网格与动画数据、场景相机与灯光数据。
+
+## 部署
+
+本目录是开发副本，Blender 实际加载的是各机 addons 目录下的另一份，**两者不共享、不自动同步**：
+
+- 家庭机：`D:\Blender\stable\blender\portable\scripts\addons\blender_threejs_html_exporter\`
+- 公司机：`C:\Blender\stable\blender-5.2.0-windows-x64\portable\scripts\addons\blender_threejs_html_exporter\`
+
+改完开发副本后需手动拷到对应 addons 目录（并删除目标下的 `__pycache__`），再在 Blender 里重载插件。
