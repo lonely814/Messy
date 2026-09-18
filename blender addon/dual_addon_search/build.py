@@ -20,7 +20,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 DIST = os.path.join(ROOT, "dist")
 
 # ==================== 唯一版本号来源 ====================
-VERSION = (3, 3, 0)
+VERSION = (3, 3, 3)
 # ========================================================
 
 VER_STR = ".".join(str(v) for v in VERSION)
@@ -35,6 +35,9 @@ def _ver_of(text, pattern, flags):
         return None
     return ".".join(re.findall(r"\d+", m.group(0)))
 
+
+# 版本历史表首行：含变更描述，只能人工维护，--sync 不碰它（见 sync()）。
+HISTORY_ROW_PATTERN = r'^\| [\d.]+ \|'
 
 # 各位置：文件名, 正则, 生成新匹配文本, 标志
 # 注意：替换文本只覆盖正则匹配的部分，不要带行首缩进/行尾逗号（原文件会保留）
@@ -52,7 +55,7 @@ CHECKS = [
      r'> 版本：[\d.]+',
      lambda: "> 版本：" + VER_STR, 0),
     (os.path.join(".doc", "DEVELOPMENT.md"),
-     r'^\| [\d.]+ \|',  # 版本历史表最新一行（新→旧排列）
+     HISTORY_ROW_PATTERN,  # 版本历史表最新一行（新→旧排列）
      lambda: "| %s |" % VER_STR, re.M),
 ]
 
@@ -126,13 +129,25 @@ def check(verbose=True):
 
 
 def sync():
+    """把 VERSION 同步到各处。
+
+    跳过 DEVELOPMENT.md 的版本历史表首行：那一行除版本号外还有变更描述，
+    自动替换版本号会保留旧版本描述，导致新版本号挂着旧内容（曾误伤两次）。
+    历史表由人工新增，check() 仍会校验它是否等于当前版本。
+    """
     changed = []
+    skipped_history = False
     for rel, pattern, make, flags in CHECKS:
+        if pattern == HISTORY_ROW_PATTERN:
+            skipped_history = True
+            continue
         text = _read(rel)
         new_text, n = re.subn(pattern, make(), text, count=1, flags=flags)
         if n:
             _write(rel, new_text)
             changed.append(rel)
+    if skipped_history:
+        print("提示：版本历史表未自动改写，请手动新增一行：| %s | <变更描述> |" % VER_STR)
     return changed
 
 

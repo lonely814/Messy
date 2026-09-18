@@ -89,7 +89,7 @@ def domain_from_url(url: str) -> str:
 
 def is_user_addon_fallback(mod, user_addon_paths: list) -> bool:
     if not user_addon_paths:
-        for path in (bpy.utils.script_path_user(), bpy.utils.script_path_pref()):
+        for path in [bpy.utils.script_path_user(), *bpy.utils.script_paths_pref()]:
             if path is not None:
                 user_addon_paths.append(os.path.join(path, "addons"))
 

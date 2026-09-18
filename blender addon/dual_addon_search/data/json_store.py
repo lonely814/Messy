@@ -1,8 +1,12 @@
-"""JSON 持久化工具：读取失败回退，写入使用原子替换。"""
+"""JSON 持久化工具：读取失败回退，写入使用原子替换，并保留上一份备份。"""
 
 import json
 import os
+import shutil
 
+def backup_path(path: str) -> str:
+    """.bak 路径：上一份已知良好内容。"""
+    return path + ".bak"
 
 def load_json(path: str, default):
     if not path or not os.path.exists(path):
@@ -14,6 +18,12 @@ def load_json(path: str, default):
     except (OSError, ValueError, TypeError):
         return default
 
+def restore_json(path: str, default):
+    """主文件损坏时回退到 .bak；供异常恢复使用。"""
+    data = load_json(path, None)
+    if data is not None:
+        return data
+    return load_json(backup_path(path), default)
 
 def save_json(path: str, data, *, indent=None) -> None:
     if not path:
@@ -21,6 +31,16 @@ def save_json(path: str, data, *, indent=None) -> None:
     directory = os.path.dirname(path)
     if directory:
         os.makedirs(directory, exist_ok=True)
+
+    # 先把当前内容复制为 .bak，再写新内容。
+    # 这样即使写入的数据本身是错的（曾因缓存别名 bug 把整份标签写成
+    # 仅含 __starred__ 的一条），上一份已知良好内容仍可恢复。
+    if os.path.exists(path):
+        try:
+            shutil.copy2(path, backup_path(path))
+        except OSError:
+            pass
+
     temp_path = path + ".tmp"
     try:
         with open(temp_path, "w", encoding="utf-8") as file:

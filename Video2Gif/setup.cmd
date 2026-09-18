@@ -21,7 +21,10 @@ goto :need_download
 
 :check_existing
 echo bin\ffmpeg.exe 已存在，检查可用性...
-"!BINDIR!ffmpeg.exe" -hide_banner -f yuv4mpegpipe -i "color=black:s=16x16:d=0.1" -f null - >nul 2>&1
+rem 先看版本字样，防住名字叫 ffmpeg 实际是别的程序的情况，再冒烟测 yuv4mpegpipe
+"!BINDIR!ffmpeg.exe" -hide_banner -version 2>&1 | findstr /i /c:"ffmpeg version" >nul
+if errorlevel 1 goto :bad_existing
+"!BINDIR!ffmpeg.exe" -hide_banner -f lavfi -i "color=black:s=16x16:d=0.1" -f yuv4mpegpipe - >nul 2>&1
 if errorlevel 1 goto :bad_existing
 echo 已可用，无需下载。直接拖视频到 Video2Gif.cmd 即可。
 if not defined NO_PAUSE pause
@@ -70,21 +73,35 @@ if not defined FOUND goto :unzip_failed
 for %%F in ("!FOUND!") do set "SRCDIR=%%~dpF"
 
 copy /y "!SRCDIR!ffmpeg.exe" "!BINDIR!ffmpeg.exe" >nul
-if exist "!SRCDIR!ffprobe.exe" copy /y "!SRCDIR!ffprobe.exe" "!BINDIR!ffprobe.exe" >nul
+if errorlevel 1 goto :copy_failed
+for %%S in ("!BINDIR!ffmpeg.exe") do if %%~zS LSS 1048576 goto :copy_failed
+if exist "!SRCDIR!ffprobe.exe" (
+  copy /y "!SRCDIR!ffprobe.exe" "!BINDIR!ffprobe.exe" >nul
+  if errorlevel 1 goto :copy_failed
+)
+
+echo.
+echo 验证...
+rem 版本字样必须能匹配到，防住 bin 里躺着同名假货的情况
+"!BINDIR!ffmpeg.exe" -hide_banner -version 2>&1 | findstr /i /c:"ffmpeg version" >nul
+if errorlevel 1 goto :verify_failed
+"!BINDIR!ffmpeg.exe" -hide_banner -f lavfi -i "color=black:s=16x16:d=0.1" -f yuv4mpegpipe - >nul 2>&1
+if errorlevel 1 goto :verify_failed
 
 rd /s /q "!EXDIR!" 2>nul
 del /f /q "!ZIP!" 2>nul
 
 echo.
-echo 验证...
-"!BINDIR!ffmpeg.exe" -hide_banner -version 2>&1 | findstr /i "ffmpeg version"
-"!BINDIR!ffmpeg.exe" -hide_banner -f yuv4mpegpipe -i "color=black:s=16x16:d=0.1" -f null - >nul 2>&1
-if errorlevel 1 goto :verify_failed
-
-echo.
 echo 安装完成。现在可以直接把视频拖到 Video2Gif.cmd 上了。
 if not defined NO_PAUSE pause
 exit /b 0
+
+:copy_failed
+echo [x] 复制 ffmpeg 到 bin 目录失败，旧文件还在，已保留解压目录供手动补救
+echo     手动把 ffmpeg.exe 和 ffprobe.exe 从下面目录拷进 bin 也可以：
+echo     !EXDIR!
+if not defined NO_PAUSE pause
+exit /b 1
 
 :no_downloader
 echo [x] 本机没有 curl 也没有 powershell，无法自动下载。

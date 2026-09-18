@@ -1,6 +1,6 @@
 # Dual Addon Search（插件双搜索）开发文档
 
-> 版本：3.3.0
+> 版本：3.3.3
 > 作者：loNely
 > 兼容：Blender 4.2+
 
@@ -143,6 +143,9 @@ Blender smoke test：
 
 | 版本 | 变更 |
 |---|---|
+| 3.3.3 | **数据安全修复**：`json_store.save_json()` 写入前把上一份内容复制为 `.bak`，并新增 `restore_json()` 供损坏回退；`star.py` 恢复丢失的 `_TAG_CACHE_DIRTY[0] = True`（3.2.0 重构时被删，导致第二次点击基于空缓存覆写整份标签文件，用户星标/标签被清空）。smoke test 新增备份生成与 `.bak` 恢复断言 |
+| 3.3.2 | 修复：星标/标签点击后界面不刷新。`tag_save()` 在 data 与 cache 为同一对象时（如 `starred_save`）先 `cache.clear()` 再 `cache.update(data)`，会连 data 一起清空，导致写盘正确但内存缓存被抹掉；3.2.0 把 `_TAG_CACHE` 传入 `star.py` 后触发。改为仅在 `cache is not data` 时同步缓存；**修复**：`is_user_addon_fallback` 调用不存在的 `bpy.utils.script_path_pref`，导致插件面板每次绘制抛 AttributeError 并回退原生面板（正确 API 为 `bpy.utils.script_paths_pref()`，返回列表）；smoke test 新增空路径分支断言，确保该调用路径被实际覆盖 |
+| 3.3.1 | 修复：`is_user_addon_fallback` 调用不存在的 `bpy.utils.script_path_pref`，导致插件面板每次绘制抛 AttributeError 并回退原生面板（正确 API 为 `bpy.utils.script_paths_pref()`，返回列表）；smoke test 新增真实执行 draw 的回归测试与空路径分支断言 |
 | 3.3.0 | 新增搜索字段语法（name/author/tag/status/type/path/category/description/location/module 与 `-` 排除）；新增当前可见结果的批量选择与批量启用/禁用；Profile 加载前差异预览并支持严格恢复/增量启用，失败模块单独上报；卸载后清理标签、星标和 Profile 残留；筛选阶段每行只计算一次模块信息 |
 | 3.2.0 | 修复 Manifest；删除 UI 同步 GitHub 请求和无效关联功能；修正 AddonPreferences layout 注入；搜索历史防抖持久化；JSON 原子写入及错误上报；Profile 防止关闭自身；Keymap patch 默认关闭且即时切换；注册失败回滚；删除不准确启动耗时功能；新增 Blender smoke test |
 | 3.1.0 | 面板动态分发器自愈、面板状态诊断 |

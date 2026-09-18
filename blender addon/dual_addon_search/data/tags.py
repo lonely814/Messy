@@ -31,7 +31,7 @@ def tag_load(cache: dict = None, cache_dirty_ref: list = None) -> dict:
     else:
         result = load_json(path, {})
 
-    if cache is not None:
+    if cache is not None and cache is not result:
         cache.clear()
         cache.update(result)
     if cache_dirty_ref is not None:
@@ -45,7 +45,10 @@ def tag_save(data: dict, cache: dict = None, cache_dirty_ref: list = None) -> No
     if not path:
         return
     save_json(path, data, indent=2)
-    if cache is not None:
+    # 注意：调用方可能把缓存本体当作 data 传入（如 starred_save）。
+    # 此时 cache.clear() 会连 data 一起清空，导致 update(data) 写入空字典，
+    # 表现为星标/标签写入磁盘正确但内存缓存被抹掉、界面不刷新。
+    if cache is not None and cache is not data:
         cache.clear()
         cache.update(data)
     if cache_dirty_ref is not None:

@@ -19,11 +19,15 @@ class DUAL_FIRSTROW_OT_star_toggle(bpy.types.Operator):
 
     def invoke(self, context, event):
         """如果是取消星标，弹出二次确认"""
+        _TAG_CACHE_DIRTY[0] = True
         if starred_has(self.module_name, _TAG_CACHE, _TAG_CACHE_DIRTY):
             return context.window_manager.invoke_confirm(self, event)
         return self.execute(context)
 
     def execute(self, context):
+        # 必须先置脏：否则缓存里的旧状态会被当成磁盘真值，
+        # 第二次点击会基于空缓存覆写整份标签文件。
+        _TAG_CACHE_DIRTY[0] = True
         try:
             starred_toggle(self.module_name, _TAG_CACHE, _TAG_CACHE_DIRTY)
         except OSError as ex:
