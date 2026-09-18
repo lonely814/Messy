@@ -1,4 +1,4 @@
-"""【用途】Dual Addon Search v3.0 - 插件注册入口
+"""【用途】Dual Addon Search - 插件注册入口
 【5.1 与 4.5 兼容性】
 - 5.1: 使用 register_classes_factory 模式
 - 4.5: 完全兼容，所有 API 均为 4.5+ 可用
@@ -8,14 +8,14 @@
 bl_info = {
     "name": "插件双搜索",
     "author": "loNely",
-        "version": (3, 1, 0),
+    "version": (3, 3, 0),
     "blender": (4, 2, 0),
     "location": "编辑 > 偏好设置 > 插件",
-    "description": "插件双搜索 & 快捷键搜索 & Profile & 健康概览",
+    "description": "插件双搜索、星标、标签与 Profile 管理",
     "category": "Interface",
 }
 
-VERSION = (3, 1, 0)
+VERSION = (3, 3, 0)
 
 import bpy
 from bpy.utils import register_classes_factory
@@ -24,7 +24,6 @@ from .utils.cache import clear_search_caches
 from .utils.i18n import _T, update_lang_cache
 from .utils.ui_helpers import redraw_preferences
 from .data import history
-from .data import boot_profiler as boot
 
 # --- 操作器 ---
 from .operators.search import (
@@ -39,7 +38,6 @@ from .operators.addon_ops import (
     DUAL_FIRSTROW_OT_google_search,
     DUAL_FIRSTROW_OT_context_menu,
     DUAL_FIRSTROW_OT_copy_text,
-    DUAL_FIRSTROW_OT_link_github,
     DUAL_FIRSTROW_OT_remove_addon,
     DUAL_FIRSTROW_MT_addon_actions,
 )
@@ -52,6 +50,13 @@ from .operators.tags import (
     DUAL_FIRSTROW_MT_tag_filter_menu,
 )
 from .operators.star import DUAL_FIRSTROW_OT_star_toggle
+from .operators.batch import (
+    DUAL_FIRSTROW_OT_batch_toggle_select,
+    DUAL_FIRSTROW_OT_batch_select_all,
+    DUAL_FIRSTROW_OT_batch_clear,
+    DUAL_FIRSTROW_OT_batch_enable,
+    DUAL_FIRSTROW_OT_batch_disable,
+)
 from .operators.profile import (
     DUAL_FIRSTROW_OT_profile_save,
     DUAL_FIRSTROW_OT_profile_load,
@@ -75,12 +80,20 @@ from .panels.addon_list import patch_addons_panel, unpatch_addons_panel
 # AddonPreferences
 # ==============================
 
+def _update_keymap_search(self, context):
+    if self.dual_enable_keymap:
+        _patch_keymap_ui()
+    else:
+        _unpatch_keymap_ui()
+
+
 class DUAL_FIRSTROW_AP_addon_prefs(bpy.types.AddonPreferences):
     bl_idname = __name__
 
     dual_enable_keymap: bpy.props.BoolProperty(
         name=_T("启用键位映射快捷键搜索", "Enable Keymap Shortcut Search"),
-        default=True,
+        default=False,
+        update=_update_keymap_search,
     )
     def draw(self, context):
         layout = self.layout
@@ -93,8 +106,8 @@ class DUAL_FIRSTROW_AP_addon_prefs(bpy.types.AddonPreferences):
         row.label(text="v" + ".".join(str(v) for v in VERSION), translate=False)
         header.separator(factor=0.3)
         header.label(text=_T(
-            "增强 Blender 插件管理面板：双搜索、星标、标签、批量、Profile、健康概览",
-            "Supercharge Blender addon management: dual search, star, tags, batch, profiles, health"
+            "增强 Blender 插件管理面板：双搜索、星标、标签与 Profile",
+            "Blender add-on management: dual search, stars, tags, and profiles"
         ), icon="INFO")
 
         layout.separator(factor=0.5)
@@ -125,7 +138,7 @@ class DUAL_FIRSTROW_AP_addon_prefs(bpy.types.AddonPreferences):
         box2.separator(factor=0.3)
         tips2 = [
             ("①", _T("行首 ☆ 星标按钮：收藏常用插件自动置顶", "Star button to pin favorite addons")),
-            ("②", _T("☑ 批量勾选 + 底部批量启用/禁用", "Batch select + batch enable/disable")),
+            ("②", _T("Profile 保存和恢复插件启用状态", "Profiles save and restore enabled add-ons")),
             ("③", _T("▼ 右键菜单：复制名称/模块/作者", "Right-click: copy name/module/author")),
             ("④", _T("❖ 标签管理：自定义标签 + 按标签筛选", "Tags: custom labels + filter by tag")),
         ]
@@ -159,7 +172,7 @@ class DUAL_FIRSTROW_AP_addon_prefs(bpy.types.AddonPreferences):
             ("①", _T("Profile 快照：保存/加载插件启用状态", "Profiles: save/load addon enable state")),
             ("②", _T("搜索历史：最近搜索快速回退", "Search history: recent searches")),
             ("③", _T("一键关闭非收藏插件", "One-click disable non-starred addons")),
-            ("④", _T("批量勾选：底部批量启用/禁用选中插件", "Batch select + batch enable/disable")),
+            ("④", _T("面板状态诊断辅助排查绘制冲突", "Panel diagnostics help find draw conflicts")),
         ]
         for num, tip in tips4:
             r = box4.row(align=True)
@@ -225,13 +238,17 @@ classes = (
     DUAL_FIRSTROW_OT_google_search,
     DUAL_FIRSTROW_OT_context_menu,
     DUAL_FIRSTROW_OT_copy_text,
-    DUAL_FIRSTROW_OT_link_github,
     DUAL_FIRSTROW_OT_remove_addon,
     DUAL_FIRSTROW_OT_tag_toggle,
     DUAL_FIRSTROW_OT_tag_add_new,
     DUAL_FIRSTROW_OT_tag_remove_global,
     DUAL_FIRSTROW_OT_tag_set_filter,
     DUAL_FIRSTROW_OT_star_toggle,
+    DUAL_FIRSTROW_OT_batch_toggle_select,
+    DUAL_FIRSTROW_OT_batch_select_all,
+    DUAL_FIRSTROW_OT_batch_clear,
+    DUAL_FIRSTROW_OT_batch_enable,
+    DUAL_FIRSTROW_OT_batch_disable,
     DUAL_FIRSTROW_OT_profile_save,
     DUAL_FIRSTROW_OT_profile_load,
     DUAL_FIRSTROW_OT_profile_delete,
@@ -293,6 +310,10 @@ def _register_wm_properties():
         default="",
     )
 
+    # 批量选择（会话状态，不写入用户配置）
+    bpy.types.WindowManager.dual_batch_selected = bpy.props.StringProperty(
+        default="", options={"SKIP_SAVE"},
+    )
     # 双行显示
     bpy.types.WindowManager.dual_show_description = bpy.props.BoolProperty(
         name="双行显示",
@@ -345,6 +366,7 @@ def _unregister_wm_properties():
         "dual_ctx_file",
         "dual_ctx_doc_url",
         "dual_tag_filter",
+        "dual_batch_selected",
         "dual_show_description",
         "dual_addon_sort_mode",
         "dual_keymap_capture_active",
@@ -377,30 +399,34 @@ def register():
     history.history_init()
     clear_search_caches()
 
-    # 注册类
-    _register_classes()
-
-    # 注册 WindowManager 属性
-    _register_wm_properties()
-
-    # Patch 面板
-    ok = patch_addons_panel()
-    if not ok:
-        print("[Dual Add-on Search] 没有找到 USERPREF_PT_addons")
-
-    # Patch Keymap
+    classes_registered = False
+    properties_registered = False
+    panel_patched = False
     try:
-        prefs = bpy.context.preferences.addons[__name__].preferences
-        _ek = prefs.dual_enable_keymap if hasattr(prefs, "dual_enable_keymap") else True
-    except Exception:
-        _ek = True
-    if _ek:
-        ok_keymap = _patch_keymap_ui()
-        if not ok_keymap:
-            print("[Dual Add-on Search] 没有找到 rna_keymap_ui.draw_keymaps")
+        _register_classes()
+        classes_registered = True
+        _register_wm_properties()
+        properties_registered = True
+        panel_patched = patch_addons_panel()
+        if not panel_patched:
+            print("[Dual Add-on Search] 没有找到 USERPREF_PT_addons")
 
-    # 安装启动补丁
-    boot.register_handler()
+        try:
+            prefs = bpy.context.preferences.addons[__name__].preferences
+            enable_keymap = bool(getattr(prefs, "dual_enable_keymap", False))
+        except Exception:
+            enable_keymap = False
+        if enable_keymap and not _patch_keymap_ui():
+            print("[Dual Add-on Search] 没有找到 rna_keymap_ui.draw_keymaps")
+    except Exception:
+        _unpatch_keymap_ui()
+        if panel_patched:
+            unpatch_addons_panel()
+        if properties_registered:
+            _unregister_wm_properties()
+        if classes_registered:
+            _unregister_classes()
+        raise
 
     _IS_REGISTERED = True
     print(f"[Dual Add-on Search] v{'.'.join(str(v) for v in VERSION)} 已注册")
@@ -414,10 +440,14 @@ def unregister():
 
     _IS_REGISTERED = False
 
+    try:
+        history.history_flush()
+    except OSError as ex:
+        print(f"[Dual Add-on Search] 保存搜索历史失败: {ex}")
+
     # Unpatch
     unpatch_addons_panel()
     _unpatch_keymap_ui()
-    boot.unregister_handler()
 
     # 清理 WindowManager 属性
     _unregister_wm_properties()
@@ -639,9 +669,8 @@ def _patch_keymap_ui() -> bool:
 
     # 简化的 keymap draw（保留原生功能，仅添加精确匹配）
     from .operators.keymap import (
-        _is_pure_modifier_event, _normalize_shortcut_text, _bool_attr,
-        _modifier_state, _shortcut_signature, _event_to_exact_signature,
-        _event_type_to_search_token
+        _normalize_shortcut_text, _bool_attr, _modifier_state,
+        _shortcut_signature, _event_type_to_search_token,
     )
 
     def _patched_draw_keymaps(context, layout):

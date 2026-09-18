@@ -1,105 +1,104 @@
-"""【用途】搜索历史管理 - 记录和回溯最近搜索"""
+"""搜索历史管理：输入稳定后持久化最近搜索。"""
 
 import os
-import json
+import time
 import bpy
 
-_HISTORY: list = []
-_HISTORY_MAX: int = 20
+from .json_store import load_json, save_json
+
+_HISTORY: list[str] = []
+_HISTORY_MAX = 20
+_PENDING: tuple[str, ...] = ()
+_PENDING_AT = 0.0
+_TIMER_RUNNING = False
+_DEBOUNCE_SECONDS = 0.8
 
 
 def _history_path() -> str:
-    """获取历史文件路径"""
     try:
         return os.path.join(bpy.utils.user_resource("SCRIPTS"), "dual_addon_search_history.json")
     except Exception:
         return ""
 
 
-def history_load() -> list:
-    """加载搜索历史"""
-    path = _history_path()
-    if not path or not os.path.exists(path):
-        return []
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)[:_HISTORY_MAX]
-    except Exception:
-        return []
+def history_load() -> list[str]:
+    data = load_json(_history_path(), [])
+    return [item for item in data if isinstance(item, str) and item.strip()][:_HISTORY_MAX]
 
 
-def history_save(history: list) -> None:
-    """保存搜索历史"""
-    path = _history_path()
-    if not path:
-        return
-    try:
-        d = os.path.dirname(path)
-        if d and not os.path.exists(d):
-            os.makedirs(d, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(history[:_HISTORY_MAX], f, ensure_ascii=False)
-    except Exception:
-        pass
-
-
-def history_append_save(text: str, history: list = None) -> None:
-    """添加搜索历史并保存到磁盘"""
-    text = text.strip()
-    if not text:
-        return
-    if history is None:
-        history = _HISTORY
-    if text in history:
-        history.remove(text)
-    history.insert(0, text)
-    history[:] = history[:_HISTORY_MAX]
-    history_save(history)
+def history_save(history: list[str] | None = None) -> None:
+    save_json(_history_path(), (history if history is not None else _HISTORY)[:_HISTORY_MAX])
 
 
 def history_record(text: str) -> None:
-    """仅记录到内存，不写磁盘（供 draw 高频调用）"""
     text = text.strip()
     if not text:
         return
     if text in _HISTORY:
         _HISTORY.remove(text)
     _HISTORY.insert(0, text)
-    _HISTORY[:] = _HISTORY[:_HISTORY_MAX]
+    del _HISTORY[_HISTORY_MAX:]
 
 
-def history_append(text: str, history: list = None) -> None:
-    """添加搜索历史"""
-    text = text.strip()
-    if not text:
-        return
-    if history is None:
-        history = _HISTORY
-    if text in history:
-        history.remove(text)
-    history.insert(0, text)
-    history[:] = history[:_HISTORY_MAX]
-    history_save(history)
+def _flush_pending() -> None:
+    global _PENDING
+    pending, _PENDING = _PENDING, ()
+    for text in pending:
+        history_record(text)
+    if pending:
+        history_save()
+
+
+def _timer_callback():
+    global _TIMER_RUNNING
+    remaining = _DEBOUNCE_SECONDS - (time.monotonic() - _PENDING_AT)
+    if remaining > 0:
+        return remaining
+    try:
+        _flush_pending()
+    except OSError as ex:
+        print(f"[Dual Add-on Search] 保存搜索历史失败: {ex}")
+    _TIMER_RUNNING = False
+    return None
+
+
+def history_schedule(*texts: str) -> None:
+    """防抖记录当前搜索词，避免逐键写盘和保存中间词。"""
+    global _PENDING, _PENDING_AT, _TIMER_RUNNING
+    _PENDING = tuple(text.strip() for text in texts if text and text.strip())
+    _PENDING_AT = time.monotonic()
+    if _PENDING and not _TIMER_RUNNING:
+        bpy.app.timers.register(_timer_callback, first_interval=_DEBOUNCE_SECONDS)
+        _TIMER_RUNNING = True
+
+
+def history_flush() -> None:
+    """注销前保存尚未到防抖时间的搜索。"""
+    global _TIMER_RUNNING
+    if _TIMER_RUNNING and bpy.app.timers.is_registered(_timer_callback):
+        bpy.app.timers.unregister(_timer_callback)
+    _TIMER_RUNNING = False
+    _flush_pending()
 
 
 def history_clear() -> None:
-    """清空搜索历史"""
-    global _HISTORY
+    global _PENDING, _TIMER_RUNNING
     _HISTORY.clear()
+    _PENDING = ()
+    if _TIMER_RUNNING and bpy.app.timers.is_registered(_timer_callback):
+        bpy.app.timers.unregister(_timer_callback)
+    _TIMER_RUNNING = False
     path = _history_path()
     if path and os.path.exists(path):
-        try:
-            os.remove(path)
-        except Exception:
-            pass
+        os.remove(path)
 
 
-def history_get() -> list:
-    """获取当前历史列表"""
+def history_get() -> list[str]:
     return _HISTORY
 
 
 def history_init() -> None:
-    """初始化历史（启动时调用）"""
-    global _HISTORY
+    global _HISTORY, _PENDING, _TIMER_RUNNING
     _HISTORY = history_load()
+    _PENDING = ()
+    _TIMER_RUNNING = False

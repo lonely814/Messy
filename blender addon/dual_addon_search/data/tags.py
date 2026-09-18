@@ -1,8 +1,9 @@
 """【用途】标签存储系统 - 标签 CRUD + 星标管理"""
 
 import os
-import json
 import bpy
+
+from .json_store import load_json, save_json
 
 TAG_FILE: str = ""
 STARRED_KEY: str = "__starred__"
@@ -28,11 +29,7 @@ def tag_load(cache: dict = None, cache_dirty_ref: list = None) -> dict:
     if not path or not os.path.exists(path):
         result = {}
     else:
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                result = json.load(f)
-        except Exception:
-            result = {}
+        result = load_json(path, {})
 
     if cache is not None:
         cache.clear()
@@ -47,19 +44,12 @@ def tag_save(data: dict, cache: dict = None, cache_dirty_ref: list = None) -> No
     path = _tag_file()
     if not path:
         return
-    try:
-        d = os.path.dirname(path)
-        if d and not os.path.exists(d):
-            os.makedirs(d, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        if cache is not None:
-            cache.clear()
-            cache.update(data)
-        if cache_dirty_ref is not None:
-            cache_dirty_ref[0] = False
-    except Exception:
-        pass
+    save_json(path, data, indent=2)
+    if cache is not None:
+        cache.clear()
+        cache.update(data)
+    if cache_dirty_ref is not None:
+        cache_dirty_ref[0] = False
 
 
 def tag_get(module_name: str, cache: dict = None, cache_dirty_ref: list = None) -> list:
@@ -100,6 +90,26 @@ def starred_load(cache: dict = None, cache_dirty_ref: list = None) -> set:
     """加载星标列表"""
     data = tag_load(cache, cache_dirty_ref)
     return set(data.get(STARRED_KEY, []))
+
+
+def tag_purge_modules(module_names, cache: dict = None, cache_dirty_ref: list = None) -> list:
+    """清除已不存在插件的标签/星标，返回被清理的模块名。"""
+    names = {name for name in module_names if name and name != STARRED_KEY}
+    if not names:
+        return []
+    data = tag_load(cache, cache_dirty_ref)
+    removed = []
+    for name in names:
+        if data.pop(name, None) is not None:
+            removed.append(name)
+        starred = data.get(STARRED_KEY)
+        if isinstance(starred, list) and name in starred:
+            starred.remove(name)
+            if name not in removed:
+                removed.append(name)
+    if removed:
+        tag_save(data, cache, cache_dirty_ref)
+    return removed
 
 
 def starred_save(stars: set, cache: dict = None, cache_dirty_ref: list = None) -> None:

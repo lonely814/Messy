@@ -3,23 +3,22 @@
 import os
 import time
 import bpy
+from bpy.app.handlers import persistent
 
 from ..utils.cache import (
-    _CACHE_MODULE_FILE, _CACHE_HAYSTACK, _ADDONS_CACHE, _ADDONS_CACHE_TIME,
-    _TAG_CACHE, _TAG_CACHE_DIRTY,
-    get_module_file_cache, get_haystack_cache, get_addons_cache, set_addons_cache
+    _CACHE_MODULE_FILE, _CACHE_HAYSTACK, _TAG_CACHE, _TAG_CACHE_DIRTY,
+    get_addons_cache, set_addons_cache,
 )
 from ..utils.i18n import _T, update_lang_cache
-from ..utils.ui_helpers import redraw_preferences, safe_separator, safe_text, safe_get, warn_once
+from ..utils.ui_helpers import redraw_preferences, safe_separator, safe_get, warn_once
 from ..utils.search import match_dual_search
 from ..utils.addon_info import (
     get_module_file_path, is_extension_addon, is_core_addon_from_file,
     addon_type_text, format_version_text, domain_from_url, is_user_addon_fallback,
-    extract_github_repo, fetch_github_stats,
 )
 from ..data.tags import tag_get, tag_addons_with_tag, starred_has, starred_load
-from ..data.history import history_record
-from ..data import boot_profiler as boot
+from ..data.history import history_schedule
+from ..operators.batch import set_visible_modules, _selected
 
 def _get_panel_class():
     """获取原生插件面板类"""
@@ -93,42 +92,6 @@ def _draw_addon_source_icon(layout, module_name: str, module_file: str = ""):
     layout.label(icon="QUESTION")
 
 
-def _format_count(num) -> str:
-    """格式化大数字：1500 → '1.5k'、2300000 → '2.3m'"""
-    if not num:
-        return "0"
-    try:
-        n = int(num)
-    except (ValueError, TypeError):
-        return str(num)
-    if n >= 1000000:
-        return f"{n / 1000000:.1f}m"
-    if n >= 1000:
-        return f"{n / 1000:.1f}k"
-    return str(n)
-
-
-def _draw_github_stats(layout, info: dict):
-    """在插件展开详情中显示 GitHub 星标和下载量"""
-    repo = extract_github_repo(info)
-    if not repo:
-        return
-
-    stats = fetch_github_stats(repo)
-    if not stats:
-        return
-
-    stars = _format_count(stats.get("stars", 0))
-    downloads = _format_count(stats.get("downloads", 0))
-
-    try:
-        row = layout.row(align=True)
-        row.scale_y = 0.85
-        row.label(text=f"Star: {stars}", icon="SOLO_ON")
-        row.label(text=f"DL: {downloads}")
-    except Exception:
-        pass
-
 
 def _draw_modern_addon_expanded(box, context, mod, info, module_name: str, module_file: str, is_enabled: bool, user_addon: bool):
     """绘制展开的插件详情"""
@@ -141,8 +104,8 @@ def _draw_modern_addon_expanded(box, context, mod, info, module_name: str, modul
     info_doc_url = safe_get(info, "doc_url")
     info_tracker_url = safe_get(info, "tracker_url")
 
-    # 卸载按钮
-    show_uninstall = is_extension_addon(module_name) or bool(module_file) or user_addon
+    # 仅用户插件和扩展可卸载；内置插件保持只读。
+    show_uninstall = is_extension_addon(module_name) or user_addon
 
     split = box.split(factor=0.8)
     col_a = split.column()
@@ -151,9 +114,6 @@ def _draw_modern_addon_expanded(box, context, mod, info, module_name: str, modul
     if info_description:
         desc = str(info_description).rstrip("。.")
         col_a.label(text=" " + desc + "。", translate=False)
-
-    # 显示 GitHub 统计信息
-    _draw_github_stats(col_a, info)
 
     action_row = col_b.row()
     action_row.alignment = "RIGHT"
@@ -292,8 +252,8 @@ def _draw_modern_addon_expanded(box, context, mod, info, module_name: str, modul
                     box.label(text="Preferences")
                     box_prefs = box.box()
                     addon_prefs_class = type(addon_preferences)
-                    # 临时注入 layout 属性供插件偏好设置 draw 使用
-                    addon_preferences.layout = box_prefs
+                    # 跟随 Blender 原生面板：layout 是临时类属性，不是实例属性。
+                    addon_prefs_class.layout = box_prefs
                     try:
                         draw(context)
                     except Exception:
@@ -301,39 +261,10 @@ def _draw_modern_addon_expanded(box, context, mod, info, module_name: str, modul
                         traceback.print_exc()
                         box_prefs.label(text=_T("绘制偏好设置出错，详见控制台", "Error drawing preferences"), icon="ERROR")
                     finally:
-                        try:
-                            del addon_prefs_class.layout
-                        except Exception:
-                            pass
+                        del addon_prefs_class.layout
         except Exception:
             pass
 
-def _draw_boot_profiler(layout):
-    """绘制启动耗时板块"""
-    total_boot = boot.read_total_boot_time()
-    if total_boot <= 0:
-        return
-
-    col = layout.column()
-    box = col.box()
-    header = box.row(align=True)
-    header.label(text=_T("⏱ 启动耗时", "⏱ Boot Profiler"), icon="TIME")
-    header.label(text=f"{total_boot:.1f}s", translate=False)
-
-    avg_boot = boot.average_boot_time()
-    if avg_boot > 0:
-        box.separator(factor=0.3)
-        row = box.row(align=True)
-        row.label(text=_T("历史平均:", "Avg (last 5):"), translate=False)
-        row.label(text=f"{avg_boot:.1f}s", translate=False)
-
-    diff_val, cur_time = boot.trend_diff()
-    if abs(diff_val) > 0.1:
-        row = box.row(align=True)
-        if diff_val < 0:
-            row.label(text=_T(f"⬇ 比上次快 {abs(diff_val):.1f}s", f"⬇ {abs(diff_val):.1f}s faster"), icon="SORT_ASC", translate=False)
-        else:
-            row.label(text=_T(f"⬆ 比上次慢 {diff_val:.1f}s", f"⬆ {diff_val:.1f}s slower"), icon="SORT_DESC", translate=False)
 def _patched_addons_draw(self, context):
     """核心绘制逻辑 - 替换原生 USERPREF_PT_addons.draw"""
     global _DRAW_LAYOUT_WRITTEN
@@ -462,16 +393,10 @@ def _patched_addons_draw(self, context):
     show_enabled_only = getattr(prefs.view, "show_addons_enabled_only", False)
     search_a = getattr(wm, "addon_search", "").strip().lower()
     search_b = getattr(wm, "dual_addon_search_second", "").strip().lower()
-    # --- 搜索历史自动记录（仅内存，不写磁盘，避免每按键都 IO） ---
-    _prev_a = getattr(_patched_addons_draw, "_prev_search_a", "")
-    if search_a and search_a != _prev_a:
-        history_record(search_a)
-    _patched_addons_draw._prev_search_a = search_a
-    _prev_b = getattr(_patched_addons_draw, "_prev_search_b", "")
-    if search_b and search_b != _prev_b:
-        history_record(search_b)
-    _patched_addons_draw._prev_search_b = search_b
-    # ---
+    search_pair = (search_a, search_b)
+    if search_pair != getattr(_patched_addons_draw, "_previous_search_pair", ("", "")):
+        history_schedule(search_a, search_b)
+        _patched_addons_draw._previous_search_pair = search_pair
 
     mode = getattr(wm, "dual_addon_search_mode", "OR")
     sort_mode = getattr(wm, "dual_addon_sort_mode", "NAME")
@@ -480,7 +405,9 @@ def _patched_addons_draw(self, context):
 
     col = layout.column()
     visible_count = 0
+    visible_names = []
     user_addon_paths = []
+    tag_filter = getattr(wm, "dual_tag_filter", "")
 
     for mod, info in _sort_addons(addons, sort_mode, used_ext):
         module_name = getattr(mod, "__name__", "")
@@ -516,36 +443,30 @@ def _patched_addons_draw(self, context):
             elif info_category != native_filter:
                 continue
 
-        is_visible = True
+        module_file = get_module_file_path(mod, _CACHE_MODULE_FILE)
+        tags = tag_get(module_name, _TAG_CACHE, _TAG_CACHE_DIRTY)
+        user_addon = is_user_addon_fallback(mod, user_addon_paths)
+        addon_type = addon_type_text(module_name, module_file, user_addon).lower()
+        is_visible = not show_enabled_only or is_enabled
 
-        if show_enabled_only:
-            is_visible = is_visible and is_enabled
-
-        if is_visible:
-            if not match_dual_search(mod, info, search_a, search_b, mode, _CACHE_HAYSTACK):
-                continue
-
-        # 标签筛选
-        tag_filter = getattr(wm, "dual_tag_filter", "")
-        if is_visible and tag_filter:
-            if module_name not in tag_addons_with_tag(tag_filter, _TAG_CACHE, _TAG_CACHE_DIRTY):
-                is_visible = False
-
-        if not is_visible:
+        if is_visible and not match_dual_search(
+            mod, info, search_a, search_b, mode, _CACHE_HAYSTACK,
+            tags=tags, module_file=module_file, is_enabled=is_enabled,
+            addon_type=addon_type,
+        ):
+            continue
+        if is_visible and tag_filter and module_name not in tag_addons_with_tag(
+            tag_filter, _TAG_CACHE, _TAG_CACHE_DIRTY
+        ):
             continue
 
         visible_count += 1
-        module_file = get_module_file_path(mod, _CACHE_MODULE_FILE)
+        visible_names.append(module_name)
         info_name = safe_get(info, "name", module_name)
         info_author = safe_get(info, "author")
         info_description = safe_get(info, "description")
         info_warning = safe_get(info, "warning")
         info_doc_url = safe_get(info, "doc_url")
-
-        try:
-            user_addon = is_user_addon_fallback(mod, user_addon_paths)
-        except Exception:
-            user_addon = False
 
         col.separator(factor=0.15)
         col_box = col.column()
@@ -553,6 +474,18 @@ def _patched_addons_draw(self, context):
         colsub = box.column()
 
         row = colsub.row(align=True)
+
+        # 批量选择
+        try:
+            selected = module_name in _selected(wm)
+            select_op = row.operator(
+                "dual_firstrow_addon_search.batch_toggle_select",
+                text="", icon="CHECKBOX_HLT" if selected else "CHECKBOX_DEHLT",
+                emboss=False, depress=selected,
+            )
+            select_op.module_name = module_name
+        except Exception:
+            pass
 
         # 星标按钮
         try:
@@ -583,7 +516,6 @@ def _patched_addons_draw(self, context):
         sub.active = is_enabled
 
         # 名称 + 标签
-        tags = tag_get(module_name, _TAG_CACHE, _TAG_CACHE_DIRTY)
         if tags:
             split = sub.split(factor=0.6)
             split.active = is_enabled
@@ -637,6 +569,18 @@ def _patched_addons_draw(self, context):
                 box, context, mod, info, module_name, module_file, is_enabled, user_addon
             )
 
+    set_visible_modules(visible_names)
+    batch_selected = getattr(wm, "dual_batch_selected", "")
+    if batch_selected:
+        batch_row = col.row(align=True)
+        batch_row.label(text=f"已选 {len([x for x in batch_selected.split(chr(10)) if x])} 个", icon="CHECKBOX_HLT")
+        batch_row.operator("dual_firstrow_addon_search.batch_enable", text="启用", icon="CHECKMARK")
+        batch_row.operator("dual_firstrow_addon_search.batch_disable", text="禁用", icon="X")
+        batch_row.operator("dual_firstrow_addon_search.batch_clear", text="", icon="TRASH")
+    else:
+        batch_row = col.row(align=True)
+        batch_row.operator("dual_firstrow_addon_search.batch_select_all", text="全选当前结果", icon="SELECT_SET")
+
     # 搜索结果计数
     info_line = col.row()
     info_line.scale_y = 0.7
@@ -652,8 +596,6 @@ def _patched_addons_draw(self, context):
         info_box = col.box()
         info_box.label(text=_T("没有找到匹配插件。", "No matching add-ons found."), icon="INFO")
 
-    # --- 启动耗时板块 ---
-    _draw_boot_profiler(col)
 
 # --- 错误节流 ---
 _DRAW_ERROR_LAST_TIME = 0.0
@@ -730,6 +672,7 @@ def _self_heal_patch() -> None:
         panel_cls.draw = _safe_patched_addons_draw
 
 
+@persistent
 def _on_load_post_self_heal(dummy=None):
     """启动完成后立即自愈，避免用户打开插件面板时出现一次双重绘制闪烁。"""
     _self_heal_patch()

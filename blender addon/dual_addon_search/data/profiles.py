@@ -1,8 +1,9 @@
 """【用途】Profile 管理 - 保存/加载/删除插件启用状态快照"""
 
 import os
-import json
 import bpy
+
+from .json_store import load_json, save_json
 
 _PROFILE_FILE: str = ""
 
@@ -23,11 +24,7 @@ def profile_load_all() -> dict:
     path = _profile_file_path()
     if not path or not os.path.exists(path):
         return {}
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+    return load_json(path, {})
 
 
 def profile_save_all(data: dict) -> None:
@@ -35,14 +32,7 @@ def profile_save_all(data: dict) -> None:
     path = _profile_file_path()
     if not path:
         return
-    try:
-        d = os.path.dirname(path)
-        if d and not os.path.exists(d):
-            os.makedirs(d, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-    except Exception:
-        pass
+    save_json(path, data, indent=2)
 
 
 def profile_names() -> list:
@@ -61,6 +51,22 @@ def profile_load(name: str) -> set:
     """加载一个 profile"""
     data = profile_load_all()
     return set(data.get(name, []))
+
+
+def profile_purge_module(module_name: str) -> int:
+    """从所有 Profile 中移除已卸载插件，返回受影响 Profile 数量。"""
+    if not module_name:
+        return 0
+    data = profile_load_all()
+    touched = 0
+    for name, modules in data.items():
+        if not isinstance(modules, list) or module_name not in modules:
+            continue
+        data[name] = [m for m in modules if m != module_name]
+        touched += 1
+    if touched:
+        profile_save_all(data)
+    return touched
 
 
 def profile_delete(name: str) -> None:

@@ -1,19 +1,17 @@
 schema_version = "1.0.0"
 
 id = "dual_addon_search"
-version = "3.1.0"
+version = "3.3.0"
 name = "插件双搜索"
-tagline = "增强插件管理面板：双搜索、星标、标签、批量操作、快捷键搜索"
+tagline = "增强插件管理面板：双搜索、星标、标签和配置快照"
 maintainer = "loNely"
 type = "add-on"
 
 blender_version_min = "4.2.0"
 
 license = ["SPDX:GPL-3.0-or-later"]
-copyright = ["2025 loNely"]
+copyright = ["2025-2026 loNely"]
 
 [permissions]
-clipboard = "COPY"
-files = "Write boot profiler patch to scripts/startup"
-
-tags = "UI, Development"
+clipboard = "Copy exported add-on snapshots"
+files = "Store tags, profiles, history, and exported snapshots"

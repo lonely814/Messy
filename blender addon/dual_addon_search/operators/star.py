@@ -24,7 +24,10 @@ class DUAL_FIRSTROW_OT_star_toggle(bpy.types.Operator):
         return self.execute(context)
 
     def execute(self, context):
-        _TAG_CACHE_DIRTY[0] = True
-        starred_toggle(self.module_name)
+        try:
+            starred_toggle(self.module_name, _TAG_CACHE, _TAG_CACHE_DIRTY)
+        except OSError as ex:
+            self.report({"ERROR"}, f"保存星标失败: {ex}")
+            return {"CANCELLED"}
         redraw_preferences()
         return {"FINISHED"}

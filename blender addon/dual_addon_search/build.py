@@ -13,13 +13,14 @@ import os
 import re
 import sys
 import shutil
+import tomllib
 import zipfile
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DIST = os.path.join(ROOT, "dist")
 
 # ==================== 唯一版本号来源 ====================
-VERSION = (3, 1, 0)
+VERSION = (3, 3, 0)
 # ========================================================
 
 VER_STR = ".".join(str(v) for v in VERSION)
@@ -70,6 +71,33 @@ def check(verbose=True):
     """返回 (是否全部一致, 报告行列表)"""
     ok = True
     report = []
+
+    for base, _dirs, files in os.walk(ROOT):
+        if "__pycache__" in base or os.path.commonpath([base, DIST]) == DIST:
+            continue
+        for name in files:
+            if not name.endswith(".py"):
+                continue
+            path = os.path.join(base, name)
+            rel = os.path.relpath(path, ROOT)
+            try:
+                compile(_read(rel), rel, "exec")
+            except (OSError, SyntaxError) as ex:
+                ok = False
+                report.append("[XX] %s: Python 校验失败 (%s)" % (rel, ex))
+
+    try:
+        with open(os.path.join(ROOT, "blender_manifest.toml"), "rb") as file:
+            manifest = tomllib.load(file)
+        unknown_permissions = set(manifest.get("permissions", {})) - {
+            "camera", "clipboard", "network", "microphone", "files"
+        }
+        if unknown_permissions:
+            ok = False
+            report.append("[XX] blender_manifest.toml: 未知权限 %s" % sorted(unknown_permissions))
+    except (OSError, tomllib.TOMLDecodeError) as ex:
+        ok = False
+        report.append("[XX] blender_manifest.toml: TOML 校验失败 (%s)" % ex)
     for rel, pattern, _make, flags in CHECKS:
         try:
             text = _read(rel)
@@ -131,7 +159,7 @@ def package():
                 continue
             rel = os.path.relpath(os.path.join(base, name), ROOT)
             files_to_pack.append(rel)
-    # 写 zip：顶层目录 = PKG_ID（Blender 扩展打包要求）
+    # 保留单层目录，Blender 扩展校验兼容根目录和单层目录两种结构。
     os.makedirs(DIST, exist_ok=True)
     zip_name = "%s-%s.zip" % (PKG_ID, VER_STR)
     zip_path = os.path.join(DIST, zip_name)
@@ -150,7 +178,8 @@ def main():
         print("已同步版本 %s 到: %s" % (VER_STR, ", ".join(changed) if changed else "(无变化)"))
         ok, report = check()
     elif "--package" in args:
-        package()
+        if not package():
+            sys.exit(1)
         return
     else:
         ok, report = check()

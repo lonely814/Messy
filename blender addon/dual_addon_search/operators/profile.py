@@ -1,11 +1,13 @@
-"""【用途】Profile 操作器 - 保存/加载/删除插件启用状态快照"""
+"""Profile 操作器 - 保存/加载/删除插件启用状态快照"""
 
 import bpy
-from bpy.props import StringProperty
+from bpy.props import EnumProperty, StringProperty
 
 from ..utils.ui_helpers import redraw_preferences
 from ..utils.i18n import _T
-from ..data.profiles import profile_load_all, profile_save, profile_load, profile_delete
+from ..data.profiles import profile_save, profile_load, profile_delete
+
+_ADDON_MODULE = __package__.rsplit(".operators", 1)[0]
 
 
 class DUAL_FIRSTROW_OT_profile_save(bpy.types.Operator):
@@ -27,8 +29,12 @@ class DUAL_FIRSTROW_OT_profile_save(bpy.types.Operator):
             self.report({"WARNING"}, _T("名称不能为空", "Name cannot be empty"))
             return {"CANCELLED"}
         enabled = [ext.module for ext in context.preferences.addons]
-        profile_save(name, enabled)
-        self.report({"INFO"}, _T(f'已保存 Profile: {name}', f'Saved profile: {name}'))
+        try:
+            profile_save(name, enabled)
+        except OSError as ex:
+            self.report({"ERROR"}, _T(f"保存失败: {ex}", f"Save failed: {ex}"))
+            return {"CANCELLED"}
+        self.report({"INFO"}, _T(f"已保存 Profile: {name}", f"Saved profile: {name}"))
         redraw_preferences()
         return {"FINISHED"}
 
@@ -37,54 +43,104 @@ class DUAL_FIRSTROW_OT_profile_load(bpy.types.Operator):
     """加载 Profile"""
     bl_idname = "dual_firstrow_addon_search.profile_load"
     bl_label = "加载 Profile"
-    bl_description = "加载命名快照，启用/禁用插件匹配快照状态"
+    bl_description = "预览并加载插件启用状态快照"
     bl_options = {"INTERNAL"}
 
     profile_name: StringProperty(options={"HIDDEN"})
+    load_mode: EnumProperty(
+        name="模式",
+        items=[
+            ("STRICT", "严格恢复", "启用 Profile 插件并禁用其他插件"),
+            ("INCREMENTAL", "增量启用", "只启用 Profile 插件，不改变其他插件"),
+        ],
+        default="STRICT",
+    )
+    _target = None
+    _current = None
+    _missing = None
+
+    def _prepare_preview(self, context):
+        self._target = profile_load(self.profile_name)
+        self._current = {ext.module for ext in context.preferences.addons}
+        try:
+            import addon_utils
+            installed = {mod.__name__ for mod in addon_utils.modules(refresh=False)}
+        except Exception:
+            installed = set(self._target)
+        self._missing = self._target - installed
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event)
+        self._prepare_preview(context)
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        target = self._target or set()
+        current = self._current or set()
+        missing = self._missing or set()
+        to_enable = target - current
+        to_disable = (current - target) - {_ADDON_MODULE}
+        layout = self.layout
+        layout.label(
+            text=f"启用 {len(to_enable)} · 禁用 {len(to_disable)} · 缺失 {len(missing)}",
+            icon="INFO",
+        )
+        layout.prop(self, "load_mode", expand=True)
+        if missing:
+            layout.label(text="缺失: " + ", ".join(sorted(missing)[:5]), icon="ERROR")
 
     def execute(self, context):
-        target = profile_load(self.profile_name)
+        target = self._target if self._target is not None else profile_load(self.profile_name)
         if not target:
-            self.report({"WARNING"}, _T(f'Profile "{self.profile_name}" 为空', f'Profile "{self.profile_name}" is empty'))
+            self.report({"WARNING"}, _T(
+                f'Profile "{self.profile_name}" 为空',
+                f'Profile "{self.profile_name}" is empty',
+            ))
             return {"CANCELLED"}
+
         current = {ext.module for ext in context.preferences.addons}
-
-        # 收集需要操作的插件
         to_enable = sorted(target - current)
-        to_disable = sorted(current - target)
-        total = len(to_enable) + len(to_disable)
-
-        if total == 0:
+        to_disable = sorted((current - target) - {_ADDON_MODULE}) if self.load_mode == "STRICT" else []
+        if not to_enable and not to_disable:
             self.report({"INFO"}, _T("无变化", "No changes"))
             return {"FINISHED"}
 
-        # 分批执行，避免循环内 ops 性能问题
-        add_count = 0
-        remove_count = 0
+        enabled_count = 0
+        disabled_count = 0
+        failed = []
         batch_size = 10
-
         for batch_start in range(0, max(len(to_enable), len(to_disable)), batch_size):
-            for mod_name in to_enable[batch_start:batch_start + batch_size]:
+            for module_name in to_enable[batch_start:batch_start + batch_size]:
                 try:
-                    bpy.ops.preferences.addon_enable(module=mod_name)
-                    add_count += 1
+                    result = bpy.ops.preferences.addon_enable(module=module_name)
+                    if "FINISHED" in result:
+                        enabled_count += 1
+                    else:
+                        failed.append(module_name)
                 except Exception:
-                    pass
-            for mod_name in to_disable[batch_start:batch_start + batch_size]:
+                    failed.append(module_name)
+            for module_name in to_disable[batch_start:batch_start + batch_size]:
                 try:
-                    bpy.ops.preferences.addon_disable(module=mod_name)
-                    remove_count += 1
+                    result = bpy.ops.preferences.addon_disable(module=module_name)
+                    if "FINISHED" in result:
+                        disabled_count += 1
+                    else:
+                        failed.append(module_name)
                 except Exception:
-                    pass
+                    failed.append(module_name)
 
         redraw_preferences()
-        self.report({"INFO"}, _T(
-            f'已加载 Profile "{self.profile_name}"：启用 {add_count}，禁用 {remove_count}',
-            f'Loaded profile "{self.profile_name}": enabled {add_count}, disabled {remove_count}'
-        ))
+        if failed:
+            self.report({"WARNING"}, _T(
+                f"已加载 Profile：启用 {enabled_count}，禁用 {disabled_count}，失败 {len(failed)}",
+                f"Profile loaded: enabled {enabled_count}, disabled {disabled_count}, failed {len(failed)}",
+            ))
+        else:
+            self.report({"INFO"}, _T(
+                f"已加载 Profile：启用 {enabled_count}，禁用 {disabled_count}",
+                f"Profile loaded: enabled {enabled_count}, disabled {disabled_count}",
+            ))
+        if failed:
+            print("[Dual Add-on Search] Profile operation failed: " + ", ".join(failed))
         return {"FINISHED"}
 
 
@@ -101,9 +157,16 @@ class DUAL_FIRSTROW_OT_profile_delete(bpy.types.Operator):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
-        profile_delete(self.profile_name)
+        try:
+            profile_delete(self.profile_name)
+        except OSError as ex:
+            self.report({"ERROR"}, _T(f"删除失败: {ex}", f"Delete failed: {ex}"))
+            return {"CANCELLED"}
         redraw_preferences()
-        self.report({"INFO"}, _T(f'已删除 Profile "{self.profile_name}"', f'Deleted profile "{self.profile_name}"'))
+        self.report({"INFO"}, _T(
+            f'已删除 Profile "{self.profile_name}"',
+            f'Deleted profile "{self.profile_name}"',
+        ))
         return {"FINISHED"}
 
 
@@ -121,31 +184,32 @@ class DUAL_FIRSTROW_OT_disable_non_starred(bpy.types.Operator):
         from ..data.tags import starred_load
 
         stars = starred_load()
-        count = 0
-
-        # 收集需要禁用的插件
         to_disable = [
             ext.module for ext in context.preferences.addons
-            if ext.module not in stars
+            if ext.module not in stars and ext.module != _ADDON_MODULE
         ]
-
         if not to_disable:
             self.report({"INFO"}, _T("没有需要关闭的插件", "No addons to disable"))
             return {"FINISHED"}
 
-        # 分批执行，避免循环内 ops 性能问题
-        batch_size = 10
-        for batch_start in range(0, len(to_disable), batch_size):
-            batch = to_disable[batch_start:batch_start + batch_size]
-            for mod_name in batch:
-                try:
-                    bpy.ops.preferences.addon_disable(module=mod_name)
+        count = 0
+        failed = []
+        for module_name in to_disable:
+            try:
+                result = bpy.ops.preferences.addon_disable(module=module_name)
+                if "FINISHED" in result:
                     count += 1
-                except Exception:
-                    pass
+                else:
+                    failed.append(module_name)
+            except Exception:
+                failed.append(module_name)
 
         redraw_preferences()
-        self.report({"INFO"}, f"已关闭 {count} 个非收藏插件")
+        if failed:
+            self.report({"WARNING"}, f"已关闭 {count} 个，失败 {len(failed)} 个")
+            print("[Dual Add-on Search] Disable failed: " + ", ".join(failed))
+        else:
+            self.report({"INFO"}, f"已关闭 {count} 个非收藏插件")
         return {"FINISHED"}
 
 
@@ -166,8 +230,11 @@ class DUAL_FIRSTROW_MT_profile_menu(bpy.types.Menu):
             for name in sorted(profiles.keys()):
                 count = len(profiles[name])
                 row = layout.row(align=True)
-                op = row.operator("dual_firstrow_addon_search.profile_load",
-                                  text=f"{name} ({count})", icon="IMPORT")
+                op = row.operator(
+                    "dual_firstrow_addon_search.profile_load",
+                    text=f"{name} ({count})",
+                    icon="IMPORT",
+                )
                 op.profile_name = name
                 op = row.operator("dual_firstrow_addon_search.profile_delete", text="", icon="X")
                 op.profile_name = name

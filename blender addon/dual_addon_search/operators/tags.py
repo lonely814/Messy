@@ -12,9 +12,7 @@ def _mark_tag_dirty():
     _TAG_CACHE_DIRTY[0] = True
 
 
-from ..data.tags import (
-    tag_get, tag_set, tag_all_names, tag_addons_with_tag
-)
+from ..data.tags import tag_get, tag_set, tag_all_names
 
 
 class DUAL_FIRSTROW_OT_tag_toggle(bpy.types.Operator):
@@ -33,7 +31,11 @@ class DUAL_FIRSTROW_OT_tag_toggle(bpy.types.Operator):
             tags.remove(self.tag_name)
         else:
             tags.append(self.tag_name)
-        tag_set(self.module_name, tags)
+        try:
+            tag_set(self.module_name, tags)
+        except OSError as ex:
+            self.report({"ERROR"}, f"保存标签失败: {ex}")
+            return {"CANCELLED"}
         _mark_tag_dirty()
         redraw_preferences()
         return {"FINISHED"}
@@ -62,13 +64,17 @@ class DUAL_FIRSTROW_OT_tag_add_new(bpy.types.Operator):
             self.report({"WARNING"}, f'标签"{name}"已存在')
             return {"CANCELLED"}
         ctx_mod = getattr(context.window_manager, "dual_ctx_module", "")
-        if ctx_mod:
-            tags = tag_get(ctx_mod)
-            if name not in tags:
-                tags.append(name)
-            tag_set(ctx_mod, tags)
-        else:
-            tag_set("__tags__", list(all_tags) + [name])
+        try:
+            if ctx_mod:
+                tags = tag_get(ctx_mod)
+                if name not in tags:
+                    tags.append(name)
+                tag_set(ctx_mod, tags)
+            else:
+                tag_set("__tags__", list(all_tags) + [name])
+        except OSError as ex:
+            self.report({"ERROR"}, f"保存标签失败: {ex}")
+            return {"CANCELLED"}
         _mark_tag_dirty()
         redraw_preferences()
         self.report({"INFO"}, f'已创建标签"{name}"')
@@ -99,7 +105,11 @@ class DUAL_FIRSTROW_OT_tag_remove_global(bpy.types.Operator):
                 del data[mod]
                 changed = True
         if changed:
-            tag_save(data)
+            try:
+                tag_save(data)
+            except OSError as ex:
+                self.report({"ERROR"}, f"删除标签失败: {ex}")
+                return {"CANCELLED"}
         _mark_tag_dirty()
         redraw_preferences()
         self.report({"INFO"}, f'已删除标签"{self.tag_name}"')

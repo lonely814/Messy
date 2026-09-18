@@ -8,6 +8,20 @@ from bpy.props import StringProperty
 from ..utils.ui_helpers import redraw_preferences
 
 
+def _purge_removed_module(module_name: str) -> None:
+    """卸载成功后清理标签、星标和 Profile 中残留的模块引用。"""
+    from ..data.tags import tag_purge_modules
+    from ..data.profiles import profile_purge_module
+    try:
+        tag_purge_modules({module_name})
+    except OSError as ex:
+        print(f"[Dual Add-on Search] 清理 {module_name} 标签失败: {ex}")
+    try:
+        profile_purge_module(module_name)
+    except OSError as ex:
+        print(f"[Dual Add-on Search] 清理 {module_name} Profile 失败: {ex}")
+
+
 class DUAL_FIRSTROW_OT_open_addon_folder(bpy.types.Operator):
     """打开插件文件夹"""
     bl_idname = "dual_firstrow_addon_search.open_folder"
@@ -110,43 +124,6 @@ class DUAL_FIRSTROW_OT_copy_text(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUAL_FIRSTROW_OT_link_github(bpy.types.Operator):
-    """手动关联 GitHub 仓库"""
-    bl_idname = "dual_firstrow_addon_search.link_github"
-    bl_label = "关联 GitHub 仓库"
-    bl_description = "手动关联此插件的 GitHub 仓库以显示星标和下载量"
-    bl_options = {"REGISTER", "INTERNAL"}
-
-    module_name: StringProperty(
-        name="模块名",
-        default="",
-        options={"HIDDEN"},
-    )
-    repo: StringProperty(
-        name="GitHub Repository",
-        description="格式: owner/repo (例如: loNely/DualAddonSearch)",
-        default="",
-    )
-
-    def invoke(self, context, event):
-        wm = context.window_manager
-        return wm.invoke_props_dialog(self)
-
-    def draw(self, context):
-        self.layout.prop(self, "repo")
-
-    def execute(self, context):
-        repo = self.repo.strip()
-        if repo:
-            if "/" not in repo or len(repo.split("/")) != 2:
-                self.report({"ERROR"}, "格式错误，需要 owner/repo")
-                return {"CANCELLED"}
-            from ..utils.cache import set_github_cache
-            set_github_cache(repo, 0, 0)
-        redraw_preferences()
-        self.report({"INFO"}, f"已关联 {repo}" if repo else "已取消关联")
-        return {"FINISHED"}
-
 
 class DUAL_FIRSTROW_OT_remove_addon(bpy.types.Operator):
     """移除插件"""
@@ -192,6 +169,7 @@ class DUAL_FIRSTROW_OT_remove_addon(bpy.types.Operator):
         try:
             ret = bpy.ops.preferences.addon_remove(module=module_name)
             if "FINISHED" in ret:
+                _purge_removed_module(module_name)
                 redraw_preferences()
                 self.report({"INFO"}, "已移除插件")
                 return {"FINISHED"}
@@ -228,6 +206,7 @@ class DUAL_FIRSTROW_OT_remove_addon(bpy.types.Operator):
                             bpy.ops.preferences.addon_refresh()
                         except Exception:
                             pass
+                        _purge_removed_module(module_name)
                         redraw_preferences()
                         self.report({"INFO"}, "已卸载扩展插件")
                         return {"FINISHED"}
@@ -241,6 +220,7 @@ class DUAL_FIRSTROW_OT_remove_addon(bpy.types.Operator):
                 bpy.ops.preferences.addon_refresh()
             except Exception:
                 pass
+            _purge_removed_module(module_name)
             redraw_preferences()
             self.report({"INFO"}, "已移除插件文件: %s" % removed)
             return {"FINISHED"}
