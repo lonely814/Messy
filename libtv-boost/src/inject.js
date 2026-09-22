@@ -2062,10 +2062,11 @@ function _ltSettingsPanel(){
         var on=localStorage.getItem("_lt_"+t.k)==="1";
         h+="<div class=\"lt-settings-toggle\" data-key=\""+t.k+"\"><span>"+t.l+"</span><span class=\"lt-settings-switch"+(on?" on":"")+"\"></span></div>";
       });
-      /* 换算比例：每 N 积分 = 1 元。会员档位不同单价不同，交给用户自己填 */
+      /* 换算比例：每 N 积分 = 1 元。会员档位不同单价不同，交给用户自己填。
+         grid-column 必须横跨两列——否则它只占一格，会把右列标签挤成竖排 */
       var _rate=15;
       try{var _v=parseFloat(localStorage.getItem("_lt_rate"));if(isFinite(_v)&&_v>0)_rate=_v;}catch(e){}
-      h+="<div class=\"lt-settings-row\"><label>几分 = 1 元</label><input class=\"lt-settings-inp\" id=\"lt-set-rate\" type=\"number\" min=\"0.01\" step=\"0.01\" value=\""+_rate+"\" placeholder=\"15\"><span style=\"flex-shrink:0;font-size:11px;color:rgba(255,255,255,0.35)\">高级/普通会员单价不同，改这里即实时生效</span></div>";
+      h+="<div class=\"lt-settings-row lt-rate-row\" style=\"grid-column:1/-1;flex-wrap:wrap;\"><label>几分 = 1 元</label><input class=\"lt-settings-inp\" id=\"lt-set-rate\" type=\"number\" min=\"0.01\" step=\"0.01\" value=\""+_rate+"\" placeholder=\"15\" style=\"flex:0 0 120px;\"><span style=\"flex:1 1 160px;min-width:0;font-size:11px;color:rgba(255,255,255,0.35);line-height:1.5\">会员档位单价不同，改这里即实时生效</span></div>";
       h+="</div>";
     /* API */
     var api=_ltAPIRead();
