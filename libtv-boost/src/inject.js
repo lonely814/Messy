@@ -1057,6 +1057,84 @@
     /* \u52a0\u8f7d\u540e\u4e00\u6b21\u6027\u5ef6\u65f6\u8865\u626b\uff08\u9632\u9762\u677f\u521d\u59cb\u5316\u8f83\u6162\uff09 */
     setTimeout(_ltTagScan,800);setTimeout(_ltTagScan,3000);setTimeout(_ltTagScan,10000);
     window._ltDiag={tagScan:_ltScanStats};
+    /* ── 积分 ⇄ 人民币换算：站点用闪电图标展示积分（顶栏余额、节点生成消耗），在数值旁补一个 RMB 估值 ──
+       _ltRate 是用户口径的近似汇率（15 积分 = 1 元），非站点官方定价，故标签带 ≈；调率只改这一处 */
+    var _ltRate=15;
+    function _ltRmb(n){var v=n/_ltRate;return "≈¥"+(v>=1000?Math.round(v):v.toFixed(2));}
+    /* 开关默认开：只在从未存过时写一次，之后完全交给设置面板的通用开关（键 _lt_rmb） */
+    try{if(localStorage.getItem("_lt_rmb")===null)localStorage.setItem("_lt_rmb","1");}catch(e){}
+    var _ltRmbAny=false;
+    var _ltCreditStats={on:true,labels:0,anchors:[]};
+    window._ltDiag=window._ltDiag||{};
+    window._ltDiag.credit=_ltCreditStats;
+    function _ltCreditClear(){
+      if(!_ltRmbAny)return;
+      _ltRmbAny=false;
+      document.querySelectorAll("[data-lt-rmb]").forEach(function(e){e.removeAttribute("data-lt-rmb");});
+      _ltCreditStats.labels=0;
+      _ltCreditStats.anchors=[];
+    }
+    /* 锚点自证 + 取值：把锚点文本解析成要显示的估值文本，解析不出来就返回 null（不认这个锚点）。
+       站点已出现过四种形态：纯数字 20 / 带千分位 37,377 / 单位后缀 1.2万 / 会员折扣「现价 / 原价」196/230
+       （原价在站点侧是删除线，textContent 里没有空格，分隔靠 CSS gap）。
+       折扣形态两个数都换算，形式上对照站点自己的「现价 / 原价」，避免读者搞混哪个数换的是哪个 */
+    function _ltCreditOne(s){
+      s=String(s).replace(/[,\s]/g,"");
+      var m=s.match(/^(\d+(?:\.\d+)?)(万|w|k)?$/i);
+      if(!m)return null;
+      var n=parseFloat(m[1]);
+      if(m[2])n*=/万/.test(m[2])?10000:1000;
+      return isFinite(n)?n:null;
+    }
+    function _ltCreditLabel(a){
+      var parts=(a.textContent||"").trim().split("/");
+      if(parts.length>2)return null;
+      var vals=[];
+      for(var i=0;i<parts.length;i++){
+        var n=_ltCreditOne(parts[i]);
+        if(n===null)return null;
+        vals.push(n);
+      }
+      return vals.length?_ltRmb(vals[0])+(vals.length>1?" / "+_ltRmb(vals[1]):""):null;
+    }
+    function _ltCreditScan(){
+      /* 关掉时连清带停：设置面板的通用开关只写 localStorage，这里每轮读一次即可保持一致 */
+      if(localStorage.getItem("_lt_rmb")==="0"){_ltCreditClear();_ltCreditStats.on=false;return;}
+      _ltCreditStats.on=true;
+      var anchors=[];
+      /* 主锚点：认站点自己的积分图标（闪电 path），再往上找最近的「图标+数值」容器，
+         顶栏余额 / 节点消耗 / 以后新出现的积分位都能自动覆盖，不依赖易变的类名 */
+      document.querySelectorAll('svg path[d^="M7.3.64"]').forEach(function(p){
+        var el=p;
+        for(var i=0;i<4&&el;i++){
+          el=el.parentElement; if(!el)break;
+          if(_ltCreditLabel(el)!==null){if(anchors.indexOf(el)<0)anchors.push(el);return;}
+        }
+      });
+      /* 兜底锚点：站点换图标后，仍按类名认出节点浮动面板那一处 */
+      document.querySelectorAll("span.min-w-5.text-center").forEach(function(s){
+        if(s.parentElement&&anchors.indexOf(s.parentElement)<0)anchors.push(s.parentElement);
+      });
+      var n=0;
+      anchors.forEach(function(a){
+        var label=_ltCreditLabel(a); if(label===null)return;
+        /* 标签用 data 属性 + CSS ::after 渲染，不插节点：React 重渲染碰不到伪元素，
+           也不污染站点元素的 textContent（站点若自己读它做解析，多出的文本会把解析搞坏） */
+        if(a.getAttribute("data-lt-rmb")!==label)a.setAttribute("data-lt-rmb",label);
+        _ltRmbAny=true; n++;
+      });
+      _ltCreditStats.labels=n;
+      _ltCreditStats.anchors=anchors.slice(0,6).map(function(a){
+        var v=_ltCreditLabel(a);
+        return a.tagName+"."+String(a.className||"").slice(0,26)+" ["+String(a.textContent||"").trim().slice(0,14)+"] => "+(v===null?"未识别":v);
+      });
+    }
+    var _ltCreditT=null;
+    function _ltCreditSchedule(){if(_ltCreditT)clearTimeout(_ltCreditT);_ltCreditT=setTimeout(_ltCreditScan,120);}
+    /* characterData 兜「余额数字原地变化」（生成后扣费），childList 兜「面板重挂载」 */
+    new MutationObserver(_ltCreditSchedule).observe(document.body,{childList:true,subtree:true,characterData:true});
+    setInterval(_ltCreditScan,1500);
+    _ltCreditScan();
     /* ── standalone AI-only panel (self-contained, no dependence on _ltPromptPanel) ── */
     function _ltAIPanel(inputEl,iconEl){
       var pid="lt-ai-panel";
@@ -1219,15 +1297,17 @@
       btn.className="s"+si;
       btn.title="提示词工具 (P) | 右键切换样式";
       if(si===4){btn.textContent="P";}
-      else if(si===3){btn.innerHTML='<span style="display:flex;align-items:center;justify-content:center;height:100%"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="s3-label" style="opacity:0;transition:opacity .2s ease .1s;margin-left:4px;font-size:13px">提示词</span></span>';}
+      else if(si===3){btn.innerHTML='<span style="display:flex;align-items:center;justify-content:center;height:100%"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="s3-label" style="margin-left:4px;font-size:13px">提示词</span></span>';}
       else{btn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>';}
       btn.style.cssText="position:fixed;right:60px;bottom:70px;z-index:99998;display:flex;align-items:center;justify-content:center;cursor:grab;user-select:none;";
       if(si===2){btn.style.width="28px";btn.style.height="28px";}else{btn.style.width="36px";btn.style.height="36px";}
       if(si===4){btn.style.fontSize="16px";btn.style.fontWeight="600";btn.style.fontFamily="-apple-system,BlinkMacSystemFont,sans-serif";}
       btn.addEventListener("contextmenu",function(e){e.preventDefault();var cur=parseInt(localStorage.getItem("_lt_pbtn_style")||"0");var next=((cur%5)+1)%5;try{localStorage.setItem("_lt_pbtn_style",String(next));}catch(ex){}btn.remove();_createBtn();});
       document.body.appendChild(btn);
-      btn.onmouseenter=function(){if(si!==0){btn.style.transform="scale(1.05)";}};
-      btn.onmouseleave=function(){btn.style.transform="scale(1)";};
+      /* hover 反馈全部交给 CSS（极简描边族：只变颜色、不位移）
+         这里不要再写 inline transform —— inline 会盖掉样式表，5 个槽位就没法统一了 */
+      btn.onmouseenter=null;
+      btn.onmouseleave=null;
       function _ltPosPanel(){
         var p=document.getElementById("libtv-prompt");if(!p)return;
         var r=btn.getBoundingClientRect(),pw=Math.min(520,window.innerWidth-32),ph=p.offsetHeight||400;
@@ -1973,6 +2053,7 @@ function _ltSettingsPanel(){
       {k:"edges",l:"\u9690\u85cf\u8fde\u7ebf"},
       {k:"grid",l:"\u9690\u85cf\u7f51\u683c"},
       {k:"focus",l:"\u4e13\u6ce8\u6a21\u5f0f"},
+      {k:"rmb",l:"\u79ef\u5206\u6362\u7b97"},
     ];
     h+="<div class=\"lt-settings-sec\ lt-sec-toggles\"><div class=\"lt-settings-stitle\">\u5f00\u5173</div>";
     toggles.forEach(function(t){

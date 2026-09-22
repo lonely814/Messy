@@ -424,6 +424,20 @@
                 info.push('=== 图标扫描自检 ===');
                 info.push('未初始化 — inject 脚本未运行到扫描逻辑');
             }
+            var cr = unsafeWindow._ltDiag && unsafeWindow._ltDiag.credit;
+            info.push('');
+            info.push('=== 积分换算自检 ===');
+            if(cr){
+                info.push('开关: ' + (cr.on ? '开' : '关') + '   已打标签: ' + cr.labels);
+                if(cr.anchors && cr.anchors.length){
+                    info.push('锚点 (前 ' + cr.anchors.length + ' 个):');
+                    cr.anchors.forEach(function(d){ info.push('  ' + d); });
+                } else {
+                    info.push('未找到锚点 — 站点的积分图标 path 可能变了，或本页没有积分显示位');
+                }
+            } else {
+                info.push('未初始化 — inject 脚本未运行到换算逻辑');
+            }
             var txt = info.join('\n');
             var div = document.createElement('div');
             div.id = 'lt-diag';
