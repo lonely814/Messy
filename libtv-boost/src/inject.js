@@ -2062,11 +2062,12 @@ function _ltSettingsPanel(){
         var on=localStorage.getItem("_lt_"+t.k)==="1";
         h+="<div class=\"lt-settings-toggle\" data-key=\""+t.k+"\"><span>"+t.l+"</span><span class=\"lt-settings-switch"+(on?" on":"")+"\"></span></div>";
       });
-      /* 换算比例：每 N 积分 = 1 元。会员档位不同单价不同，交给用户自己填。
-         grid-column 必须横跨两列——否则它只占一格，会把右列标签挤成竖排 */
+      /* 换算比例：1 积分 = X 元（显示口径是「元/积分」），存储仍是 _lt_rate = 积分/元，不改 _ltRmb 的除法。
+         grid-column 必须横跨两列——否则只占一格会把右列标签挤成竖排（v1.13.1 踩过） */
       var _rate=15;
       try{var _v=parseFloat(localStorage.getItem("_lt_rate"));if(isFinite(_v)&&_v>0)_rate=_v;}catch(e){}
-      h+="<div class=\"lt-settings-row lt-rate-row\" style=\"grid-column:1/-1;flex-wrap:wrap;\"><label>几分 = 1 元</label><input class=\"lt-settings-inp\" id=\"lt-set-rate\" type=\"number\" min=\"0.01\" step=\"0.01\" value=\""+_rate+"\" placeholder=\"15\" style=\"flex:0 0 120px;\"><span style=\"flex:1 1 160px;min-width:0;font-size:11px;color:rgba(255,255,255,0.35);line-height:1.5\">会员档位单价不同，改这里即实时生效</span></div>";
+      var _yuanPer=String(+(1/_rate).toFixed(4));
+      h+="<div class=\"lt-settings-row lt-rate-row\" style=\"grid-column:1/-1;flex-wrap:wrap;\"><label style=\"min-width:auto\">1 积分 =</label><input class=\"lt-settings-inp\" id=\"lt-set-rate\" type=\"number\" min=\"0.0001\" step=\"0.0001\" value=\""+_yuanPer+"\" placeholder=\"0.0667\" style=\"flex:0 0 110px;\"><span style=\"flex:1 1 140px;min-width:0;font-size:11px;color:rgba(255,255,255,0.35);line-height:1.5\">元。会员档位单价不同，改这里即实时生效</span></div>";
       h+="</div>";
     /* API */
     var api=_ltAPIRead();
@@ -2138,10 +2139,12 @@ function _ltSettingsPanel(){
     var _rateInp=document.getElementById("lt-set-rate");
     if(_rateInp){
       _rateInp.oninput=_rateInp.onchange=function(){
-        var v=parseFloat(this.value);
-        if(!isFinite(v)||v<=0)return;   // 非法输入不写入，保留上一个合法值
-        try{localStorage.setItem("_lt_rate",String(v));}catch(e){}
-        _ltRate=v;                      /* 直接改 IIFE 变量，无需重载 */
+        var y=parseFloat(this.value);     /* 输入是「元/积分」 */
+        if(!isFinite(y)||y<=0)return;     // 非法输入不写入，保留上一个合法值
+        var r=1/y;                        /* 转成内部的「积分/元」再存 */
+        if(!isFinite(r)||r<=0)return;
+        try{localStorage.setItem("_lt_rate",String(r));}catch(e){}
+        _ltRate=r;                        /* 直接改 IIFE 变量，无需重载 */
         _ltCreditScan();
       };
     }
