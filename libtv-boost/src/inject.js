@@ -1058,8 +1058,10 @@
     setTimeout(_ltTagScan,800);setTimeout(_ltTagScan,3000);setTimeout(_ltTagScan,10000);
     window._ltDiag={tagScan:_ltScanStats};
     /* ── 积分 ⇄ 人民币换算：站点用闪电图标展示积分（顶栏余额、节点生成消耗），在数值旁补一个 RMB 估值 ──
-       _ltRate 是用户口径的近似汇率（15 积分 = 1 元），非站点官方定价，故标签带 ≈；调率只改这一处 */
+       比例按会员档位不同（高级/普通单价不同），故开放成设置项 _lt_rate（几分 = 1 元），默认 15；
+       无官方定价，故标签带 ≈。读一次即可，设置面板改动会调 _ltCreditScan 重刷 */
     var _ltRate=15;
+    try{var _lv=parseFloat(localStorage.getItem("_lt_rate"));if(isFinite(_lv)&&_lv>0)_ltRate=_lv;}catch(e){}
     function _ltRmb(n){var v=n/_ltRate;return "≈¥"+(v>=1000?Math.round(v):v.toFixed(2));}
     /* 开关默认开：只在从未存过时写一次，之后完全交给设置面板的通用开关（键 _lt_rmb） */
     try{if(localStorage.getItem("_lt_rmb")===null)localStorage.setItem("_lt_rmb","1");}catch(e){}
@@ -2056,11 +2058,15 @@ function _ltSettingsPanel(){
       {k:"rmb",l:"\u79ef\u5206\u6362\u7b97"},
     ];
     h+="<div class=\"lt-settings-sec\ lt-sec-toggles\"><div class=\"lt-settings-stitle\">\u5f00\u5173</div>";
-    toggles.forEach(function(t){
-      var on=localStorage.getItem("_lt_"+t.k)==="1";
-      h+="<div class=\"lt-settings-toggle\" data-key=\""+t.k+"\"><span>"+t.l+"</span><span class=\"lt-settings-switch"+(on?" on":"")+"\"></span></div>";
-    });
-    h+="</div>";
+      toggles.forEach(function(t){
+        var on=localStorage.getItem("_lt_"+t.k)==="1";
+        h+="<div class=\"lt-settings-toggle\" data-key=\""+t.k+"\"><span>"+t.l+"</span><span class=\"lt-settings-switch"+(on?" on":"")+"\"></span></div>";
+      });
+      /* 换算比例：每 N 积分 = 1 元。会员档位不同单价不同，交给用户自己填 */
+      var _rate=15;
+      try{var _v=parseFloat(localStorage.getItem("_lt_rate"));if(isFinite(_v)&&_v>0)_rate=_v;}catch(e){}
+      h+="<div class=\"lt-settings-row\"><label>几分 = 1 元</label><input class=\"lt-settings-inp\" id=\"lt-set-rate\" type=\"number\" min=\"0.01\" step=\"0.01\" value=\""+_rate+"\" placeholder=\"15\"><span style=\"flex-shrink:0;font-size:11px;color:rgba(255,255,255,0.35)\">高级/普通会员单价不同，改这里即实时生效</span></div>";
+      h+="</div>";
     /* API */
     var api=_ltAPIRead();
     var apiPresets=_ltJ("_lt_api_presets",[]);
@@ -2127,6 +2133,17 @@ function _ltSettingsPanel(){
         this.querySelector(".lt-settings-switch").classList.toggle("on",v);
       };
     });
+    /* 换算比例输入：改一次重写 _lt_rate + 重刷标签（_ltRate 是 IIFE 内变量，需重新赋值后再扫） */
+    var _rateInp=document.getElementById("lt-set-rate");
+    if(_rateInp){
+      _rateInp.oninput=_rateInp.onchange=function(){
+        var v=parseFloat(this.value);
+        if(!isFinite(v)||v<=0)return;   // 非法输入不写入，保留上一个合法值
+        try{localStorage.setItem("_lt_rate",String(v));}catch(e){}
+        _ltRate=v;                      /* 直接改 IIFE 变量，无需重载 */
+        _ltCreditScan();
+      };
+    }
     /* API \u4fdd\u5b58 / \u9884\u8bbe / \u6d4b\u8bd5 / \u62c9\u53d6\u6a21\u578b */
     var _ltSetUrl=document.getElementById("lt-set-url"),_ltSetKey=document.getElementById("lt-set-key"),_ltSetModel=document.getElementById("lt-set-model");
     function _ltApiStatus(msg,ok){
