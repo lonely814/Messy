@@ -2436,18 +2436,26 @@ function _ltSettingsPanel(){
   function _ltIDBDel(k){try{var r=indexedDB.open("_lt_boost",1);r.onupgradeneeded=function(e){e.target.result.createObjectStore("b");};r.onsuccess=function(e){var db=e.target.result,tx=db.transaction("b","readwrite");tx.objectStore("b").delete(k);tx.oncomplete=function(){db.close();};};}catch(e){}}
   function _ltPetPrefs(){
     var p=_ltJ("_lt_pet_v1",null)||{};
-    return {enabled:!!p.enabled,size:p.size||"medium",activePetId:p.activePetId||"",pos:p.pos&&isFinite(p.pos.x)&&isFinite(p.pos.y)?p.pos:null,lookAtPointer:p.lookAtPointer!==false,hoverAnimate:p.hoverAnimate!==false};
+    return {enabled:!!p.enabled,size:p.size||"medium",activePetId:p.activePetId||"",pos:p.pos&&isFinite(p.pos.x)&&isFinite(p.pos.y)?p.pos:null,lookAtPointer:p.lookAtPointer===true,hoverAnimate:p.hoverAnimate===true};
   }
   function _ltPetSavePrefs(p){try{localStorage.setItem("_lt_pet_v1",JSON.stringify(p));}catch(e){}}
   function _ltPetIndex(){return _ltJ("_lt_pets",[])||[];}
   function _ltPetSaveIndex(list){try{localStorage.setItem("_lt_pets",JSON.stringify(list));}catch(e){}}
 
   var _ltPetScaleMap={small:72,medium:96,large:128}; /* 目标像素高（对齐 mayi），实际 scale=目标高/cellH */
-  var _ltPetP={on:false,el:null,img:null,bub:null,raf:0,last:0,acc:0,frame:0,stripId:"idle",url:"",conf:null,grid:null,scale:0.5,busy:0,trans:null,pos:{x:0,y:0},walkTo:null,nextAct:0,hovered:false,px:0,py:0,drag:false,dragDir:"",dragMoved:0};
+  var _ltPetP={on:false,el:null,img:null,bub:null,rafPending:false,last:0,acc:0,frame:0,stripId:"idle",url:"",conf:null,grid:null,cw:0,ch:0,scale:0.5,busy:0,busyAt:0,trans:null,pos:{x:0,y:0},walkTo:null,nextAct:0,hovered:false,px:0,py:0,drag:false,dragDir:"",dragMoved:0};
+
+  /* 单 rAF 链保障：任何入口都走 _ltPetKick，杜绝双循环倍速播放（曾疑似引发闪烁） */
+  function _ltPetKick(){
+    var P=_ltPetP;
+    if(P.rafPending)return;
+    P.rafPending=true;
+    requestAnimationFrame(_ltPetTick);
+  }
 
   function _ltPetNotify(kind){
     var P=_ltPetP;
-    if(kind==="busy"){P.busy++;return;}
+    if(kind==="busy"){P.busy++;P.busyAt=Date.now();return;}
     P.busy=Math.max(0,P.busy-1);
     var now=Date.now();
     /* 心情映射（对齐 mayi：成功/失败为瞬态，超时回 idle） */
@@ -2476,14 +2484,17 @@ function _ltSettingsPanel(){
     if(P.stripId!==action){P.stripId=action;P.frame=0;P.acc=0;}
     return strip;
   }
-  function _ltPetTick(ts){
+  function _ltPetTick(){
     var P=_ltPetP;
+    P.rafPending=false;
     if(!P.on)return;
-    P.raf=requestAnimationFrame(_ltPetTick);
+    _ltPetKick();
     if(document.hidden){P.last=0;return;}
+    var ts=Date.now();
     if(!P.last)P.last=ts;
     var dt=Math.min(250,ts-P.last);P.last=ts;
-    var now=Date.now();
+    var now=ts;
+    if(P.busy>0&&now-P.busyAt>120000)P.busy=0; /* busy 卡死自愈 */
     if(P.trans&&now>=P.trans.until)P.trans=null;
     /* 随机小剧场：待机时每 5-11s 演一个动作或短距走动 */
     if(!P.trans&&!P.drag&&P.walkTo==null&&now>=P.nextAct){
@@ -2528,12 +2539,11 @@ function _ltSettingsPanel(){
       var look=_ltPetLookIndex(P.px-(P.pos.x+(P.el?P.el.offsetWidth/2:0)),P.py-(P.pos.y+(P.el?P.el.offsetHeight*0.42:0)));
       if(look!=null){var c=_ltPetLookCell(look);row=c.row;col=c.col;}
     }
-    if(P.img)P.img.style.transform="translate("+(-col*P.grid.cellW*P.scale)+"px,"+(-row*P.grid.cellH*P.scale)+"px)";
+    if(P.img)P.img.style.transform="translate("+(-col*P.cw)+"px,"+(-row*P.ch)+"px)";
   }
   function _ltPetUnmount(){
     var P=_ltPetP;
     P.on=false;
-    if(P.raf){cancelAnimationFrame(P.raf);P.raf=0;}
     if(P.el&&P.el.parentNode)P.el.parentNode.removeChild(P.el);
     P.el=null;P.img=null;P.bub=null;
   }
@@ -2554,12 +2564,14 @@ function _ltSettingsPanel(){
         _ltPetUnmount();
         var targetH=_ltPetScaleMap[prefs.size]||96;
         var scale=targetH/grid.cellH;
+        /* 单元格显示尺寸取整：位移恒为整数像素，杜绝亚像素光栅漂移闪烁 */
+        var cw=Math.round(grid.cellW*scale),ch=Math.round(grid.cellH*scale);
         var el=document.createElement("div");el.id="lt-pet";
-        el.style.width=(grid.cellW*scale)+"px";el.style.height=(grid.cellH*scale)+"px";
+        el.style.width=cw+"px";el.style.height=ch+"px";
         var clip=document.createElement("div");clip.className="lt-pet-clip";
         var img=document.createElement("img");img.className="lt-pet-sheet";img.src=url;img.draggable=false;
-        img.style.width=(grid.cellW*8*scale)+"px";
-        img.style.height=(grid.cellH*grid.rows*scale)+"px";
+        img.style.width=(cw*8)+"px";
+        img.style.height=(ch*grid.rows)+"px";
         clip.appendChild(img);el.appendChild(clip);
         var bub=document.createElement("div");bub.id="lt-pet-bubble";el.appendChild(bub);
         document.body.appendChild(el);
@@ -2597,9 +2609,9 @@ function _ltSettingsPanel(){
         el.addEventListener("mouseenter",function(){P.hovered=true;});
         el.addEventListener("mouseleave",function(){P.hovered=false;});
         P.on=true;P.last=0;P.stripId="";P.frame=0;P.acc=0;
+        P.cw=cw;P.ch=ch;
         P.nextAct=Date.now()+4000+Math.random()*5000;
-        if(P.raf)cancelAnimationFrame(P.raf);
-        P.raf=requestAnimationFrame(_ltPetTick);
+        _ltPetKick();
       };
       probe.onerror=function(){URL.revokeObjectURL(url);_ltPetUnmount();};
       probe.src=url;
