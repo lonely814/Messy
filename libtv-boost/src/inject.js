@@ -2047,7 +2047,12 @@ function _ltSettingsPanel(){
     if(existing){existing.remove();return;}
     var div=document.createElement("div");div.id="lt-settings";div.className="lt-settings";
     var h="<div class=\"lt-settings-head\"><div class=\"lt-settings-title\"><span class=\"lt-settings-logo\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M13 2L3 14h9l-1 8 10-12h-9l1-8z\"/></svg></span><span>\u8bbe\u7f6e</span></div><span class=\"lt-settings-close\" id=\"lt-settings-close\">\u2715</span></div>"
-      +"<div class=\"lt-settings-body\" id=\"lt-settings-body\">";
+      +"<div class=\"lt-settings-body\" id=\"lt-settings-body\">"
+      /* 一级导航：9 个入口平铺会越来越挤，收敛为左导航 + 右内容两级 */
+      +"<div class=\"lt-settings-nav\" id=\"lt-settings-nav\">"
+      +[["general","通用"],["api","AI 增强"],["data","数据管理"],["pet","桌宠"],["about","关于"]].map(function(t){return "<div class=\"lt-settings-nav-item\" data-tab=\""+t[0]+"\">"+t[1]+"</div>";}).join("")
+      +"</div>"
+      +"<div class=\"lt-settings-main\">";
     /* \u5f00\u5173 */
     var toggles=[
       {k:"perf",l:"\u6027\u80fd\u6a21\u5f0f"},
@@ -2057,17 +2062,18 @@ function _ltSettingsPanel(){
       {k:"focus",l:"\u4e13\u6ce8\u6a21\u5f0f"},
       {k:"rmb",l:"\u79ef\u5206\u6362\u7b97"},
     ];
-    h+="<div class=\"lt-settings-sec\ lt-sec-toggles\"><div class=\"lt-settings-stitle\">\u5f00\u5173</div>";
+    h+="<div class=\"lt-settings-sec\ lt-sec-toggles\" data-sec=\"general\"><div class=\"lt-settings-stitle\">\u5f00\u5173</div>";
       toggles.forEach(function(t){
         var on=localStorage.getItem("_lt_"+t.k)==="1";
         h+="<div class=\"lt-settings-toggle\" data-key=\""+t.k+"\"><span>"+t.l+"</span><span class=\"lt-settings-switch"+(on?" on":"")+"\"></span></div>";
       });
-      /* 换算比例：1 积分 = X 元（显示口径是「元/积分」），存储仍是 _lt_rate = 积分/元，不改 _ltRmb 的除法。
-         grid-column 必须横跨两列——否则只占一格会把右列标签挤成竖排（v1.13.1 踩过） */
+      h+="</div>";
+      /* 换算比例：1 积分 = X 元（显示口径是「元/积分」），存储仍是 _lt_rate = 积分/元，不改 _ltRmb 的除法。独立成卡（通用页二级卡） */
       var _rate=15;
       try{var _v=parseFloat(localStorage.getItem("_lt_rate"));if(isFinite(_v)&&_v>0)_rate=_v;}catch(e){}
       var _yuanPer=String(+(1/_rate).toFixed(4));
-      h+="<div class=\"lt-settings-row lt-rate-row\" style=\"grid-column:1/-1;flex-wrap:wrap;\"><label style=\"min-width:auto\">1 积分 =</label><input class=\"lt-settings-inp\" id=\"lt-set-rate\" type=\"number\" min=\"0.0001\" step=\"0.0001\" value=\""+_yuanPer+"\" placeholder=\"0.0667\" style=\"flex:0 0 110px;\"><span style=\"flex:1 1 140px;min-width:0;font-size:11px;color:rgba(255,255,255,0.35);line-height:1.5\">元。会员档位单价不同，改这里即实时生效</span></div>";
+      h+="<div class=\"lt-settings-sec lt-sec-rate\" data-sec=\"general\"><div class=\"lt-settings-stitle\">积分换算</div>"
+      +"<div class=\"lt-settings-row lt-rate-row\" style=\"flex-wrap:wrap;\"><label style=\"min-width:auto\">1 积分 =</label><input class=\"lt-settings-inp\" id=\"lt-set-rate\" type=\"number\" min=\"0.0001\" step=\"0.0001\" value=\""+_yuanPer+"\" placeholder=\"0.0667\" style=\"flex:0 0 110px;\"><span style=\"flex:1 1 140px;min-width:0;font-size:11px;color:rgba(255,255,255,0.35);line-height:1.5\">元。会员档位单价不同，改这里即实时生效</span></div>";
       h+="</div>";
     /* API */
     var api=_ltAPIRead();
@@ -2087,7 +2093,7 @@ function _ltSettingsPanel(){
       if(_m)curPresetId=_m.id;
     }
     if(!curPresetId&&apiPresets.length)curPresetId=apiPresets[0].id;
-    h+="<div class=\"lt-settings-sec\ lt-sec-api\"><div class=\"lt-settings-stitle\">AI \u589e\u5f3a API</div>"
+    h+="<div class=\"lt-settings-sec\ lt-sec-api\" data-sec=\"api\"><div class=\"lt-settings-stitle\">AI \u589e\u5f3a API</div>"
       +"<div class=\"lt-settings-row\" style=\"flex-wrap:wrap;\"><label>\u9884\u8bbe</label>"
       +"<select class=\"lt-settings-inp\" id=\"lt-set-preset\" style=\"position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;z-index:-1;\">"
       +apiPresets.map(function(p){return "<option value=\""+_ltEsc(p.id)+"\""+(p.id===curPresetId?" selected":"")+">"+_ltEsc(p.name)+"</option>";}).join("")
@@ -2107,7 +2113,7 @@ function _ltSettingsPanel(){
       +"<span class=\"lt-settings-status\" id=\"lt-set-api-status\"></span></div>"
       +"</div>";
     /* \u6570\u636e */
-    h+="<div class=\"lt-settings-sec\ lt-sec-data\"><div class=\"lt-settings-stitle\">\u6570\u636e\u7ba1\u7406</div>"
+    h+="<div class=\"lt-settings-sec\ lt-sec-data\" data-sec=\"data\"><div class=\"lt-settings-stitle\">\u6570\u636e\u7ba1\u7406</div>"
       +"<div class=\"lt-settings-dlist\" id=\"lt-settings-dlist\"></div>"
       +"<button class=\"lt-settings-btn lt-settings-btn-ghost lt-settings-btn-sm\" id=\"lt-set-export-all\">\u5bfc\u51fa\u5168\u90e8\u914d\u7f6e</button>"
       +"<div class=\"lt-settings-cpbtns\">"
@@ -2118,13 +2124,25 @@ function _ltSettingsPanel(){
     /* \u5173\u4e8e */
     /* 桌宠 */
     h+=_ltPetSettingsHTML();
-    h+="<div class=\"lt-settings-sec\ lt-sec-about\"><div class=\"lt-settings-stitle\">\u5173\u4e8e</div>"
+    h+="<div class=\"lt-settings-sec\ lt-sec-about\" data-sec=\"about\"><div class=\"lt-settings-stitle\">\u5173\u4e8e</div>"
       +"<div class=\"lt-settings-about\"><span class=\"lt-ver-badge\"><span class=\"lt-ver-dot\"></span>v__LT_VER__</span><div style=\"margin-top:8px;font-size:13px;color:rgba(255,255,255,0.55);font-weight:600;\">LibTV Canvas Boost</div>\u4e13\u4e3a liblib.tv \u753b\u5e03\u6253\u9020\u7684\u589e\u5f3a\u5de5\u5177\u3002\u4f18\u5316\u6e32\u67d3\u6027\u80fd\uff0c\u6d41\u7545\u64cd\u4f5c\u5927\u753b\u5e03\uff1b\u5185\u7f6e AI \u63d0\u793a\u8bcd\u52a9\u624b\uff08\u6da6\u8272/\u6269\u5199/\u7ffb\u8bd1\uff09\u3001\u6807\u7b7e\u7ba1\u7406\u3001\u63d0\u793a\u8bcd\u6a21\u677f\u3001\u53d8\u91cf\u7cfb\u7edf\u3001\u753b\u5e03\u4e3b\u9898\u914d\u8272\u4e0e\u591a\u79cd\u89c6\u89c9\u8f85\u52a9\uff0c\u8ba9\u5de5\u4f5c\u6d41\u66f4\u9ad8\u6548\u3002<div style=\"margin-top:12px;display:flex;gap:10px;\"><a href=\"https://github.com/lonely814/Messy\" target=\"_blank\" style=\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z\"/></svg>GitHub</a><a href=\"https://greasyfork.org/zh-CN/scripts/586841-libtv-canvas-boost\" target=\"_blank\" style=\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5\"/></svg>Greasy Fork</a><a href=\"https://scriptcat.org/zh-CN/script-show-page/7117\" target=\"_blank\" style=\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\"/></svg>ScriptCat</a></div></div>"
       +"<div style=\"margin-top:12px;display:flex;gap:6px;\"><button class=\"lt-settings-btn lt-settings-btn-primary lt-settings-btn-sm\" id=\"lt-set-help\">\u5e2e\u52a9 / \u91cd\u65b0\u663e\u793a\u5f15\u5bfc</button></div>"
       +"</div>";
-    h+="</div>";
+    h+="</div></div>";
     div.innerHTML=h;
     document.body.appendChild(div);
+    /* 一级导航切换（记住上次所在页） */
+    (function(){
+      var nav=document.getElementById("lt-settings-nav");
+      if(!nav)return;
+      function go(tab){
+        nav.querySelectorAll(".lt-settings-nav-item").forEach(function(it){it.classList.toggle("active",it.getAttribute("data-tab")===tab);});
+        div.querySelectorAll(".lt-settings-main [data-sec]").forEach(function(s){s.classList.toggle("active",s.getAttribute("data-sec")===tab);});
+        try{localStorage.setItem("_lt_set_tab",tab);}catch(e){}
+      }
+      nav.querySelectorAll(".lt-settings-nav-item").forEach(function(it){it.onclick=function(){go(it.getAttribute("data-tab"));};});
+      go(localStorage.getItem("_lt_set_tab")||"general");
+    })();
     /* \u5f00\u5173\u4e8b\u4ef6 */
     div.querySelectorAll(".lt-settings-toggle:not([data-petk])").forEach(function(el){
       el.onclick=function(){
@@ -2702,7 +2720,7 @@ function _ltSettingsPanel(){
   /* ---- 设置面板「桌宠」分区 ---- */
   function _ltPetSettingsHTML(){
     var p=_ltPetPrefs(),list=_ltPetIndex();
-    var h="<div class=\"lt-settings-sec lt-sec-pet\"><div class=\"lt-settings-stitle\">桌宠</div>";
+    var h="<div class=\"lt-settings-sec lt-sec-pet\" data-sec=\"pet\"><div class=\"lt-settings-stitle\">桌宠</div>";
     h+="<div class=\"lt-settings-toggle\" data-petk=\"enabled\"><span>启用桌宠</span><span class=\"lt-settings-switch"+(p.enabled?" on":"")+"\"></span></div>";
     h+="<div class=\"lt-settings-row\"><label>当前宠物</label><select class=\"lt-settings-inp\" id=\"lt-pet-sel\">"
       +(list.length?list.map(function(x){return "<option value=\""+_ltEsc(x.id)+"\""+(x.id===p.activePetId?" selected":"")+">"+_ltEsc(x.displayName)+"</option>";}).join(""):"<option value=\"\">（尚未导入）</option>")
