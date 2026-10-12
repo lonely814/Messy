@@ -278,6 +278,7 @@ MutationObserver 监听 `body`，检测右侧 AI Agent Drawer 的出现。当 dr
 | 设置面板        | `_ltSettingsPanel()` 函数                         |
 | AI 增强重构     | 预设策略(润色/扩写/缩写/翻译) + 自定义 system prompt + 原文对比结果区 |
 | 积分⇄人民币换算    | `_ltCreditScan()` 在积分数值旁注入 `.lt-rmb` 估值标签（`_ltRate` 默认 15:1） |
+| 桌宠             | 画布桌宠浮层（clip div + 整图 img 位移，无 canvas）；素材包兼容 mayi「Codex 桌宠包」：`pet.json` + `spritesheet.webp\|png`，8 列网格，v1=9 行 / v2=11 行（行 9-10 为 16 向视线），动作表 `_ltPetStrips` 行 0-8；纯函数块在 `__lt_pet_pure_*` 标记间，`test-pet-pack.js` 抽取单测；图集 Blob 存 IndexedDB `pet:<id>`，索引 `_lt_pets`、偏好 `_lt_pet_v1`；AI 状态经 `_ltAIChat` 包装进 `_ltPetNotify` |
 
 #### 链高亮引擎
 
