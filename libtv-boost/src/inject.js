@@ -2570,8 +2570,9 @@ function _ltSettingsPanel(){
         el.style.width=cw+"px";el.style.height=ch+"px";
         var clip=document.createElement("div");clip.className="lt-pet-clip";
         var img=document.createElement("img");img.className="lt-pet-sheet";img.src=url;img.draggable=false;
-        img.style.width=(cw*8)+"px";
-        img.style.height=(ch*grid.rows)+"px";
+        /* 内联 !important：站点全局 img 规则不得钳制图集尺寸 */
+        img.style.setProperty("width",(cw*8)+"px","important");
+        img.style.setProperty("height",(ch*grid.rows)+"px","important");
         clip.appendChild(img);el.appendChild(clip);
         var bub=document.createElement("div");bub.id="lt-pet-bubble";el.appendChild(bub);
         document.body.appendChild(el);
