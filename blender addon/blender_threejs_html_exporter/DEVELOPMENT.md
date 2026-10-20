@@ -1,6 +1,6 @@
 # 开发要点
 
-本文档提炼插件开发过程中的关键设计决策与踩坑记录，供后续维护参考。当前版本 2.11.0。
+本文档提炼插件开发过程中的关键设计决策与踩坑记录，供后续维护参考。当前版本 2.12.0。
 
 ## 架构
 
@@ -21,6 +21,7 @@
 产物结构：一个内联 `<script>` 存 `window.__viewerMeta`（含压缩载荷）+ 一个 `text/plain#viewer-source` 存查看器源码。
 
 - **载荷压缩**：`_compress_best(data)` 在 brotli/gzip/deflate 中挑最小者，返回 `(base64, 格式名)`；格式名直接交给浏览器 `DecompressionStream`。无收益或库不可用时返回 `(None, None)`，调用方回退。
+- **无 `DecompressionStream` 的浏览器无法回退**：压缩后有收益就只产出压缩载荷，没有未压缩副本，所以模板里前置检查并 `fail()` 报明确错误，而不是留一个永远转的 spinner。
   - 实测：GLB 缩到 ~1/5，运行库 ~1/3；5×96 段球体场景 11.9MB → 1.2MB；默认立方体 2.0MB → 0.95MB。
   - Blender 自带 Python **没有 brotli 模块**，所以实际走 gzip；代码保留 brotli 分支，装了就用。
 - **动态 importmap**：`"imports"` 的值允许是 blob URL（只要求字符串），因此可先解压再建 importmap。已实测 `file://` 下可用。
@@ -59,8 +60,19 @@
 
 - `EffectComposer + RenderPass + SAOPass + OutputPass`；`OutputPass` 负责色调映射输出，缺了会发灰。
 - 相机切换（透视/正交）必须同步 `renderPass.camera` 与 `saoPass.camera`。
-- `saoKernelRadius` 是世界单位，跟随模型尺寸（`maxDim * 0.06`）。
+- `saoKernelRadius` 是世界单位，跟随模型尺寸：`initComposer()` 用 `viewFrustumSize * 0.025`，`normalizeAndFrame()` 算出实际包围盒后改写为 `maxDim * 0.06`。
 - `window.__viewer = {renderer, scene, camera}` 调试句柄：**module 作用域变量从 CDP evaluate 不可见**，有了句柄才能量化测亮度（readPixels 中心区均值）。
+
+## 查看器视觉样式（2.12.0）
+
+外观只在模板 `<style>` 块与三处 JS 常量里，改样式不动逻辑：
+
+- 单层变量体系：`--panel/--text/--border/--hover/--accent` 在 `body` 上给浅色值，`body.dark` 覆盖成深色值。新增控件只用这些变量，不要写死颜色，否则切换主题会漏改。
+- 三个主题相关硬编码必须同步：`scene.background` 的十六进制（`0x0a0b0f / 0xf5f6f8`）在两处（`init()` 与 `toggleTheme()`），以及边线颜色的两处判断。
+- 玻璃面板靠 `backdrop-filter: blur() saturate()` + `1px` 半透明描边；`-webkit-` 前缀保留给 Safari。
+- 结构树的显示/隐藏眼睛改为内联 SVG（`eyeIcon()`），不再用 emoji —— emoji 在 Windows 上是彩色字体，跟单色 UI 冲突且尺寸不可控。
+- `#viewer::after` 是纯装饰的边缘暗角，`pointer-events: none`，不影响 OrbitControls 拾取。
+- `@media (prefers-reduced-motion: reduce)` 关闭所有动画与过渡。
 
 ## 侧边栏 UI
 

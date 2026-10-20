@@ -1,0 +1,14 @@
+schema_version = "1.0.0"
+
+id = "blender_threejs_html_exporter"
+version = "2.12.0"
+name = "Three.js Standalone HTML Exporter"
+tagline = "Export scenes as one offline HTML with embedded GLB"
+maintainer = "Gilles Tarnus / NexData"
+type = "add-on"
+tags = ["Import-Export", "Modeling"]
+blender_version_min = "4.2.0"
+license = ["SPDX:MIT"]
+
+[permissions]
+network = "Download Three.js runtime once for offline embedding"

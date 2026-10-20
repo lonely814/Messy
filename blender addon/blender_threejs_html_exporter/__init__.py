@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Three.js 独立 HTML 导出器",
     "author": "Gilles Tarnus / NexData",
-    "version": (2, 11, 0),
+    "version": (2, 12, 0),
     "blender": (3, 6, 0),
     "location": "文件 > 导出 > Three.js 独立 HTML (.html)",
     "description": "将场景导出为内嵌 GLB 模型的 Three.js 独立 HTML 文件",
@@ -49,194 +49,306 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
 <title>${title}</title>
 <style>
   :root {
-    --bg-light: #edf2f7;
-    --bg-dark: #111827;
-    --panel-light: rgba(255,255,255,0.90);
-    --panel-dark: rgba(17,24,39,0.90);
-    --text-light: #172033;
-    --text-dark: #f8fafc;
-    --btn-bg: #27384a;
-    --btn-bg-hover: #3f566f;
-    --btn-active: #2563eb;
+    --bg-light: #f5f6f8;
+    --bg-dark: #0a0b0f;
+    --panel-light: rgba(255, 255, 255, 0.72);
+    --panel-dark: rgba(20, 22, 28, 0.72);
+    --text-light: #14161c;
+    --text-dark: #eef0f4;
+    --border-light: rgba(14, 18, 26, 0.10);
+    --border-dark: rgba(255, 255, 255, 0.10);
+    --hover-light: rgba(14, 18, 26, 0.06);
+    --hover-dark: rgba(255, 255, 255, 0.08);
+    --accent: #4f46e5;
+    --accent-soft: rgba(79, 70, 229, 0.12);
+    --accent-border: rgba(79, 70, 229, 0.35);
+    --shadow: 0 1px 2px rgba(10, 12, 16, 0.05), 0 14px 34px -16px rgba(10, 12, 16, 0.35);
+    --radius: 14px;
   }
+  html { color-scheme: light; }
+  * { box-sizing: border-box; }
   html, body {
     margin: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
     background: var(--bg-light);
-    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  }
-  body.dark { background: var(--bg-dark); }
-  #viewer { width: 100%; height: 100%; }
-  .toolbar {
-    position: fixed;
-    top: 12px;
-    z-index: 10;
-    background: var(--panel-light);
     color: var(--text-light);
-    padding: 9px;
-    border-radius: 14px;
-    box-shadow: 0 8px 26px rgba(0,0,0,0.18);
-    display: flex;
-    gap: 7px;
-    flex-wrap: nowrap;
-    align-items: center;
-    overflow-x: auto;
-    overflow-y: hidden;
-    white-space: nowrap;
-    backdrop-filter: blur(8px);
-    max-width: calc(50vw - 18px);
-  }
-  #toolbarView { left: 12px; }
-  #toolbarToggles { right: 12px; }
-  body.dark .toolbar { background: var(--panel-dark); color: var(--text-dark); }
-  button {
-    border: 0;
-    padding: 8px 11px;
-    flex: 0 0 auto;
-    border-radius: 10px;
-    background: var(--btn-bg);
-    color: white;
-    cursor: pointer;
+    font-family: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
     font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    --panel: var(--panel-light);
+    --text: var(--text-light);
+    --border: var(--border-light);
+    --hover: var(--hover-light);
+  }
+  body.dark {
+    --bg: var(--bg-dark);
+    --panel: var(--panel-dark);
+    --text: var(--text-dark);
+    --border: var(--border-dark);
+    --hover: var(--hover-dark);
+    --accent: #8b95ff;
+    --accent-soft: rgba(139, 149, 255, 0.16);
+    --accent-border: rgba(139, 149, 255, 0.42);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 40px -18px rgba(0, 0, 0, 0.8);
+    color-scheme: dark;
+    color: var(--text-dark);
+    background: var(--bg-dark);
+  }
+  #viewer { position: fixed; inset: 0; }
+  #viewer canvas { display: block; }
+  #viewer::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(130% 100% at 50% 42%, transparent 58%, rgba(10, 12, 16, 0.10) 100%);
+  }
+  body.dark #viewer::after {
+    background: radial-gradient(130% 100% at 50% 42%, transparent 52%, rgba(0, 0, 0, 0.34) 100%);
+  }
+  ::selection { background: var(--accent-soft); }
+
+  .toolbar, #tree, #animationBar {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  button {
+    appearance: none;
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
     line-height: 1;
+    padding: 7px 9px;
+    border-radius: 9px;
+    cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    box-shadow: inset 0 -1px 0 rgba(255,255,255,0.12);
-    transition: background 0.15s ease;
+    flex: 0 0 auto;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
   }
-  button:hover { background: var(--btn-bg-hover); }
-  button.active { background: var(--btn-active); }
+  button:hover { background: var(--hover); }
+  button.active {
+    background: var(--accent-soft);
+    border-color: var(--accent-border);
+    color: var(--accent);
+  }
+  button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
   button svg {
     width: 16px;
     height: 16px;
     flex: 0 0 auto;
     fill: none;
     stroke: currentColor;
-    stroke-width: 2;
+    stroke-width: 1.75;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
+
+  .toolbar {
+    position: fixed;
+    top: 14px;
+    z-index: 10;
+    padding: 5px;
+    border-radius: var(--radius);
+    display: flex;
+    gap: 3px;
+    flex-wrap: nowrap;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: none;
+    max-width: calc(50vw - 20px);
+    animation: rise 0.3s ease both;
+  }
+  .toolbar::-webkit-scrollbar { display: none; }
+  #toolbarView { left: 14px; }
+  #toolbarToggles { right: 14px; }
+
   #tree {
     position: fixed;
-    top: 68px;
-    left: 12px;
-    width: 320px;
-    max-height: calc(100vh - 130px);
+    top: 66px;
+    left: 14px;
+    width: 306px;
+    max-height: calc(100vh - 132px);
     overflow: auto;
     z-index: 9;
-    background: var(--panel-light);
-    color: var(--text-light);
-    border-radius: 14px;
-    box-shadow: 0 8px 26px rgba(0,0,0,0.18);
-    padding: 12px;
-    font-size: 12px;
+    border-radius: var(--radius);
+    padding: 10px;
+    font-size: 12.5px;
     display: none;
-    backdrop-filter: blur(8px);
+    scrollbar-width: thin;
+    animation: rise 0.24s ease both;
   }
-  body.dark #tree { background: var(--panel-dark); color: var(--text-dark); }
+  #tree::-webkit-scrollbar { width: 8px; }
+  #tree::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+  }
+  #tree::-webkit-scrollbar-track { background: transparent; }
+  .tree-title {
+    display: block;
+    padding: 2px 6px 8px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    opacity: 0.5;
+  }
   .tree-line {
-    padding: 3px 0;
+    padding: 3px 6px;
+    border-radius: 7px;
     user-select: none;
     white-space: nowrap;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+    transition: background 0.12s ease;
   }
+  .tree-line:hover { background: var(--hover); }
+  .tree-line.sel { background: var(--accent-soft); }
   .tree-name { cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
-  .tree-name:hover { color: var(--btn-active); }
-  .tree-line.sel .tree-name { color: var(--btn-active); font-weight: 600; }
+  .tree-name:hover { color: var(--accent); }
+  .tree-line.sel .tree-name { color: var(--accent); font-weight: 600; }
   .tree-caret {
     cursor: pointer;
-    width: 14px;
+    width: 12px;
     flex: 0 0 auto;
     text-align: center;
     user-select: none;
-  }
-  #treeFilter {
-    width: 100%;
-    box-sizing: border-box;
-    margin: 4px 0 10px;
-    padding: 6px 8px;
-    border-radius: 8px;
-    border: 1px solid rgba(127,127,127,0.4);
-    background: transparent;
-    color: inherit;
-    font-size: 12px;
+    font-size: 10px;
+    opacity: 0.5;
   }
   .tree-eye {
     cursor: pointer;
-    min-width: 18px;
-    text-align: center;
-    opacity: 0.95;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    border-radius: 5px;
+    opacity: 0.6;
+    transition: opacity 0.14s ease, background 0.14s ease;
   }
-  .tree-line.off .tree-name { opacity: 0.35; }
+  .tree-eye:hover { opacity: 1; background: var(--hover); }
+  .tree-eye svg {
+    width: 13px;
+    height: 13px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .tree-line.off .tree-name { opacity: 0.38; }
+  #treeFilter {
+    width: 100%;
+    margin: 0 0 8px;
+    padding: 7px 9px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--hover);
+    color: inherit;
+    font: inherit;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.16s ease;
+  }
+  #treeFilter::placeholder { color: inherit; opacity: 0.45; }
+  #treeFilter:focus { border-color: var(--accent-border); }
+
   #animationBar {
     position: fixed;
     left: 50%;
-    bottom: 18px;
+    bottom: 20px;
     transform: translateX(-50%);
     z-index: 30;
-    background: var(--panel-light);
-    color: var(--text-light);
-    border-radius: 999px;
-    box-shadow: 0 8px 26px rgba(0,0,0,0.20);
-    padding: 8px 12px;
+    border-radius: 16px;
+    padding: 8px;
     display: none;
     align-items: center;
-    gap: 8px;
-    min-width: 420px;
-    max-width: calc(100vw - 220px);
-    backdrop-filter: blur(8px);
+    gap: 6px;
+    min-width: 440px;
+    max-width: calc(100vw - 240px);
   }
-  body.dark #animationBar { background: var(--panel-dark); color: var(--text-dark); }
-  #animationBar button { padding: 7px 10px; border-radius: 999px; }
+  #animationBar button { padding: 7px 9px; }
   #animationSelect, #speedSelect {
     height: 30px;
-    border-radius: 999px;
-    border: 1px solid rgba(39,56,74,0.25);
+    border-radius: 8px;
+    border: 1px solid var(--border);
     padding: 0 8px;
-    background: rgba(255,255,255,0.85);
-    color: #172033;
+    background: var(--hover);
+    color: inherit;
+    font: inherit;
+    font-size: 12px;
     max-width: 160px;
+    cursor: pointer;
   }
-  body.dark #animationSelect, body.dark #speedSelect { background: rgba(17,24,39,0.85); color: #f8fafc; border-color: rgba(255,255,255,0.16); }
-  #animationSlider { flex: 1 1 auto; min-width: 130px; accent-color: var(--btn-active); }
-  #animationTime { font-size: 12px; min-width: 82px; text-align: right; opacity: 0.85; }
+  #animationSlider {
+    flex: 1 1 auto;
+    min-width: 120px;
+    height: 4px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  #animationTime {
+    font-size: 11.5px;
+    min-width: 84px;
+    text-align: right;
+    opacity: 0.6;
+    font-variant-numeric: tabular-nums;
+  }
+
   #loading {
     position: fixed;
     inset: 0;
     z-index: 50;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     align-items: center;
     justify-content: center;
-    background: var(--bg-light);
-    color: #172033;
-    font-size: 14px;
+    background: radial-gradient(80% 60% at 50% 40%, #ffffff 0%, var(--bg-light) 100%);
+    color: var(--text-light);
+    font-size: 13px;
+    letter-spacing: 0.02em;
   }
-  body.dark #loading { background: var(--bg-dark); color: var(--text-dark); }
+  body.dark #loading {
+    background: radial-gradient(80% 60% at 50% 40%, #16181f 0%, var(--bg-dark) 100%);
+    color: var(--text-dark);
+  }
   .spinner {
-    width: 34px;
-    height: 34px;
-    border: 3px solid rgba(127,127,127,0.35);
-    border-top-color: var(--btn-active);
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--border-light);
+    border-top-color: var(--accent);
     border-radius: 50%;
-    animation: spin 0.9s linear infinite;
+    animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @media (max-width: 720px) {
-    .toolbar { padding: 6px; gap: 5px; }
-    .toolbar .lbl { display: none; }
-    #animationBar { left: 12px; right: 12px; transform: none; min-width: 0; max-width: none; flex-wrap: wrap; }
-    #tree { width: calc(100vw - 24px); }
-  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { 
 </style>
 </head>
-<body>
+<body class="${body_dark_class}">
 <div id="loading"><div class="spinner"></div><span>模型加载中…</span></div>
 <div id="viewer"></div>
 <div id="toolbarView" class="toolbar">
@@ -290,6 +402,10 @@ function fail(msg) {
 async function decompressToBytes(b64, format) {
   const bin = base64ToBytes(b64);
   if (format === null) return bin;
+  // 导出端只在有收益时才压缩，载荷因此无未压缩副本可回退，必须明确报错而非白屏
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('此浏览器不支持 DecompressionStream，请用 Chrome/Edge 80+、Firefox 113+ 或 Safari 16.4+ 打开');
+  }
   const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream(format));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
@@ -326,6 +442,18 @@ function blobURL(text, type) {
   const s = document.createElement('script');
   s.type = 'module';
   s.textContent = document.getElementById('viewer-source').textContent;
+  // 内联模块的 import 解析失败不会走到外层 catch，必须自己监听
+  window.addEventListener('error', e => fail('查看器脚本错误：' + (e.message || '未知')), { once: true });
+  window.addEventListener('unhandledrejection', e => fail('查看器脚本错误：' + ((e.reason && e.reason.message) || e.reason)), { once: true });
+  if (meta.runtimeFormat === null) {
+    // 在线模式要等网络；超时后显式报错，否则用户只看到永远转的 spinner
+    setTimeout(() => {
+      if (!window.__viewer) {
+        fail('无法从 ' + new URL(meta.runtimeCDN.three).host + ' 加载 Three.js 运行库。'
+          + '请检查网络或重新导出时勾选「内嵌运行库（离线可用）」。');
+      }
+    }, 15000);
+  }
   document.head.appendChild(s); // 模块自身在末尾启动，此时载荷已就绪
 })().catch(e => fail((e && e.message) || String(e)));
 </script>
@@ -373,7 +501,7 @@ function init() {
   document.getElementById('btnSpin').classList.toggle('active', autoSpin);
   document.getElementById('btnAO').classList.toggle('active', aoOn);
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(isDark ? 0x111827 : 0xedf2f7);
+  scene.background = new THREE.Color(isDark ? 0x0a0b0f : 0xf5f6f8);
 
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100000);
   camera.position.set(5, 4, 5);
@@ -629,9 +757,13 @@ function setObjectVisibleWithEdges(o, visible) {
   });
 }
 
+const EYE_SVG = '<svg viewBox="0 0 24 24"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>';
+const EYE_OFF_SVG = '<svg viewBox="0 0 24 24"><path d="M10.6 5.6A9.9 9.9 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.2 4"/><path d="M6.2 7.3A16.6 16.6 0 0 0 2 12s3.6 6.5 10 6.5a9.8 9.8 0 0 0 4.1-.9"/><path d="M3 3l18 18"/></svg>';
+function eyeIcon(visible) { return visible ? EYE_SVG : EYE_OFF_SVG; }
+
 function buildTree() {
   const tree = document.getElementById('tree');
-  tree.innerHTML = '<b>🌳 场景结构</b>';
+  tree.innerHTML = '<span class="tree-title">场景结构</span>';
   const filter = document.createElement('input');
   filter.id = 'treeFilter';
   filter.placeholder = '过滤对象…';
@@ -666,13 +798,13 @@ function buildTree() {
 
     const eye = document.createElement('span');
     eye.className = 'tree-eye';
-    eye.textContent = o.visible ? '👁️' : '🙈';
+    eye.innerHTML = eyeIcon(o.visible);
     eye.title = '显示 / 隐藏节点';
     eye.onclick = (event) => {
       event.stopPropagation();
       const newVisible = !o.visible;
       setObjectVisibleWithEdges(o, newVisible);
-      eye.textContent = newVisible ? '👁️' : '🙈';
+      eye.innerHTML = eyeIcon(newVisible);
       line.classList.toggle('off', !newVisible);
     };
 
@@ -724,7 +856,7 @@ window.toggleAutoSpin = function() {
 window.toggleTheme = function() {
   isDark = !isDark;
   document.body.classList.toggle('dark', isDark);
-  scene.background = new THREE.Color(isDark ? 0x111827 : 0xedf2f7);
+  scene.background = new THREE.Color(isDark ? 0x0a0b0f : 0xf5f6f8);
   if (model) model.traverse(o => { if (o.userData && o.userData.isEdgeHelper && o.material) o.material.color.setHex(isDark ? 0xd8dee9 : 0x111111); });
 }
 
@@ -995,7 +1127,7 @@ class HTML3D_OT_export(Operator, ExportHelper):
             ('LIGHT', "浅色", "以浅色主题打开查看器"),
             ('DARK', "深色", "以深色主题打开查看器"),
         ],
-        default='LIGHT',
+        default='DARK',
     )
     environment_lighting: BoolProperty(
         name="环境光照明",
@@ -1017,7 +1149,7 @@ class HTML3D_OT_export(Operator, ExportHelper):
     enable_ao: BoolProperty(
         name="环境光遮蔽 (SSAO)",
         description="在查看器中启用实时 SSAO 后处理，增强接触阴影与层次感；查看器内可用遮蔽按钮或 A 键开关",
-        default=True,
+        default=False,
     )
     ao_strength: FloatProperty(
         name="遮蔽强度",
@@ -1029,7 +1161,7 @@ class HTML3D_OT_export(Operator, ExportHelper):
     embed_runtime: BoolProperty(
         name="内嵌运行库（离线可用）",
         description="导出时下载 Three.js 运行库并内嵌进 HTML，打开文件无需联网；关闭则从 jsDelivr 在线加载",
-        default=True,
+        default=False,
     )
     auto_spin_default: BoolProperty(
         name="自动旋转",
@@ -1274,6 +1406,9 @@ class HTML3D_OT_export(Operator, ExportHelper):
             for key in keys:
                 with open(cls._cache_file(cache_dir, key), 'rb') as f:
                     runtime[key] = f.read()
+            # 缓存被外部改坏时当作未命中：manifest 只证明文件齐，不证明内容对
+            if b'revision' not in runtime.get('three', b''):
+                return None
         except Exception:
             return None  # 缓存缺失或损坏：当作未命中，重新下载
         return runtime or None
@@ -1351,20 +1486,6 @@ class HTML3D_OT_export(Operator, ExportHelper):
         for spec, data in files.items():
             runtime['three/addons/' + spec] = data
         return runtime
-
-    @staticmethod
-    def _build_importmap(runtime):
-        """导出 CDN 回退用的裸 importmap（内嵌时改由查看器端动态构建）。"""
-        if runtime:
-            def data_url(data):
-                return 'data:text/javascript;base64,' + base64.b64encode(data).decode('ascii')
-            imports = {key: data_url(data) for key, data in runtime.items()}
-        else:
-            imports = {
-                'three': THREE_CDN + 'build/three.module.js',
-                'three/addons/': THREE_CDN + 'examples/jsm/',
-            }
-        return json.dumps({'imports': imports})
 
     def _render_world_equirect(self, context, out_base):
         """将当前世界渲染为 512x256 equirect JPEG，用于查看器环境照明。"""
@@ -1465,6 +1586,8 @@ class HTML3D_OT_export(Operator, ExportHelper):
             edge_angle=str(self.edge_angle),
             show_edges_default='true' if self.show_edges_default else 'false',
             initial_theme_dark='true' if self.viewer_theme == 'DARK' else 'false',
+            # 加载页在模块启动前就要显示正确主题，否则深色场景会先闪一下白底
+            body_dark_class='dark' if self.viewer_theme == 'DARK' else '',
             auto_spin_default='true' if self.auto_spin_default else 'false',
             auto_play_animation='true' if self.auto_play_animation else 'false',
             environment_lighting='true' if self.environment_lighting else 'false',
@@ -1486,7 +1609,7 @@ class HTML3D_OT_export(Operator, ExportHelper):
 class HTML3D_Settings(PropertyGroup):
     output_path: StringProperty(
         name="输出文件",
-        description="导出目标 HTML 路径；以 // 开头表示相对当前 .blend 文件",
+        description="导出目标 HTML 路径；以 // 开头表示相对当前 .blend 文件（未保存文件用绝对路径）",
         subtype='FILE_PATH',
         default="//threejs_scene.html",
     )
@@ -1509,15 +1632,15 @@ class HTML3D_Settings(PropertyGroup):
     viewer_theme: EnumProperty(
         name="查看器主题",
         items=[('LIGHT', "浅色", ""), ('DARK', "深色", "")],
-        default='LIGHT',
+        default='DARK',
     )
     environment_lighting: BoolProperty(name="环境光照明", default=True)
     export_world_env: BoolProperty(name="导出世界环境", default=True)
     env_intensity: FloatProperty(name="环境光强度", default=2.0, min=0.0, soft_max=5.0)
-    enable_ao: BoolProperty(name="环境光遮蔽 (SSAO)", default=True)
+    enable_ao: BoolProperty(name="环境光遮蔽 (SSAO)", default=False)
     ao_strength: FloatProperty(name="遮蔽强度", default=0.5, min=0.0, soft_max=2.0)
     auto_spin_default: BoolProperty(name="自动旋转", default=False)
-    embed_runtime: BoolProperty(name="内嵌运行库（离线可用）", default=True)
+    embed_runtime: BoolProperty(name="内嵌运行库（离线可用）", default=False)
     use_scene_camera: BoolProperty(name="使用场景相机机位", default=True)
     export_lights: BoolProperty(name="导出场景灯光", default=True)
     light_scale: FloatProperty(name="灯光强度倍率", default=1.0, min=0.0, soft_max=4.0)
@@ -1542,6 +1665,19 @@ class HTML3D_Settings(PropertyGroup):
     auto_play_animation: BoolProperty(name="自动播放动画", default=False)
 
 
+def _open_in_browser(path):
+    """用系统默认浏览器打开本地 HTML，返回是否真的唤起成功。
+
+    webbrowser.open() 传 file:// URI 时，一旦路径含非 ASCII 字符（中文文件名很常见），
+    Windows 上会静默返回 False 且不打开任何窗口。os.startfile 走 ShellExecute，
+    直接吃本地路径，没有编码问题。其他平台仍用 webbrowser。
+    """
+    if hasattr(os, 'startfile'):  # Windows
+        os.startfile(path)
+        return True
+    return webbrowser.open(pathlib.Path(path).as_uri())
+
+
 class HTML3D_OT_panel_export(Operator):
     bl_idname = "export_scene.html3d_panel_export"
     bl_label = "导出 Three.js HTML"
@@ -1550,7 +1686,15 @@ class HTML3D_OT_panel_export(Operator):
 
     def execute(self, context):
         s = context.scene.html3d_settings
+        # 未保存的 .blend 无法解析 // 相对路径，abspath 会返回相对路径，
+        # 导致文件静默写进 Blender 的当前工作目录且 as_uri() 失败无法打开
+        if not bpy.data.filepath and s.output_path.startswith('//'):
+            self.report({'ERROR'}, "当前 .blend 尚未保存，无法解析相对输出路径；请先保存文件或改为绝对路径")
+            return {'CANCELLED'}
         output_path = bpy.path.abspath(s.output_path)
+        if not os.path.isabs(output_path):
+            self.report({'ERROR'}, f"输出路径无法解析为绝对路径：{s.output_path}")
+            return {'CANCELLED'}
         result = bpy.ops.export_scene.html3d_standalone(
             'EXEC_DEFAULT',
             filepath=output_path,
@@ -1576,9 +1720,12 @@ class HTML3D_OT_panel_export(Operator):
         )
         if result == {'FINISHED'} and s.auto_open:
             try:
-                webbrowser.open(pathlib.Path(output_path).as_uri())
+                opened = _open_in_browser(output_path)
             except Exception as ex:
-                self.report({'WARNING'}, f"已导出但无法自动打开（路径未解析？）：{ex}")
+                self.report({'WARNING'}, f"已导出但无法自动打开：{ex}")
+            else:
+                if not opened:
+                    self.report({'WARNING'}, f"已导出但没能唤起浏览器，请手动打开：{output_path}")
         return result
 
 
@@ -1741,8 +1888,10 @@ def _prune_runtime_cache(keep=3):
     parent = os.path.dirname(root)
     if not os.path.isdir(parent):
         return
+    # 只清本插件自己的版本目录，父目录里的其他东西不属于我们
     siblings = sorted(
-        (os.path.join(parent, d) for d in os.listdir(parent) if os.path.isdir(os.path.join(parent, d))),
+        (os.path.join(parent, d) for d in os.listdir(parent)
+         if d.startswith('three-') and os.path.isdir(os.path.join(parent, d))),
         key=os.path.getmtime,
         reverse=True,
     )

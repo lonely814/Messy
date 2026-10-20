@@ -2,6 +2,7 @@ import base64
 import gzip
 import importlib.util
 import json
+import os
 import re
 import struct
 import tempfile
@@ -38,6 +39,17 @@ try:
     cube.location.x = 2
     cube.keyframe_insert("location", frame=20, index=0)
 
+    # 侧边栏默认值：运行库与 SSAO 默认不开，主题默认深色
+    defaults = bpy.context.scene.html3d_settings
+    assert defaults.embed_runtime is False, "embed_runtime default must be off"
+    assert defaults.enable_ao is False, "enable_ao default must be off"
+    assert defaults.viewer_theme == "DARK", f"theme default must be DARK, got {defaults.viewer_theme}"
+    # 操作器自身默认值必须与侧边栏一致，否则两套入口产出不同
+    op_props = bpy.ops.export_scene.html3d_standalone.get_rna_type().properties
+    assert op_props["embed_runtime"].default is False, "operator embed_runtime default"
+    assert op_props["enable_ao"].default is False, "operator enable_ao default"
+    assert op_props["viewer_theme"].default == "DARK", "operator viewer_theme default"
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
 
@@ -50,6 +62,7 @@ try:
             show_edges_default=False,
             embed_runtime=True,
             environment_lighting=True,
+            enable_ao=True,
         )
         assert result == {"FINISHED"}, result
 
@@ -160,6 +173,11 @@ try:
         assert "environmentLighting = false" in html_cdn, "Env flag not off"
         assert "environmentLighting = true" not in html_cdn
         assert 'envDataURL = ""' in html_cdn, "Env data URL should be empty when disabled"
+        # 在线模式必须有超时兼错，否则 CDN 不可达时永远停在加载中
+        assert "无法从 ' + new URL(meta.runtimeCDN.three).host + ' 加载" in html_cdn, \
+            "CDN mode missing load-error notice"
+        assert "<body class=\"dark\">" in html_cdn, "Dark theme must apply before module boot"
+        assert "<body class=\"dark\">" in html, "Dark default missing"
 
         # 场景灯光导出（KHR_lights_punctual）
         light_data = bpy.data.lights.new("smoke_light", type="POINT")
@@ -216,25 +234,73 @@ try:
         finally:
             bpy.data.objects["Cube"].select_set(True)
 
-        # 侧边栏设置组 + 面板导出（不经文件对话框），并拦截 webbrowser 验证自动打开
+        # 未保存的 .blend 用相对路径必须报错，不能静默写到当前工作目录或静默不打开
+        unsaved = bpy.context.scene.html3d_settings
+        # 文件名必须独有：曾用 threejs_scene.html，正好是插件默认导出名，
+        # 导致测试的 finally 把仓库里的真实产物删掉
+        unsaved.output_path = "//cwd_probe_unsaved.html"
+        cwd_file = Path.cwd() / "cwd_probe_unsaved.html"
+        assert not cwd_file.exists(), "Test precondition: probe file must not exist"
+        assert not bpy.data.filepath, "Test precondition: file should be unsaved"
+        try:
+            # ERROR report 在 Python 调用侧表现为 RuntimeError，这正是我们要求的可见失败
+            try:
+                result = bpy.ops.export_scene.html3d_panel_export()
+                assert result == {"CANCELLED"}, f"Unsaved relative path should cancel, got {result}"
+            except RuntimeError as ex:
+                assert "尚未保存" in str(ex), ex
+            assert not cwd_file.exists(), "Cancelled export wrote into cwd"
+        finally:
+            if cwd_file.exists():
+                cwd_file.unlink()
+
+        # 侧边栏设置组 + 面板导出（不经文件对话框），并拦截打开请求验证自动打开
         settings = bpy.context.scene.html3d_settings
         panel_html = tmp / "smoke_panel.html"
         settings.output_path = str(panel_html)
         settings.auto_open = True
         settings.show_edges_default = False
         settings.enable_ao = True
+        settings.viewer_theme = "DARK"
         opened = []
-        original_open = addon.webbrowser.open
-        addon.webbrowser.open = lambda url: opened.append(url)
+        original_open = addon._open_in_browser
+        addon._open_in_browser = lambda p: (opened.append(p), True)[1]
         try:
             result = bpy.ops.export_scene.html3d_panel_export()
         finally:
-            addon.webbrowser.open = original_open
+            addon._open_in_browser = original_open
         assert result == {"FINISHED"}, result
         assert panel_html.exists(), "Panel export did not write output"
         panel_source = panel_html.read_text(encoding="utf-8")
         assert "edgesVisible = false" in panel_source, "Panel settings not applied"
+        assert "let isDark = true;" in panel_source, "Panel theme setting not applied"
+        assert "const aoDefault = true" in panel_source, "Panel AO setting not applied"
         assert len(opened) == 1 and opened[0].endswith("smoke_panel.html"), opened
+
+        # 中文文件名必须能自动打开（曾经 webbrowser.open 对非 ASCII URI 静默返回 False）
+        cn_html = tmp / "中文 场景.html"
+        settings.output_path = str(cn_html)
+        cn_opened = []
+        original_open = addon._open_in_browser
+        addon._open_in_browser = lambda p: (cn_opened.append(p), True)[1]
+        try:
+            result = bpy.ops.export_scene.html3d_panel_export()
+        finally:
+            addon._open_in_browser = original_open
+        assert result == {"FINISHED"}, result
+        assert cn_html.exists(), "Non-ASCII output path not written"
+        assert cn_opened == [str(cn_html)], cn_opened
+
+        # Windows 上必须走 os.startfile：webbrowser 对含中文的 file:// URI 会静默失败
+        if hasattr(os, "startfile"):
+            calls = []
+            original_startfile = os.startfile
+            os.startfile = lambda p: calls.append(p)
+            try:
+                assert addon._open_in_browser(str(cn_html)) is True
+            finally:
+                os.startfile = original_startfile
+            assert calls == [str(cn_html)], calls
 finally:
     addon.unregister()
 

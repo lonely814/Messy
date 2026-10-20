@@ -1,4 +1,4 @@
-# Three.js 独立 HTML 导出器 2.11.0
+# Three.js 独立 HTML 导出器 2.12.0
 
 Blender 插件，将场景导出为单个 HTML 文件，内嵌 GLB 模型与 Three.js 查看器。插件与查看器界面均已汉化。
 
@@ -6,7 +6,7 @@ Blender 插件，将场景导出为单个 HTML 文件，内嵌 GLB 模型与 Thr
 
 ## 环境要求
 
-- Blender 3.6 及以上
+- Blender 4.2 及以上（`blender_manifest.toml` 扩展安装路径；老式 `addons/` 目录安装仍需 3.6+）
 - 支持 WebGL 的现代浏览器
 - 查看导出文件时默认无需联网（内嵌运行库）；关闭该选项才需要访问 jsDelivr
 
@@ -21,7 +21,7 @@ GLB 与运行库均以 **brotli/gzip 压缩后 base64 内嵌**，浏览器用原
 | 默认立方体 | 2.0 MB | **0.95 MB** |
 | 5×96 段球体（GLB 7.4MB） | 11.9 MB | **1.2 MB** |
 
-解压后由动态 `importmap` 注入 blob URL，三者（运行库 / GLB / 查看器源码）共用同一套动态注入机制。运行时无 `DecompressionStream` 时，GLB 回退为未压缩 base64，运行库回退到 CDN。
+解压后由动态 `importmap` 注入 blob URL，三者（运行库 / GLB / 查看器源码）共用同一套动态注入机制。浏览器无 `DecompressionStream` 时无法解压载荷，查看器会显示明确错误，不会白屏。需要 Chrome/Edge 80+、Firefox 113+ 或 Safari 16.4+。
 
 ## 安装
 
@@ -67,10 +67,10 @@ GLB 与运行库均以 **brotli/gzip 压缩后 base64 内嵌**，浏览器用原
 
 - 关闭内嵌运行库时，查看器需访问 `cdn.jsdelivr.net`。
 - 内嵌运行库默认使用磁盘缓存（`<Blender 用户目录>/cache/threejs_html_exporter/`）：首次导出需下载一次（约几秒），之后即时命中。
-- 极老旧浏览器（无 `DecompressionStream`）无法享受压缩收益：GLB 回退未压缩 base64，运行库回退 CDN。
+- 浏览器需支持 `DecompressionStream`（Chrome/Edge 80+、Firefox 113+、Safari 16.4+），不支持时查看器显示错误提示，不会静默白屏。
 - GLB 压缩后仍以 base64 内嵌，大场景解码加载需要额外浏览器内存。
 - 边线会复制几何边数据；大型或高面数模型建议默认关闭边线，首次启用时才会创建。
-- 仅支持 WebP 纹理压缩。Draco 网格压缩未实现（需查看器额外加载 wasm 解码器，与离线内嵌的 data: URL 方案冲突）。
+- 纹理压缩可选自动 / JPEG / WebP。Draco 网格压缩未实现（需查看器额外加载 wasm 解码器，与离线内嵌的 data: URL 方案冲突）。
 - 可用场景规模受浏览器与 GPU 限制。
 
 ## 侧边栏
