@@ -222,9 +222,25 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     transition: background 0.12s ease;
   }
   .tree-line:hover { background: var(--hover); }
+  .tree-line:focus-visible, .tree-eye:focus-visible, .tree-name:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
   .tree-line.sel { background: var(--accent-soft); }
-  .tree-name { cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
-  .tree-name:hover { color: var(--accent); }
+  .tree-name {
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* 覆盖全局 button 样式：树节点是行内文本，不该有按钮内边距 */
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    min-width: 0;
+  }
+  .tree-name:hover { color: var(--accent); background: transparent; }
   .tree-line.sel .tree-name { color: var(--accent); font-weight: 600; }
   .tree-caret {
     cursor: pointer;
@@ -246,6 +262,11 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     border-radius: 5px;
     opacity: 0.6;
     transition: opacity 0.14s ease, background 0.14s ease;
+    /* 同上：清掉全局 button 的内边距与描边 */
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
   }
   .tree-eye:hover { opacity: 1; background: var(--hover); }
   .tree-eye svg {
@@ -289,6 +310,40 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     max-width: calc(100vw - 240px);
   }
   #animationBar button { padding: 7px 9px; }
+  .toolbar input[type="range"] {
+    width: 72px;
+    height: 4px;
+    margin: 0 4px;
+    flex: 0 0 auto;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .toolbar .sep {
+    width: 1px;
+    height: 18px;
+    margin: 0 3px;
+    flex: 0 0 auto;
+    background: var(--border);
+  }
+  #stats {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    z-index: 8;
+    padding: 5px 9px;
+    border-radius: 9px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    opacity: 0.7;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #stats:empty { display: none; }
   #animationSelect, #speedSelect {
     height: 30px;
     border-radius: 8px;
@@ -345,29 +400,54 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes rise {
     from { opacity: 0; transform: translateY(-6px); }
-    to { 
+    to { opacity: 1; transform: none; }
+  }
+  @media (max-width: 760px) {
+    .toolbar { padding: 4px; gap: 2px; }
+    .toolbar .lbl { display: none; }
+    .toolbar input[type="range"] { width: 56px; }
+    #animationBar {
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      transform: none;
+      min-width: 0;
+      max-width: none;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #tree { width: calc(100vw - 24px); }
+    #stats { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body class="${body_dark_class}">
 <div id="loading"><div class="spinner"></div><span>模型加载中…</span></div>
 <div id="viewer"></div>
 <div id="toolbarView" class="toolbar">
-  <button onclick="viewFront()" title="正视 (1)"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/></svg><span class="lbl">正视</span></button>
-  <button onclick="viewTop()" title="顶视 (7)"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9h16"/></svg><span class="lbl">顶视</span></button>
-  <button onclick="viewIso()" title="等轴测 (3)"><svg viewBox="0 0 24 24"><path d="M12 2 2 7v10l10 5 10-5V7L12 2z"/><path d="M2 7l10 5 10-5M12 12v10"/></svg><span class="lbl">等轴测</span></button>
-  <button onclick="fitView()" title="适配视图 (F)"><svg viewBox="0 0 24 24"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><rect x="9" y="9" width="6" height="6"/></svg><span class="lbl">适配</span></button>
-  <button onclick="toggleFullscreen()" title="全屏"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg><span class="lbl">全屏</span></button>
+  <button onclick="viewFront()" title="正视 (1)" aria-label="正视"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/></svg><span class="lbl">正视</span></button>
+  <button onclick="viewTop()" title="顶视 (7)" aria-label="顶视"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9h16"/></svg><span class="lbl">顶视</span></button>
+  <button onclick="viewIso()" title="等轴测 (3)" aria-label="等轴测"><svg viewBox="0 0 24 24"><path d="M12 2 2 7v10l10 5 10-5V7L12 2z"/><path d="M2 7l10 5 10-5M12 12v10"/></svg><span class="lbl">等轴测</span></button>
+  <button onclick="fitView()" title="适配视图 (F)" aria-label="适配视图"><svg viewBox="0 0 24 24"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><rect x="9" y="9" width="6" height="6"/></svg><span class="lbl">适配</span></button>
+  <button onclick="resetView()" title="重置到初始视角 (R)" aria-label="重置到初始视角"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3.1-6.8"/><path d="M3 4v5h5"/></svg><span class="lbl">重置</span></button>
+  <button onclick="toggleFullscreen()" title="全屏" aria-label="全屏"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg><span class="lbl">全屏</span></button>
 </div>
 <div id="toolbarToggles" class="toolbar">
-  <button id="btnEdges" onclick="toggleEdges()" title="边线 (E)"><svg viewBox="0 0 24 24"><path d="M12 3 3 21h18L12 3z"/><path d="M12 3v18M7.5 12h9"/></svg><span class="lbl">边线</span></button>
-  <button id="btnSpin" onclick="toggleAutoSpin()" title="自动旋转"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span class="lbl">旋转</span></button>
-  <button id="btnAO" onclick="toggleAO()" title="环境光遮蔽 (A)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor" stroke="none"/></svg><span class="lbl">遮蔽</span></button>
-  <button id="btnTree" onclick="toggleTree()" title="场景结构"><svg viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="lbl">结构</span></button>
-  <button onclick="toggleTheme()" title="深色 / 浅色"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg><span class="lbl">主题</span></button>
-  <button onclick="toggleProjectionMode()" title="透视 / 正交"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="1"/><rect x="8" y="8" width="13" height="13" rx="1"/></svg><span class="lbl">投影</span></button>
-  <button onclick="saveScreenshot()" title="截图 PNG"><svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2l2-3h6l2 3h2a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z"/><circle cx="12" cy="13" r="4"/></svg><span class="lbl">截图</span></button>
+  <button id="btnEdges" onclick="toggleEdges()" title="边线 (E)" aria-label="边线"><svg viewBox="0 0 24 24"><path d="M12 3 3 21h18L12 3z"/><path d="M12 3v18M7.5 12h9"/></svg><span class="lbl">边线</span></button>
+  <button id="btnSpin" onclick="toggleAutoSpin()" title="自动旋转" aria-label="自动旋转"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span class="lbl">旋转</span></button>
+  <button id="btnAO" onclick="toggleAO()" title="环境光遮蔽 (A)" aria-label="环境光遮蔽"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor" stroke="none"/></svg><span class="lbl">遮蔽</span></button>
+  <button id="btnTree" onclick="toggleTree()" title="场景结构" aria-label="场景结构"><svg viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="lbl">结构</span></button>
+  <button onclick="toggleTheme()" title="深色 / 浅色" aria-label="切换主题"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg><span class="lbl">主题</span></button>
+  <button onclick="toggleProjectionMode()" title="透视 / 正交" aria-label="切换投影"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="1"/><rect x="8" y="8" width="13" height="13" rx="1"/></svg><span class="lbl">投影</span></button>
+  <button onclick="saveScreenshot()" title="截图 PNG" aria-label="截图"><svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2l2-3h6l2 3h2a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z"/><circle cx="12" cy="13" r="4"/></svg><span class="lbl">截图</span></button>
+  <span class="sep"></span>
+  <input id="exposureSlider" type="range" min="0.4" max="2" step="0.05" value="1" title="曝光" aria-label="曝光">
 </div>
 <div id="tree"></div>
+<div id="stats"></div>
 <div id="animationBar">
   <select id="animationSelect" title="动画"></select>
   <select id="speedSelect" title="倍速">
@@ -493,9 +573,18 @@ let isParallelCamera = false;
 let viewFrustumSize = 10;
 let composer = null, renderPass = null, saoPass = null;
 let aoOn = aoDefault;
+let needsRender = true;   // 脏标记：静止场景不再每帧重绘
+let exposure = 1.0;
+let initialView = null;   // 导出时的初始机位，供「重置」还原
+let edgeBuildToken = 0;   // 边线分批构建的取消令牌
 
 
 function init() {
+  // 主题记忆：file:// 下部分浏览器禁用 localStorage，失败就退回导出时的默认值
+  try {
+    const savedTheme = localStorage.getItem('threejs-html-theme');
+    if (savedTheme === 'dark' || savedTheme === 'light') isDark = savedTheme === 'dark';
+  } catch (e) { /* 无存储权限，忽略 */ }
   document.body.classList.toggle('dark', isDark);
   document.getElementById('btnEdges').classList.toggle('active', edgesVisible);
   document.getElementById('btnSpin').classList.toggle('active', autoSpin);
@@ -507,12 +596,13 @@ function init() {
   camera.position.set(5, 4, 5);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
+  // 上限 2：3x DPR 手机会渲染 9 倍像素，肉眼收益极小而填充率暴跌
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.matchMedia(`(resolution: $${window.devicePixelRatio}dppx)`).addEventListener('change', onResize); // 跨屏拖动时更新像素比
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMappingExposure = exposure;
   document.getElementById('viewer').appendChild(renderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
@@ -524,6 +614,14 @@ function init() {
   controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
   controls.autoRotate = autoSpin;
   controls.autoRotateSpeed = 1.2;
+  // 拖动 / 阻尼收敛时标记需要出帧，静止后 animate() 不再重绘
+  controls.addEventListener('change', () => { needsRender = true; });
+
+  const expSlider = document.getElementById('exposureSlider');
+  if (expSlider) {
+    expSlider.value = String(exposure);
+    expSlider.oninput = () => window.setExposure(expSlider.value);
+  }
 
   if (aoOn) initComposer();
 
@@ -598,10 +696,12 @@ function loadEmbeddedGLB() {
         }
       });
     }
+    applyTextureAnisotropy(model);
     normalizeAndFrame(model);
     handleLightSetup(model);
     if (edgesVisible) buildEdges();
     buildTree();
+    updateStats();
     setupAnimations(gltf.animations || []);
   }, error => {
     document.getElementById('loading').style.display = 'none';
@@ -609,6 +709,47 @@ function loadEmbeddedGLB() {
     alert('内嵌 GLB 加载失败，请查看浏览器控制台。');
   });
 }
+
+// GLTFLoader 不自动设各向异性，斜视角贴图会糊；按 GPU 上限拉满
+function applyTextureAnisotropy(root) {
+  const maxAniso = renderer.capabilities.getMaxAnisotropy();
+  const KEYS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'];
+  root.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => {
+      KEYS.forEach(k => {
+        const tex = m[k];
+        if (tex && tex.isTexture) tex.anisotropy = maxAniso;
+      });
+    });
+  });
+}
+
+// 右下角场景规模提示，导出前判断模型是否偏重
+function updateStats() {
+  const el = document.getElementById('stats');
+  if (!el || !model) return;
+  let tris = 0, objs = 0;
+  model.traverse(o => {
+    if (o.isMesh && o.geometry) {
+      objs++;
+      const g = o.geometry;
+      const n = g.index ? g.index.count : (g.attributes.position ? g.attributes.position.count : 0);
+      tris += n / 3;
+    }
+  });
+  el.textContent = objs + ' 对象 · ' + Math.round(tris).toLocaleString('zh-CN') + ' 三角面';
+}
+
+window.setExposure = function(value) {
+  const v = parseFloat(value);
+  if (!isFinite(v)) return;
+  exposure = Math.min(2, Math.max(0.4, v));
+  if (renderer) renderer.toneMappingExposure = exposure;
+  const slider = document.getElementById('exposureSlider');
+  if (slider && slider.value !== String(exposure)) slider.value = String(exposure);
+  needsRender = true;
+};
 
 function makeCamera(parallel) {
   const aspect = window.innerWidth / window.innerHeight;
@@ -670,6 +811,7 @@ function initComposer() {
 window.toggleAO = function() {
   if (!composer) initComposer();
   aoOn = !aoOn;
+  needsRender = true;
   document.getElementById('btnAO').classList.toggle('active', aoOn);
 }
 
@@ -709,6 +851,13 @@ function normalizeAndFrame(obj) {
   }
   updateCameraProjection();
   controls.update();
+  initialView = {
+    position: camera.position.clone(),
+    target: controls.target.clone(),
+    fov: camera.isPerspectiveCamera ? camera.fov : null,
+    frustum: viewFrustumSize,
+    ortho: isParallelCamera,
+  };
 }
 
 let builtEdgeAngle = null; // 已建边线所用角度，变更时需重建
@@ -721,25 +870,49 @@ function disposeEdges(mesh) {
   });
 }
 
+// 高面数场景下 EdgesGeometry 会阻塞主线程数秒，按批让出控制权；
+// 分批期间再次调用会用 token 让旧批次自行退出。
 function buildEdges() {
   if (!model) return;
+  const meshes = [];
   model.traverse(child => {
     if (child.userData && child.userData.isEdgeHelper) return;
-    if (child.isMesh && child.geometry) {
+    if (child.isMesh && child.geometry) meshes.push(child);
+  });
+  if (!meshes.length) return;
+
+  const token = ++edgeBuildToken;
+  const angle = edgeAngle;
+  const color = isDark ? 0xd8dee9 : 0x111111;
+  const BATCH = 24;
+  let i = 0;
+
+  function step() {
+    if (token !== edgeBuildToken) return;
+    const end = Math.min(meshes.length, i + BATCH);
+    for (; i < end; i++) {
+      const child = meshes[i];
       if (child.children.some(c => c.userData && c.userData.isEdgeHelper)) {
-        if (builtEdgeAngle === edgeAngle) return; // 角度未变，复用现有边线
+        if (builtEdgeAngle === angle) continue; // 角度未变，复用现有边线
         disposeEdges(child);
       }
-      const edges = new THREE.EdgesGeometry(child.geometry, edgeAngle);
-      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: isDark ? 0xd8dee9 : 0x111111 }));
+      const edges = new THREE.EdgesGeometry(child.geometry, angle);
+      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color }));
       line.name = 'Edges';
       line.userData.isEdgeHelper = true;
       line.visible = edgesVisible && child.visible;
       line.renderOrder = 10;
       child.add(line);
     }
-  });
-  builtEdgeAngle = edgeAngle;
+    needsRender = true;
+    if (i < meshes.length) {
+      if (window.requestIdleCallback) requestIdleCallback(step, { timeout: 100 });
+      else setTimeout(step, 0);
+    } else {
+      builtEdgeAngle = angle;
+    }
+  }
+  step();
 }
 
 function setEdgesVisible(visible) {
@@ -755,6 +928,7 @@ function setObjectVisibleWithEdges(o, visible) {
   o.traverse(child => {
     if (child.userData && child.userData.isEdgeHelper) child.visible = visible && edgesVisible;
   });
+  needsRender = true;
 }
 
 const EYE_SVG = '<svg viewBox="0 0 24 24"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>';
@@ -796,19 +970,24 @@ function buildTree() {
     caret.className = 'tree-caret';
     caret.textContent = hasKids ? '▾' : '';
 
-    const eye = document.createElement('span');
+    const eye = document.createElement('button');
+    eye.type = 'button';
     eye.className = 'tree-eye';
     eye.innerHTML = eyeIcon(o.visible);
     eye.title = '显示 / 隐藏节点';
+    eye.setAttribute('aria-pressed', String(o.visible));
+    eye.setAttribute('aria-label', '显示或隐藏 ' + name);
     eye.onclick = (event) => {
       event.stopPropagation();
       const newVisible = !o.visible;
       setObjectVisibleWithEdges(o, newVisible);
       eye.innerHTML = eyeIcon(newVisible);
+      eye.setAttribute('aria-pressed', String(newVisible));
       line.classList.toggle('off', !newVisible);
     };
 
-    const label = document.createElement('span');
+    const label = document.createElement('button');
+    label.type = 'button';
     label.className = 'tree-name';
     label.textContent = name;
     label.title = '点击聚焦该对象';
@@ -844,6 +1023,7 @@ function buildTree() {
 window.toggleEdges = function() {
   edgesVisible = !edgesVisible;
   setEdgesVisible(edgesVisible);
+  needsRender = true;
   document.getElementById('btnEdges').classList.toggle('active', edgesVisible);
 }
 
@@ -856,8 +1036,10 @@ window.toggleAutoSpin = function() {
 window.toggleTheme = function() {
   isDark = !isDark;
   document.body.classList.toggle('dark', isDark);
+  try { localStorage.setItem('threejs-html-theme', isDark ? 'dark' : 'light'); } catch (e) { /* 忽略 */ }
   scene.background = new THREE.Color(isDark ? 0x0a0b0f : 0xf5f6f8);
   if (model) model.traverse(o => { if (o.userData && o.userData.isEdgeHelper && o.material) o.material.color.setHex(isDark ? 0xd8dee9 : 0x111111); });
+  needsRender = true;
 }
 
 window.toggleTree = function() {
@@ -888,6 +1070,25 @@ function setView(x, y, z) {
 window.fitView = function() {
   setView(1, 0.75, 1);
 }
+
+// 还原导出时的机位；setView() 只按包围盒推机位，找不回场景相机原角度
+window.resetView = function() {
+  if (!initialView) { window.fitView(); return; }
+  if (initialView.ortho !== isParallelCamera) {
+    isParallelCamera = initialView.ortho;
+    replaceCamera(isParallelCamera);
+  }
+  viewFrustumSize = initialView.frustum;
+  updateCameraProjection();
+  camera.position.copy(initialView.position);
+  controls.target.copy(initialView.target);
+  if (initialView.fov !== null && camera.isPerspectiveCamera) {
+    camera.fov = initialView.fov;
+    camera.updateProjectionMatrix();
+  }
+  controls.update();
+  needsRender = true;
+};
 
 window.viewFront = () => setView(0, 0, 1);
 window.viewTop = () => setView(0, 1, 0.001);
@@ -955,6 +1156,7 @@ function seekAnimation() {
   mixer.setTime(t);
   currentAction.paused = !animationPlaying;
   updateAnimationUI(t);
+  needsRender = true;  // 拖时间轴时场景静止，必须手动标脏
 }
 
 function updateAnimationUI(forcedTime) {
@@ -990,6 +1192,7 @@ window.stopAnimation = function() {
   currentAction.paused = true;
   animationPlaying = false;
   updateAnimationUI(0);
+  needsRender = true;
 }
 
 window.toggleFullscreen = function() {
@@ -1030,6 +1233,7 @@ window.addEventListener('keydown', (e) => {
     case 'Digit3': case 'Numpad3': window.viewIso(); break;
     case 'Digit7': case 'Numpad7': window.viewTop(); break;
     case 'KeyF': window.fitView(); break;
+    case 'KeyR': window.resetView(); break;
     case 'KeyE': window.toggleEdges(); break;
     case 'KeyA': window.toggleAO(); break;
     case 'Space':
@@ -1041,19 +1245,25 @@ window.addEventListener('keydown', (e) => {
 
 function onResize() {
   updateCameraProjection();
-  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+  needsRender = true;
 }
 
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
-  if (mixer && animationPlaying && !isScrubbing) {
+  const animated = mixer && animationPlaying && !isScrubbing;
+  if (animated) {
     mixer.update(delta);
     updateAnimationUI();
   }
-  controls.update();
+  // controls.update() 在阻尼收敛 / 自动旋转时为 true，据此出帧；
+  // 两者都没有且无外部标记时整帧跳过渲染
+  const moved = controls.update();
+  if (!needsRender && !animated && !moved && !autoSpin) return;
+  needsRender = false;
   if (composer && aoOn) composer.render(); else renderer.render(scene, camera);
 }
 
