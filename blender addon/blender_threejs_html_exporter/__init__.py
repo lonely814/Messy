@@ -411,6 +411,214 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     #tree { width: 100%; border-right: 0; }
     #viewer::before { display: none; }
   }
+  /* ══════════════════════════════════════════════════════════════
+     展陈版（body.gallery）：没有边框、没有面板、没有按钮形状。
+     只剩排版——大字号标题 + 细发丝线 + 底部一行宽字距控件，
+     鼠标静止 2.6 秒后控件淡出，画面回到纯作品状态。 */
+
+  body.gallery { --band-h: 0px; }
+
+  body.gallery #viewer::before { display: none; }
+
+  /* 标题块 */
+  #stageTitle {
+    position: fixed;
+    top: 40px;
+    left: 40px;
+    z-index: 12;
+    max-width: min(48vw, 620px);
+    font-size: clamp(26px, 3.4vw, 44px);
+    font-weight: 300;
+    line-height: 1.06;
+    letter-spacing: -0.025em;
+    color: var(--text);
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+    display: none;
+    pointer-events: none;
+    overflow-wrap: anywhere;
+  }
+  body.gallery #stageTitle { display: block; }
+
+  /* 标题下的规格行直接复用 #stats */
+  body.gallery #stats {
+    top: auto;
+    left: 40px;
+    right: auto;
+    bottom: calc(40px + 3.1em);
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--dim);
+    opacity: 1;
+  }
+
+  /* 两组工具条并排放进底部一行 */
+  body.gallery #controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 26px;
+    z-index: 14;
+    transition: opacity .55s ease, transform .55s ease;
+  }
+  body.gallery.idle #controls {
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+  }
+  body.gallery .toolbar {
+    position: static;
+    height: auto;
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    overflow: visible;
+    gap: 0;
+    max-width: none;
+  }
+  body.gallery .toolbar + .toolbar::before {
+    content: "";
+    display: inline-block;
+    width: 1px;
+    height: 11px;
+    margin: 0 20px;
+    background: var(--line);
+    vertical-align: middle;
+  }
+  body.gallery button {
+    font-size: 11.5px;
+    font-weight: 400;
+    letter-spacing: 0.22em;
+    padding: 6px 13px;
+    background: transparent;
+    color: var(--dim);
+    transition: color .2s ease;
+  }
+  body.gallery button:hover {
+    background: transparent;
+    color: var(--text);
+  }
+  body.gallery button.active {
+    color: var(--text);
+    text-decoration: none;
+    box-shadow: inset 0 -1px 0 currentColor;
+  }
+  /* 图标退成标点，文字才是主体 */
+  body.gallery button svg { display: none; }
+  body.gallery button .lbl { display: inline; }
+  body.gallery .sep { display: none; }
+  body.gallery #exposureSlider {
+    width: 64px;
+    margin: 0 8px;
+    opacity: .55;
+    transition: opacity .2s ease;
+  }
+  body.gallery #exposureSlider:hover { opacity: 1; }
+  body.gallery #exposureValue {
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    color: var(--dim);
+  }
+
+  /* 结构树：右侧无框细列 */
+  body.gallery #tree {
+    top: 40px;
+    bottom: 96px;
+    left: auto;
+    right: 0;
+    width: 244px;
+    padding: 0 40px 0 0;
+    background: none;
+    border: 0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  body.gallery .tree-title {
+    padding: 0 0 16px;
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 10px;
+  }
+  body.gallery .tree-line { padding: 5px 0; background: none; }
+  body.gallery .tree-line:hover { background: none; }
+  body.gallery .tree-line:hover .tree-name,
+  body.gallery .tree-line.sel .tree-name { color: var(--text); }
+  body.gallery .tree-line.sel { box-shadow: none; }
+  body.gallery .tree-line.sel .tree-name { box-shadow: inset 0 -1px 0 currentColor; }
+  body.gallery #treeFilter {
+    width: 100%;
+    margin: 0 0 14px;
+    padding: 6px 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+    letter-spacing: 0.08em;
+  }
+  body.gallery #treeFilter:focus { border-bottom-color: var(--text); }
+
+  /* 动画条：底部再上一行，同样无框 */
+  body.gallery #animationBar {
+    position: fixed;
+    left: 50%;
+    bottom: 62px;
+    transform: translateX(-50%);
+    right: auto;
+    height: auto;
+    width: auto;
+    padding: 0;
+    background: none;
+    border: 0;
+    gap: 10px;
+  }
+  body.gallery #animationSelect,
+  body.gallery #speedSelect {
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+    padding: 2px 4px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+  body.gallery #animationSlider { height: 1px; opacity: .6; }
+  body.gallery #animationTime { font-size: 10.5px; letter-spacing: 0.12em; }
+
+  /* 加载态：无圆环，只有一行字渐隐渐显 */
+  body.gallery #loading { background: var(--canvas); letter-spacing: 0.4em; font-size: 11px; }
+  body.gallery .spinner {
+    width: 1px;
+    height: 32px;
+    border: 0;
+    border-radius: 0;
+    background: currentColor;
+    animation: breathe 1.6s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { opacity: .15; transform: scaleY(.5); }
+    50% { opacity: .8; transform: scaleY(1); }
+  }
+
+  @media (max-width: 820px) {
+    body.gallery #stageTitle { top: 22px; left: 20px; font-size: 22px; }
+    body.gallery #stats { display: none; }
+    body.gallery #controls { bottom: 14px; flex-wrap: wrap; }
+    body.gallery button { padding: 6px 8px; letter-spacing: 0.14em; }
+    body.gallery .toolbar + .toolbar::before { margin: 0 8px; }
+    body.gallery #tree { left: 0; right: 0; width: auto; padding: 20px; }
+  }
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }
@@ -419,6 +627,8 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
 <body class="${body_dark_class}">
 <div id="loading"><div class="spinner"></div><span>模型加载中…</span></div>
 <div id="viewer"></div>
+<div id="stageTitle"></div>
+<div id="controls">
 <div id="toolbarView" class="toolbar">
   <button onclick="viewFront()" title="正视 (1)" aria-label="正视"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg><span class="lbl">正视</span></button>
   <button onclick="viewTop()" title="顶视 (7)" aria-label="顶视"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/><path d="M4 9h16"/></svg><span class="lbl">顶视</span></button>
@@ -438,6 +648,8 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
   <span class="sep"></span>
   <input id="exposureSlider" type="range" min="0.4" max="2" step="0.05" value="1" title="曝光" aria-label="曝光" autocomplete="off">
   <span id="exposureValue">1.00</span>
+  <button id="btnLayout" onclick="toggleLayout()" title="切换版式（展陈 / 仪器）" aria-label="切换版式"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16"/><path d="M3 9h18"/></svg><span class="lbl">展陈</span></button>
+</div>
 </div>
 <div id="tree"></div>
 <div id="stats"></div>
@@ -570,6 +782,8 @@ let needsRender = true;   // 脏标记：静止场景不再每帧重绘
 let exposure = 1.0;
 let initialView = null;   // 导出时的初始机位，供「重置」还原
 let edgeBuildToken = 0;   // 边线分批构建的取消令牌
+let layout = 'instrument'; // 'instrument' 仪器版 | 'gallery' 展陈版
+let idleTimer = 0;
 
 
 function init() {
@@ -577,6 +791,8 @@ function init() {
   try {
     const savedTheme = localStorage.getItem('threejs-html-theme');
     if (savedTheme === 'dark' || savedTheme === 'light') isDark = savedTheme === 'dark';
+    const savedLayout = localStorage.getItem('threejs-html-layout');
+    if (savedLayout === 'gallery' || savedLayout === 'instrument') layout = savedLayout;
   } catch (e) { /* 无存储权限，忽略 */ }
   document.body.classList.toggle('dark', isDark);
   document.getElementById('btnEdges').classList.toggle('active', edgesVisible);
@@ -609,6 +825,14 @@ function init() {
   controls.autoRotateSpeed = 1.2;
   // 拖动 / 阻尼收敛时标记需要出帧，静止后 animate() 不再重绘
   controls.addEventListener('change', () => { needsRender = true; });
+
+  // 展陈版标题：去掉扩展名当作作品名
+  const titleEl = document.getElementById('stageTitle');
+  if (titleEl) titleEl.textContent = document.title.split('.').slice(0, -1).join('.') || document.title;
+
+  window.addEventListener('mousemove', bumpIdle, { passive: true });
+  window.addEventListener('touchstart', bumpIdle, { passive: true });
+  applyLayout();
 
   const expSlider = document.getElementById('exposureSlider');
   if (expSlider) {
@@ -735,6 +959,34 @@ function updateStats() {
   });
   el.textContent = objs + ' 对象 · ' + Math.round(tris).toLocaleString('zh-CN') + ' 三角面';
 }
+
+// 展陈版靠纯排版立身，控件静止即隐去；仪器版不做这层处理
+function bumpIdle() {
+  document.body.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (layout === 'gallery') document.body.classList.add('idle');
+  }, 2600);
+}
+
+function applyLayout() {
+  document.body.classList.toggle('gallery', layout === 'gallery');
+  const btn = document.getElementById('btnLayout');
+  if (btn) {
+    btn.classList.toggle('active', layout === 'gallery');
+    btn.setAttribute('aria-pressed', String(layout === 'gallery'));
+    const lbl = btn.querySelector('.lbl');
+    if (lbl) lbl.textContent = layout === 'gallery' ? '仪器' : '展陈';
+  }
+  bumpIdle();
+  needsRender = true;
+}
+
+window.toggleLayout = function() {
+  layout = layout === 'gallery' ? 'instrument' : 'gallery';
+  try { localStorage.setItem('threejs-html-layout', layout); } catch (e) { /* 忽略 */ }
+  applyLayout();
+};
 
 window.setExposure = function(value) {
   const v = parseFloat(value);

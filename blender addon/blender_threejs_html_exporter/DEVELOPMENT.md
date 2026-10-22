@@ -63,6 +63,18 @@
 - `saoKernelRadius` 是世界单位，跟随模型尺寸：`initComposer()` 用 `viewFrustumSize * 0.025`，`normalizeAndFrame()` 算出实际包围盒后改写为 `maxDim * 0.06`。
 - `window.__viewer = {renderer, scene, camera}` 调试句柄：**module 作用域变量从 CDP evaluate 不可见**，有了句柄才能量化测亮度（readPixels 中心区均值）。
 
+## 查看器两套版式（2.12.0）
+
+同一份导出文件里有两套界面，右下角按钮切换，选择存在 `localStorage.threejs-html-layout`：
+
+- **仪器版**（默认）：两条 46px 贴边窄带夹住画布，CSS 四角取景标记，结构树为左侧整列。
+- **展陈版**：`body.gallery` 类切换。无边框、无面板、无阴影，只剩排版——
+  大字号标题、发丝线、底部宽字距控件；鼠标静止 2.6s 后控件整体淡出（`body.idle`），
+  画面回到纯作品状态。图标隐藏、只留文字，结构树移到右侧无框细列。
+
+两套共用同一份 DOM 与同一套颜色变量，只在 CSS 里分支，JS 只负责加类。
+新增控件若要在两版都合理，必须两边都写样式；只写一处会在另一版里裸露默认样式。
+
 ## 查看器视觉样式（2.12.0）
 
 外观只在模板 `<style>` 块与三处 JS 常量里，改样式不动逻辑：
