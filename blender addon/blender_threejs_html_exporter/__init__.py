@@ -48,190 +48,232 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${title}</title>
 <style>
-  :root {
-    --bg-light: #f5f6f8;
-    --bg-dark: #0a0b0f;
-    --panel-light: rgba(255, 255, 255, 0.72);
-    --panel-dark: rgba(20, 22, 28, 0.72);
-    --text-light: #14161c;
-    --text-dark: #eef0f4;
-    --border-light: rgba(14, 18, 26, 0.10);
-    --border-dark: rgba(255, 255, 255, 0.10);
-    --hover-light: rgba(14, 18, 26, 0.06);
-    --hover-dark: rgba(255, 255, 255, 0.08);
-    --accent: #4f46e5;
-    --accent-soft: rgba(79, 70, 229, 0.12);
-    --accent-border: rgba(79, 70, 229, 0.35);
-    --shadow: 0 1px 2px rgba(10, 12, 16, 0.05), 0 14px 34px -16px rgba(10, 12, 16, 0.35);
-    --radius: 14px;
+  /* ── 仪器化查看器 ──────────────────────────────────────────────
+     两条贴边窄带夹住画布，四角取景标记框住模型，单色细线分层，
+     数字一律等宽表格。强调色只出现在激活态与读数上。 */
+
+  :root { --band-h: 46px; }
+
+  body {
+    --canvas:  #cdcac2;
+    --surface: #f5f4f1;
+    --raised:  #e4e2dc;
+    --line:    #d5d3cc;
+    --text:    #191b1e;
+    --dim:     #6e747c;
+    --signal:  #a35f10;
+    --bracket: #c8c5bd;
   }
-  html { color-scheme: light; }
+  body.dark {
+    --canvas:  #0d0f12;
+    --surface: #15181c;
+    --raised:  #1f242a;
+    --line:    #2c323a;
+    --text:    #ccd2d9;
+    --dim:     #79818d;
+    --signal:  #e0a13b;
+    --bracket: #39414b;
+  }
+
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: var(--bg-light);
-    color: var(--text-light);
-    font-family: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--canvas, #0d0f12);
+    color: var(--text, #ccd2d9);
+    font-family: "Bahnschrift", "Segoe UI Variable Text", "Segoe UI",
+                 "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
     font-size: 13px;
     -webkit-font-smoothing: antialiased;
   }
-  body {
-    --panel: var(--panel-light);
-    --text: var(--text-light);
-    --border: var(--border-light);
-    --hover: var(--hover-light);
-  }
-  body.dark {
-    --bg: var(--bg-dark);
-    --panel: var(--panel-dark);
-    --text: var(--text-dark);
-    --border: var(--border-dark);
-    --hover: var(--hover-dark);
-    --accent: #8b95ff;
-    --accent-soft: rgba(139, 149, 255, 0.16);
-    --accent-border: rgba(139, 149, 255, 0.42);
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 40px -18px rgba(0, 0, 0, 0.8);
-    color-scheme: dark;
-    color: var(--text-dark);
-    background: var(--bg-dark);
-  }
+  body { background: var(--canvas); }
+
   #viewer { position: fixed; inset: 0; }
   #viewer canvas { display: block; }
-  #viewer::after {
+
+  /* 四角取景标记：八条 1px 线，用 background 渐变画，不占 DOM */
+  #viewer::before {
     content: "";
     position: fixed;
-    inset: 0;
+    top: calc(var(--band-h) + 16px);
+    bottom: calc(var(--band-h) + 16px);
+    left: 16px;
+    right: 16px;
+    z-index: 5;
     pointer-events: none;
-    background: radial-gradient(130% 100% at 50% 42%, transparent 58%, rgba(10, 12, 16, 0.10) 100%);
+    background:
+      linear-gradient(var(--bracket), var(--bracket)) left top    / 18px 1px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) left top    / 1px 18px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) right top   / 18px 1px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) right top   / 1px 18px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) left bottom / 18px 1px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) left bottom / 1px 18px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) right bottom / 18px 1px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) right bottom / 1px 18px no-repeat;
   }
-  body.dark #viewer::after {
-    background: radial-gradient(130% 100% at 50% 42%, transparent 52%, rgba(0, 0, 0, 0.34) 100%);
-  }
-  ::selection { background: var(--accent-soft); }
 
-  .toolbar, #tree, #animationBar {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  /* ── 窄带 ── */
+  .toolbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    height: var(--band-h);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 8px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+  .toolbar::-webkit-scrollbar { display: none; }
+  #toolbarView { top: 0; padding-right: 190px; }
+  #toolbarToggles {
+    bottom: 0;
+    border-bottom: 0;
+    border-top: 1px solid var(--line);
   }
 
   button {
     appearance: none;
-    border: 1px solid transparent;
+    border: 0;
     background: transparent;
-    color: inherit;
+    color: var(--text);
     font: inherit;
     font-size: 12.5px;
-    font-weight: 500;
-    letter-spacing: 0.01em;
+    font-weight: 400;
     line-height: 1;
-    padding: 7px 9px;
-    border-radius: 9px;
+    padding: 8px 9px;
+    border-radius: 0;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     flex: 0 0 auto;
-    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+    transition: color .12s ease, background .12s ease;
   }
-  button:hover { background: var(--hover); }
+  button:hover { background: var(--raised); }
   button.active {
-    background: var(--accent-soft);
-    border-color: var(--accent-border);
-    color: var(--accent);
+    color: var(--signal);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
   }
   button:focus-visible, input:focus-visible, select:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
+    outline: 1px solid var(--signal);
+    outline-offset: -2px;
   }
   button svg {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
     flex: 0 0 auto;
     fill: none;
     stroke: currentColor;
-    stroke-width: 1.75;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    stroke-width: 1.5;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
   }
 
-  .toolbar {
+  .sep {
+    width: 1px;
+    height: 18px;
+    margin: 0 6px;
+    flex: 0 0 auto;
+    background: var(--line);
+  }
+
+  .num, #stats, #animationTime, #exposureValue {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #exposureSlider {
+    width: 84px;
+    height: 2px;
+    margin: 0 6px;
+    flex: 0 0 auto;
+    accent-color: var(--signal);
+    cursor: pointer;
+  }
+  #exposureValue {
+    font-size: 11px;
+    color: var(--dim);
+    min-width: 32px;
+    text-align: right;
+    flex: 0 0 auto;
+  }
+
+  /* 读数占顶带右端；顶带靠 padding 让出等宽区域，按钮不会钻到下面 */
+  #stats {
     position: fixed;
-    top: 14px;
-    z-index: 10;
-    padding: 5px;
-    border-radius: var(--radius);
+    right: 0;
+    top: 0;
+    height: var(--band-h);
+    z-index: 11;
     display: flex;
-    gap: 3px;
-    flex-wrap: nowrap;
     align-items: center;
-    overflow-x: auto;
-    overflow-y: hidden;
+    padding: 0 14px 0 12px;
+    border-left: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 11px;
+    color: var(--dim);
     white-space: nowrap;
-    scrollbar-width: none;
-    max-width: calc(50vw - 20px);
-    animation: rise 0.3s ease both;
+    pointer-events: none;
   }
-  .toolbar::-webkit-scrollbar { display: none; }
-  #toolbarView { left: 14px; }
-  #toolbarToggles { right: 14px; }
+  #stats:empty { display: none; }
 
+  /* ── 结构树：左侧整列，与顶带齐平 ── */
   #tree {
     position: fixed;
-    top: 66px;
-    left: 14px;
-    width: 306px;
-    max-height: calc(100vh - 132px);
-    overflow: auto;
+    top: var(--band-h);
+    bottom: var(--band-h);
+    left: 0;
+    width: 264px;
     z-index: 9;
-    border-radius: var(--radius);
-    padding: 10px;
+    overflow: auto;
+    padding: 10px 0;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
     font-size: 12.5px;
     display: none;
     scrollbar-width: thin;
-    animation: rise 0.24s ease both;
+    scrollbar-color: var(--line) transparent;
   }
-  #tree::-webkit-scrollbar { width: 8px; }
-  #tree::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 999px;
-  }
+  #tree::-webkit-scrollbar { width: 6px; }
+  #tree::-webkit-scrollbar-thumb { background: var(--line); }
   #tree::-webkit-scrollbar-track { background: transparent; }
+
   .tree-title {
     display: block;
-    padding: 2px 6px 8px;
+    padding: 2px 12px 10px;
     font-size: 10.5px;
-    font-weight: 600;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    opacity: 0.5;
+    letter-spacing: .08em;
+    color: var(--dim);
   }
   .tree-line {
-    padding: 3px 6px;
-    border-radius: 7px;
-    user-select: none;
-    white-space: nowrap;
+    padding: 4px 10px;
     display: flex;
     align-items: center;
     gap: 5px;
-    transition: background 0.12s ease;
+    user-select: none;
+    white-space: nowrap;
+    transition: background .1s ease;
   }
-  .tree-line:hover { background: var(--hover); }
-  .tree-line:focus-visible, .tree-eye:focus-visible, .tree-name:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
+  .tree-line:hover { background: var(--raised); }
+  .tree-line.sel {
+    background: var(--raised);
+    box-shadow: inset 2px 0 0 var(--signal);
   }
-  .tree-line.sel { background: var(--accent-soft); }
   .tree-name {
     cursor: pointer;
     overflow: hidden;
     text-overflow: ellipsis;
-    /* 覆盖全局 button 样式：树节点是行内文本，不该有按钮内边距 */
     border: 0;
     background: transparent;
     padding: 0;
@@ -240,8 +282,8 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     text-align: left;
     min-width: 0;
   }
-  .tree-name:hover { color: var(--accent); background: transparent; }
-  .tree-line.sel .tree-name { color: var(--accent); font-weight: 600; }
+  .tree-name:hover { color: var(--signal); background: transparent; }
+  .tree-line.sel .tree-name { color: var(--signal); }
   .tree-caret {
     cursor: pointer;
     width: 12px;
@@ -249,7 +291,7 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     text-align: center;
     user-select: none;
     font-size: 10px;
-    opacity: 0.5;
+    color: var(--dim);
   }
   .tree-eye {
     cursor: pointer;
@@ -259,165 +301,115 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     width: 18px;
     height: 18px;
     flex: 0 0 auto;
-    border-radius: 5px;
-    opacity: 0.6;
-    transition: opacity 0.14s ease, background 0.14s ease;
-    /* 同上：清掉全局 button 的内边距与描边 */
     border: 0;
     padding: 0;
     background: transparent;
-    color: inherit;
+    color: var(--dim);
+    transition: color .12s ease;
   }
-  .tree-eye:hover { opacity: 1; background: var(--hover); }
+  .tree-eye:hover { color: var(--text); background: transparent; }
   .tree-eye svg {
     width: 13px;
     height: 13px;
     fill: none;
     stroke: currentColor;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    stroke-width: 1.5;
+    stroke-linecap: square;
   }
-  .tree-line.off .tree-name { opacity: 0.38; }
+  .tree-line.off .tree-name { opacity: .34; }
+  .tree-line.off .tree-eye { opacity: .5; }
+
   #treeFilter {
-    width: 100%;
-    margin: 0 0 8px;
-    padding: 7px 9px;
-    border-radius: 9px;
-    border: 1px solid var(--border);
-    background: var(--hover);
+    width: calc(100% - 20px);
+    margin: 0 10px 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    background: var(--canvas);
     color: inherit;
     font: inherit;
     font-size: 12px;
     outline: none;
-    transition: border-color 0.16s ease;
+    border-radius: 0;
   }
-  #treeFilter::placeholder { color: inherit; opacity: 0.45; }
-  #treeFilter:focus { border-color: var(--accent-border); }
+  #treeFilter::placeholder { color: var(--dim); }
+  #treeFilter:focus { border-color: var(--signal); }
 
+  /* ── 动画条：底带上方第二行，同一套材质 ── */
   #animationBar {
     position: fixed;
-    left: 50%;
-    bottom: 20px;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    bottom: var(--band-h);
+    height: 44px;
     z-index: 30;
-    border-radius: 16px;
-    padding: 8px;
     display: none;
     align-items: center;
-    gap: 6px;
-    min-width: 440px;
-    max-width: calc(100vw - 240px);
+    justify-content: center;
+    gap: 8px;
+    padding: 0 12px;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
   }
-  #animationBar button { padding: 7px 9px; }
-  .toolbar input[type="range"] {
-    width: 72px;
-    height: 4px;
-    margin: 0 4px;
-    flex: 0 0 auto;
-    accent-color: var(--accent);
-    cursor: pointer;
-  }
-  .toolbar .sep {
-    width: 1px;
-    height: 18px;
-    margin: 0 3px;
-    flex: 0 0 auto;
-    background: var(--border);
-  }
-  #stats {
-    position: fixed;
-    right: 14px;
-    bottom: 14px;
-    z-index: 8;
-    padding: 5px 9px;
-    border-radius: 9px;
-    font-size: 11px;
-    font-variant-numeric: tabular-nums;
-    color: var(--text);
-    background: var(--panel);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    opacity: 0.7;
-    pointer-events: none;
-    white-space: nowrap;
-  }
-  #stats:empty { display: none; }
   #animationSelect, #speedSelect {
-    height: 30px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    padding: 0 8px;
-    background: var(--hover);
+    height: 26px;
+    padding: 0 6px;
+    border: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--canvas);
     color: inherit;
     font: inherit;
-    font-size: 12px;
+    font-size: 11.5px;
     max-width: 160px;
     cursor: pointer;
   }
   #animationSlider {
     flex: 1 1 auto;
     min-width: 120px;
-    height: 4px;
-    accent-color: var(--accent);
+    height: 2px;
+    accent-color: var(--signal);
     cursor: pointer;
   }
   #animationTime {
-    font-size: 11.5px;
-    min-width: 84px;
+    font-size: 11px;
+    min-width: 86px;
     text-align: right;
-    opacity: 0.6;
-    font-variant-numeric: tabular-nums;
+    color: var(--dim);
   }
 
+  /* ── 加载态 ── */
   #loading {
     position: fixed;
     inset: 0;
     z-index: 50;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(80% 60% at 50% 40%, #ffffff 0%, var(--bg-light) 100%);
-    color: var(--text-light);
-    font-size: 13px;
-    letter-spacing: 0.02em;
-  }
-  body.dark #loading {
-    background: radial-gradient(80% 60% at 50% 40%, #16181f 0%, var(--bg-dark) 100%);
-    color: var(--text-dark);
+    background: var(--canvas);
+    color: var(--dim);
+    font-size: 12px;
+    letter-spacing: .06em;
   }
   .spinner {
-    width: 28px;
-    height: 28px;
-    border: 2px solid var(--border-light);
-    border-top-color: var(--accent);
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--line);
+    border-top-color: var(--signal);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin .8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes rise {
-    from { opacity: 0; transform: translateY(-6px); }
-    to { opacity: 1; transform: none; }
-  }
-  @media (max-width: 760px) {
-    .toolbar { padding: 4px; gap: 2px; }
+
+  @media (max-width: 820px) {
+    :root { --band-h: 40px; }
+    .toolbar { padding: 0 4px; gap: 0; }
     .toolbar .lbl { display: none; }
-    .toolbar input[type="range"] { width: 56px; }
-    #animationBar {
-      left: 12px;
-      right: 12px;
-      bottom: 12px;
-      transform: none;
-      min-width: 0;
-      max-width: none;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    #tree { width: calc(100vw - 24px); }
+    #toolbarToggles { padding-right: 8px; }
+    #exposureSlider { width: 56px; }
     #stats { display: none; }
+    #tree { width: 100%; border-right: 0; }
+    #viewer::before { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
@@ -428,23 +420,24 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
 <div id="loading"><div class="spinner"></div><span>模型加载中…</span></div>
 <div id="viewer"></div>
 <div id="toolbarView" class="toolbar">
-  <button onclick="viewFront()" title="正视 (1)" aria-label="正视"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/></svg><span class="lbl">正视</span></button>
-  <button onclick="viewTop()" title="顶视 (7)" aria-label="顶视"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9h16"/></svg><span class="lbl">顶视</span></button>
+  <button onclick="viewFront()" title="正视 (1)" aria-label="正视"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg><span class="lbl">正视</span></button>
+  <button onclick="viewTop()" title="顶视 (7)" aria-label="顶视"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/><path d="M4 9h16"/></svg><span class="lbl">顶视</span></button>
   <button onclick="viewIso()" title="等轴测 (3)" aria-label="等轴测"><svg viewBox="0 0 24 24"><path d="M12 2 2 7v10l10 5 10-5V7L12 2z"/><path d="M2 7l10 5 10-5M12 12v10"/></svg><span class="lbl">等轴测</span></button>
-  <button onclick="fitView()" title="适配视图 (F)" aria-label="适配视图"><svg viewBox="0 0 24 24"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><rect x="9" y="9" width="6" height="6"/></svg><span class="lbl">适配</span></button>
-  <button onclick="resetView()" title="重置到初始视角 (R)" aria-label="重置到初始视角"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3.1-6.8"/><path d="M3 4v5h5"/></svg><span class="lbl">重置</span></button>
+  <button onclick="fitView()" title="适配视图 (F)" aria-label="适配"><svg viewBox="0 0 24 24"><path d="M3 8V5h5M16 3h5v5M21 16v5h-5M8 21H5v-3"/><rect x="9" y="9" width="6" height="6"/></svg><span class="lbl">适配</span></button>
+  <button onclick="resetView()" title="重置到初始视角 (R)" aria-label="重置"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3.1-6.8"/><path d="M3 4v5h5"/></svg><span class="lbl">重置</span></button>
   <button onclick="toggleFullscreen()" title="全屏" aria-label="全屏"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg><span class="lbl">全屏</span></button>
 </div>
 <div id="toolbarToggles" class="toolbar">
   <button id="btnEdges" onclick="toggleEdges()" title="边线 (E)" aria-label="边线"><svg viewBox="0 0 24 24"><path d="M12 3 3 21h18L12 3z"/><path d="M12 3v18M7.5 12h9"/></svg><span class="lbl">边线</span></button>
-  <button id="btnSpin" onclick="toggleAutoSpin()" title="自动旋转" aria-label="自动旋转"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span class="lbl">旋转</span></button>
-  <button id="btnAO" onclick="toggleAO()" title="环境光遮蔽 (A)" aria-label="环境光遮蔽"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor" stroke="none"/></svg><span class="lbl">遮蔽</span></button>
-  <button id="btnTree" onclick="toggleTree()" title="场景结构" aria-label="场景结构"><svg viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="lbl">结构</span></button>
-  <button onclick="toggleTheme()" title="深色 / 浅色" aria-label="切换主题"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg><span class="lbl">主题</span></button>
-  <button onclick="toggleProjectionMode()" title="透视 / 正交" aria-label="切换投影"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="1"/><rect x="8" y="8" width="13" height="13" rx="1"/></svg><span class="lbl">投影</span></button>
-  <button onclick="saveScreenshot()" title="截图 PNG" aria-label="截图"><svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2l2-3h6l2 3h2a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z"/><circle cx="12" cy="13" r="4"/></svg><span class="lbl">截图</span></button>
+  <button id="btnSpin" onclick="toggleAutoSpin()" title="自动旋转" aria-label="旋转"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span class="lbl">旋转</span></button>
+  <button id="btnAO" onclick="toggleAO()" title="环境光遮蔽 (A)" aria-label="遮蔽"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor" stroke="none"/></svg><span class="lbl">遮蔽</span></button>
+  <button id="btnTree" onclick="toggleTree()" title="场景结构" aria-label="结构"><svg viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="lbl">结构</span></button>
+  <button onclick="toggleTheme()" title="深色 / 浅色" aria-label="主题"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg><span class="lbl">主题</span></button>
+  <button onclick="toggleProjectionMode()" title="透视 / 正交" aria-label="投影"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13"/><rect x="8" y="8" width="13" height="13"/></svg><span class="lbl">投影</span></button>
+  <button onclick="saveScreenshot()" title="截图 PNG" aria-label="截图"><svg viewBox="0 0 24 24"><path d="M3 8V6h4l2-3h6l2 3h4v2"/><path d="M3 8v10h18V8H3z"/><circle cx="12" cy="13" r="4"/></svg><span class="lbl">截图</span></button>
   <span class="sep"></span>
-  <input id="exposureSlider" type="range" min="0.4" max="2" step="0.05" value="1" title="曝光" aria-label="曝光">
+  <input id="exposureSlider" type="range" min="0.4" max="2" step="0.05" value="1" title="曝光" aria-label="曝光" autocomplete="off">
+  <span id="exposureValue">1.00</span>
 </div>
 <div id="tree"></div>
 <div id="stats"></div>
@@ -455,9 +448,9 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     <option value="1" selected>1x</option>
     <option value="2">2x</option>
   </select>
-  <button onclick="playAnimation()" title="播放 (空格)"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5-13-7.5z"/></svg><span class="lbl">播放</span></button>
-  <button onclick="pauseAnimation()" title="暂停"><svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg><span class="lbl">暂停</span></button>
-  <button onclick="stopAnimation()" title="停止"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg><span class="lbl">停止</span></button>
+  <button onclick="playAnimation()" title="播放 (空格)" aria-label="播放"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5-13-7.5z"/></svg><span class="lbl">播放</span></button>
+  <button onclick="pauseAnimation()" title="暂停" aria-label="暂停"><svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg><span class="lbl">暂停</span></button>
+  <button onclick="stopAnimation()" title="停止" aria-label="停止"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg><span class="lbl">停止</span></button>
   <input id="animationSlider" type="range" min="0" max="1000" value="0" step="1">
   <span id="animationTime">0.00 / 0.00 s</span>
 </div>
@@ -590,7 +583,7 @@ function init() {
   document.getElementById('btnSpin').classList.toggle('active', autoSpin);
   document.getElementById('btnAO').classList.toggle('active', aoOn);
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(isDark ? 0x0a0b0f : 0xf5f6f8);
+  scene.background = new THREE.Color(isDark ? 0x0d0f12 : 0xcdcac2);
 
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100000);
   camera.position.set(5, 4, 5);
@@ -621,6 +614,8 @@ function init() {
   if (expSlider) {
     expSlider.value = String(exposure);
     expSlider.oninput = () => window.setExposure(expSlider.value);
+    // Chrome 会在 load 之后异步恢复上次的表单值，把滑块与渲染曝光拉回导出时的设定
+    window.addEventListener('load', () => window.setExposure(exposure));
   }
 
   if (aoOn) initComposer();
@@ -748,6 +743,8 @@ window.setExposure = function(value) {
   if (renderer) renderer.toneMappingExposure = exposure;
   const slider = document.getElementById('exposureSlider');
   if (slider && slider.value !== String(exposure)) slider.value = String(exposure);
+  const readout = document.getElementById('exposureValue');
+  if (readout) readout.textContent = exposure.toFixed(2);
   needsRender = true;
 };
 
@@ -1037,7 +1034,7 @@ window.toggleTheme = function() {
   isDark = !isDark;
   document.body.classList.toggle('dark', isDark);
   try { localStorage.setItem('threejs-html-theme', isDark ? 'dark' : 'light'); } catch (e) { /* 忽略 */ }
-  scene.background = new THREE.Color(isDark ? 0x0a0b0f : 0xf5f6f8);
+  scene.background = new THREE.Color(isDark ? 0x0d0f12 : 0xcdcac2);
   if (model) model.traverse(o => { if (o.userData && o.userData.isEdgeHelper && o.material) o.material.color.setHex(isDark ? 0xd8dee9 : 0x111111); });
   needsRender = true;
 }
@@ -1045,7 +1042,7 @@ window.toggleTheme = function() {
 window.toggleTree = function() {
   const tree = document.getElementById('tree');
   const toolbar = document.getElementById('toolbarView');
-  tree.style.top = (toolbar.offsetTop + toolbar.offsetHeight + 10) + 'px';
+  tree.style.top = (toolbar.offsetTop + toolbar.offsetHeight) + 'px';
   tree.style.display = tree.style.display === 'block' ? 'none' : 'block';
   document.getElementById('btnTree').classList.toggle('active', tree.style.display === 'block');
 }
