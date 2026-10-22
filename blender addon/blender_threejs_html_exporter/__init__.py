@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Three.js 独立 HTML 导出器",
     "author": "Gilles Tarnus / NexData",
-    "version": (2, 12, 0),
+    "version": (2, 13, 0),
     "blender": (3, 6, 0),
     "location": "文件 > 导出 > Three.js 独立 HTML (.html)",
     "description": "将场景导出为内嵌 GLB 模型的 Three.js 独立 HTML 文件",
@@ -48,31 +48,23 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${title}</title>
 <style>
-  /* ── 仪器化查看器 ──────────────────────────────────────────────
-     两条贴边窄带夹住画布，四角取景标记框住模型，单色细线分层，
-     数字一律等宽表格。强调色只出现在激活态与读数上。 */
-
-  :root { --band-h: 46px; }
+  /* ── 展陈版查看器 ──────────────────────────────────────────────
+     无边框、无面板、无阴影。只剩排版：大字号标题、细发丝线、
+     底部一行宽字距控件；鼠标静止后控件淡出，画面回到纯作品状态。 */
 
   body {
     --canvas:  #c3c6c9;
-    --surface: #fbfbfc;
-    --raised:  #e8e9ec;
-    --line:    #9aa1a9;
+    --line:    #636b73;
     --text:    #16181b;
-    --dim:     #63696f;
-    --signal:  #a35f10;
-    --bracket: #c3c6ca;
+    --dim:     #454b52;
+    --signal:  #8a4f0c;
   }
   body.dark {
     --canvas:  #101317;
-    --surface: #1f242a;
-    --raised:  #2c333b;
-    --line:    #3d4650;
-    --text:    #dfe4ea;
-    --dim:     #8b939d;
+    --line:    #5b6672;
+    --text:    #e6ebf1;
+    --dim:     #a3acb8;
     --signal:  #e8a94a;
-    --bracket: #3d4650;
   }
 
   * { box-sizing: border-box; }
@@ -81,325 +73,18 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: var(--canvas, #0d0f12);
-    color: var(--text, #ccd2d9);
+    background: var(--canvas);
+    color: var(--text);
     font-family: "Bahnschrift", "Segoe UI Variable Text", "Segoe UI",
                  "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
     font-size: 13px;
     -webkit-font-smoothing: antialiased;
   }
-  body { background: var(--canvas); }
 
   #viewer { position: fixed; inset: 0; }
   #viewer canvas { display: block; }
 
-
-  /* ── 窄带 ── */
-  .toolbar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    height: var(--band-h);
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    padding: 0 8px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-    box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.55);
-    overflow-x: auto;
-    overflow-y: hidden;
-    white-space: nowrap;
-    scrollbar-width: none;
-  }
-  .toolbar::-webkit-scrollbar { display: none; }
-  #toolbarView { top: 0; padding-right: 190px; }
-  #toolbarToggles {
-    bottom: 0;
-    border-bottom: 0;
-    border-top: 1px solid var(--line);
-    box-shadow: 0 -6px 16px -12px rgba(0, 0, 0, 0.55);
-  }
-
-  button {
-    appearance: none;
-    border: 0;
-    background: transparent;
-    color: var(--text);
-    font: inherit;
-    font-size: 12.5px;
-    font-weight: 400;
-    line-height: 1;
-    padding: 8px 9px;
-    border-radius: 0;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    flex: 0 0 auto;
-    transition: color .12s ease, background .12s ease;
-  }
-  button:hover { background: var(--raised); }
-  button.active {
-    color: var(--signal);
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 4px;
-  }
-  button:focus-visible, input:focus-visible, select:focus-visible {
-    outline: 1px solid var(--signal);
-    outline-offset: -2px;
-  }
-  button svg {
-    width: 15px;
-    height: 15px;
-    flex: 0 0 auto;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.5;
-    stroke-linecap: square;
-    stroke-linejoin: miter;
-  }
-
-  .sep {
-    width: 1px;
-    height: 18px;
-    margin: 0 6px;
-    flex: 0 0 auto;
-    background: var(--line);
-  }
-
-  .num, #stats, #animationTime, #exposureValue {
-    font-family: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
-    font-variant-numeric: tabular-nums;
-  }
-
-  #exposureSlider {
-    width: 84px;
-    height: 2px;
-    margin: 0 6px;
-    flex: 0 0 auto;
-    accent-color: var(--signal);
-    cursor: pointer;
-  }
-  #exposureValue {
-    font-size: 11px;
-    color: var(--dim);
-    min-width: 32px;
-    text-align: right;
-    flex: 0 0 auto;
-  }
-
-  /* 读数占顶带右端；顶带靠 padding 让出等宽区域，按钮不会钻到下面 */
-  #stats {
-    position: fixed;
-    right: 0;
-    top: 0;
-    height: var(--band-h);
-    z-index: 11;
-    display: flex;
-    align-items: center;
-    padding: 0 14px 0 12px;
-    border-left: 1px solid var(--line);
-    background: var(--surface);
-    font-size: 11px;
-    color: var(--dim);
-    white-space: nowrap;
-    pointer-events: none;
-  }
-  #stats:empty { display: none; }
-
-  /* ── 结构树：左侧整列，与顶带齐平 ── */
-  #tree {
-    position: fixed;
-    top: var(--band-h);
-    bottom: var(--band-h);
-    left: 0;
-    width: 264px;
-    z-index: 9;
-    overflow: auto;
-    padding: 10px 0;
-    background: var(--surface);
-    border-right: 1px solid var(--line);
-    font-size: 12.5px;
-    display: none;
-    scrollbar-width: thin;
-    scrollbar-color: var(--line) transparent;
-  }
-  #tree::-webkit-scrollbar { width: 6px; }
-  #tree::-webkit-scrollbar-thumb { background: var(--line); }
-  #tree::-webkit-scrollbar-track { background: transparent; }
-
-  .tree-title {
-    display: block;
-    padding: 2px 12px 10px;
-    font-size: 10.5px;
-    letter-spacing: .08em;
-    color: var(--dim);
-  }
-  .tree-line {
-    padding: 4px 10px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    user-select: none;
-    white-space: nowrap;
-    transition: background .1s ease;
-  }
-  .tree-line:hover { background: var(--raised); }
-  .tree-line.sel {
-    background: var(--raised);
-    box-shadow: inset 2px 0 0 var(--signal);
-  }
-  .tree-name {
-    cursor: pointer;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    border: 0;
-    background: transparent;
-    padding: 0;
-    font: inherit;
-    color: inherit;
-    text-align: left;
-    min-width: 0;
-  }
-  .tree-name:hover { color: var(--signal); background: transparent; }
-  .tree-line.sel .tree-name { color: var(--signal); }
-  .tree-caret {
-    cursor: pointer;
-    width: 12px;
-    flex: 0 0 auto;
-    text-align: center;
-    user-select: none;
-    font-size: 10px;
-    color: var(--dim);
-  }
-  .tree-eye {
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    flex: 0 0 auto;
-    border: 0;
-    padding: 0;
-    background: transparent;
-    color: var(--dim);
-    transition: color .12s ease;
-  }
-  .tree-eye:hover { color: var(--text); background: transparent; }
-  .tree-eye svg {
-    width: 13px;
-    height: 13px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.5;
-    stroke-linecap: square;
-  }
-  .tree-line.off .tree-name { opacity: .34; }
-  .tree-line.off .tree-eye { opacity: .5; }
-
-  #treeFilter {
-    width: calc(100% - 20px);
-    margin: 0 10px 8px;
-    padding: 6px 8px;
-    border: 1px solid var(--line);
-    background: var(--canvas);
-    color: inherit;
-    font: inherit;
-    font-size: 12px;
-    outline: none;
-    border-radius: 0;
-  }
-  #treeFilter::placeholder { color: var(--dim); }
-  #treeFilter:focus { border-color: var(--signal); }
-
-  /* ── 动画条：底带上方第二行，同一套材质 ── */
-  #animationBar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: var(--band-h);
-    height: 44px;
-    z-index: 30;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 0 12px;
-    background: var(--surface);
-    border-top: 1px solid var(--line);
-  }
-  #animationSelect, #speedSelect {
-    height: 26px;
-    padding: 0 6px;
-    border: 1px solid var(--line);
-    border-radius: 0;
-    background: var(--canvas);
-    color: inherit;
-    font: inherit;
-    font-size: 11.5px;
-    max-width: 160px;
-    cursor: pointer;
-  }
-  #animationSlider {
-    flex: 1 1 auto;
-    min-width: 120px;
-    height: 2px;
-    accent-color: var(--signal);
-    cursor: pointer;
-  }
-  #animationTime {
-    font-size: 11px;
-    min-width: 86px;
-    text-align: right;
-    color: var(--dim);
-  }
-
-  /* ── 加载态 ── */
-  #loading {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    align-items: center;
-    justify-content: center;
-    background: var(--canvas);
-    color: var(--dim);
-    font-size: 12px;
-    letter-spacing: .06em;
-  }
-  .spinner {
-    width: 22px;
-    height: 22px;
-    border: 1px solid var(--line);
-    border-top-color: var(--signal);
-    border-radius: 50%;
-    animation: spin .8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  @media (max-width: 820px) {
-    :root { --band-h: 40px; }
-    .toolbar { padding: 0 4px; gap: 0; }
-    .toolbar .lbl { display: none; }
-    #toolbarToggles { padding-right: 8px; }
-    #exposureSlider { width: 56px; }
-    #stats { display: none; }
-    #tree { width: 100%; border-right: 0; }
-  }
-  /* ══════════════════════════════════════════════════════════════
-     展陈版（body.gallery）：没有边框、没有面板、没有按钮形状。
-     只剩排版——大字号标题 + 细发丝线 + 底部一行宽字距控件，
-     鼠标静止 2.6 秒后控件淡出，画面回到纯作品状态。 */
-
-  body.gallery { --band-h: 0px; }
-
-  /* 标题块 */
+  /* ── 标题块 ── */
   #stageTitle {
     position: fixed;
     top: 40px;
@@ -408,37 +93,31 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     max-width: min(48vw, 620px);
     font-size: clamp(26px, 3.4vw, 44px);
     font-weight: 300;
-    line-height: 1.06;
-    letter-spacing: -0.025em;
+    line-height: 1.14;
+    letter-spacing: 0;
     color: var(--text);
     padding-bottom: 14px;
     border-bottom: 1px solid var(--line);
-    display: none;
     pointer-events: none;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
-  body.gallery #stageTitle { display: block; }
 
-  /* 标题下的规格行直接复用 #stats */
-  body.gallery #stats {
-    top: auto;
+  /* 标题下的规格行 */
+  #stats {
+    position: fixed;
     left: 40px;
-    right: auto;
-    bottom: calc(40px + 3.1em);
-    height: auto;
-    padding: 0;
-    border: 0;
-    background: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    font-size: 11px;
-    letter-spacing: 0.2em;
+    bottom: 112px;   /* 让开动画条（68px）与控件行，避免显示时压字 */
+    z-index: 11;
+    font-size: 12px;
+    letter-spacing: 0.1em;
     color: var(--dim);
-    opacity: 1;
+    white-space: nowrap;
+    pointer-events: none;
   }
+  #stats:empty { display: none; }
 
-  /* 两组工具条并排放进底部一行 */
-  body.gallery #controls {
+  /* ── 底部控件一行 ── */
+  #controls {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -450,138 +129,257 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     z-index: 14;
     transition: opacity .55s ease, transform .55s ease;
   }
-  body.gallery.idle #controls {
+  body.idle #controls {
     opacity: 0;
     transform: translateY(8px);
     pointer-events: none;
   }
-  body.gallery .toolbar {
-    position: static;
-    height: auto;
-    padding: 0;
-    background: none;
-    border: 0;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    overflow: visible;
+
+  .toolbar {
+    display: flex;
+    align-items: center;
     gap: 0;
-    max-width: none;
+    flex: 0 0 auto;
   }
-  body.gallery .toolbar + .toolbar::before {
+  .toolbar + .toolbar::before {
     content: "";
     display: inline-block;
     width: 1px;
-    height: 11px;
+    height: 12px;
     margin: 0 20px;
     background: var(--line);
     vertical-align: middle;
   }
-  body.gallery button {
-    font-size: 11.5px;
-    font-weight: 400;
-    letter-spacing: 0.22em;
-    padding: 6px 13px;
+
+  button {
+    appearance: none;
+    border: 0;
     background: transparent;
     color: var(--dim);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    padding: 8px 12px;
+    border-radius: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
     transition: color .2s ease;
   }
-  body.gallery button:hover {
-    background: transparent;
+  button:hover { color: var(--text); }
+  button.active {
     color: var(--text);
-  }
-  body.gallery button.active {
-    color: var(--text);
-    text-decoration: none;
     box-shadow: inset 0 -1px 0 currentColor;
   }
-  /* 图标退成标点，文字才是主体 */
-  body.gallery button svg { display: none; }
-  body.gallery button .lbl { display: inline; }
-  body.gallery .sep { display: none; }
-  body.gallery #exposureSlider {
-    width: 64px;
-    margin: 0 8px;
-    opacity: .55;
-    transition: opacity .2s ease;
+  button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 2px;
   }
-  body.gallery #exposureSlider:hover { opacity: 1; }
-  body.gallery #exposureValue {
-    font-size: 10.5px;
-    letter-spacing: 0.12em;
-    color: var(--dim);
+  /* 图标退成标点，文字才是主体 */
+  button svg { display: none; }
+
+  .num, #stats, #animationTime, #exposureValue {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+    font-variant-numeric: tabular-nums;
   }
 
-  /* 结构树：右侧无框细列 */
-  body.gallery #tree {
+  .sep { display: none; }
+
+  #exposureSlider {
+    width: 72px;
+    height: 2px;
+    margin: 0 10px;
+    flex: 0 0 auto;
+    accent-color: var(--signal);
+    opacity: .65;
+    cursor: pointer;
+    transition: opacity .2s ease;
+  }
+  #exposureSlider:hover, #exposureSlider:focus-visible { opacity: 1; }
+  #exposureValue {
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    color: var(--dim);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* ── 结构树：右侧无框细列 ── */
+  #tree {
+    position: fixed;
     top: 40px;
-    bottom: 96px;
+    bottom: 104px;
     left: auto;
     right: 0;
-    width: 244px;
+    width: 264px;
+    z-index: 9;
+    overflow: auto;
     padding: 0 40px 0 0;
     background: none;
     border: 0;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    font-size: 13px;
+    line-height: 1.5;
+    display: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
   }
-  body.gallery .tree-title {
-    padding: 0 0 16px;
-    font-size: 11px;
-    letter-spacing: 0.24em;
-    border-bottom: 1px solid var(--line);
+  #tree::-webkit-scrollbar { width: 6px; }
+  #tree::-webkit-scrollbar-thumb { background: var(--line); }
+  #tree::-webkit-scrollbar-track { background: transparent; }
+
+  .tree-title {
+    display: block;
+    padding: 0 0 14px;
     margin-bottom: 10px;
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    color: var(--dim);
+    border-bottom: 1px solid var(--line);
   }
-  body.gallery .tree-line { padding: 5px 0; background: none; }
-  body.gallery .tree-line:hover { background: none; }
-  body.gallery .tree-line:hover .tree-name,
-  body.gallery .tree-line.sel .tree-name { color: var(--text); }
-  body.gallery .tree-line.sel { box-shadow: none; }
-  body.gallery .tree-line.sel .tree-name { box-shadow: inset 0 -1px 0 currentColor; }
-  body.gallery #treeFilter {
+  .tree-line {
+    padding: 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .tree-name {
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    font-size: 13px;
+    letter-spacing: normal;
+    color: inherit;
+    text-align: left;
+    min-width: 0;
+  }
+  .tree-line:hover .tree-name,
+  .tree-line.sel .tree-name { color: var(--text); }
+  .tree-line.sel .tree-name { box-shadow: inset 0 -1px 0 currentColor; }
+  .tree-caret {
+    cursor: pointer;
+    width: 13px;
+    flex: 0 0 auto;
+    text-align: center;
+    user-select: none;
+    font-size: 10px;
+    color: var(--dim);
+  }
+  .tree-eye {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--dim);
+    transition: color .12s ease;
+  }
+  .tree-eye:hover { color: var(--text); }
+  .tree-eye svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: square;
+  }
+  .tree-line.off .tree-name { opacity: .38; }
+  .tree-line.off .tree-eye { opacity: .55; }
+
+  #treeFilter {
     width: 100%;
     margin: 0 0 14px;
-    padding: 6px 0;
+    padding: 8px 0;
     border: 0;
     border-bottom: 1px solid var(--line);
     background: transparent;
-    letter-spacing: 0.08em;
+    color: inherit;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+    border-radius: 0;
   }
-  body.gallery #treeFilter:focus { border-bottom-color: var(--text); }
+  #treeFilter::placeholder { color: var(--dim); }
+  #treeFilter:focus { border-bottom-color: var(--text); }
 
-  /* 动画条：底部再上一行，同样无框 */
-  body.gallery #animationBar {
+  /* ── 动画条：控件行上方另一行 ── */
+  #animationBar {
     position: fixed;
     left: 50%;
-    bottom: 62px;
+    bottom: 68px;
     transform: translateX(-50%);
-    right: auto;
     height: auto;
     width: auto;
+    z-index: 30;
+    display: none;
+    align-items: center;
+    gap: 10px;
     padding: 0;
     background: none;
     border: 0;
-    gap: 10px;
   }
-  body.gallery #animationSelect,
-  body.gallery #speedSelect {
+  #animationSelect, #speedSelect {
+    height: auto;
+    padding: 3px 4px;
     border: 0;
     border-bottom: 1px solid var(--line);
+    border-radius: 0;
     background: transparent;
-    padding: 2px 4px;
-    font-size: 11px;
-    letter-spacing: 0.1em;
+    color: inherit;
+    font: inherit;
+    font-size: 12.5px;
+    max-width: 180px;
+    cursor: pointer;
   }
-  body.gallery #animationSlider { height: 1px; opacity: .6; }
-  body.gallery #animationTime { font-size: 10.5px; letter-spacing: 0.12em; }
+  #animationSlider {
+    flex: 1 1 auto;
+    min-width: 140px;
+    height: 2px;
+    accent-color: var(--signal);
+    opacity: .65;
+    cursor: pointer;
+  }
+  #animationSlider:hover { opacity: 1; }
+  #animationTime {
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    min-width: 96px;
+    text-align: right;
+    color: var(--dim);
+  }
 
-  /* 加载态：无圆环，只有一行字渐隐渐显 */
-  body.gallery #loading { background: var(--canvas); letter-spacing: 0.4em; font-size: 11px; }
-  body.gallery .spinner {
+  /* ── 加载态：无圆环，只有一行字渐隐渐显 ── */
+  #loading {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    align-items: center;
+    justify-content: center;
+    background: var(--canvas);
+    color: var(--dim);
+    font-size: 12.5px;
+    letter-spacing: 0.28em;
+  }
+  .spinner {
     width: 1px;
     height: 32px;
-    border: 0;
-    border-radius: 0;
     background: currentColor;
     animation: breathe 1.6s ease-in-out infinite;
   }
@@ -591,12 +389,13 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
   }
 
   @media (max-width: 820px) {
-    body.gallery #stageTitle { top: 22px; left: 20px; font-size: 22px; }
-    body.gallery #stats { display: none; }
-    body.gallery #controls { bottom: 14px; flex-wrap: wrap; }
-    body.gallery button { padding: 6px 8px; letter-spacing: 0.14em; }
-    body.gallery .toolbar + .toolbar::before { margin: 0 8px; }
-    body.gallery #tree { left: 0; right: 0; width: auto; padding: 20px; }
+    #stageTitle { top: 22px; left: 20px; font-size: 22px; }
+    #stats { display: none; }
+    #controls { bottom: 14px; flex-wrap: wrap; }
+    button { padding: 8px 9px; letter-spacing: 0.06em; }
+    .toolbar + .toolbar::before { margin: 0 8px; }
+    #tree { left: 0; right: 0; width: auto; padding: 20px; }
+    #animationBar { bottom: 56px; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
@@ -627,7 +426,6 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
   <span class="sep"></span>
   <input id="exposureSlider" type="range" min="0.4" max="2" step="0.05" value="1" title="曝光" aria-label="曝光" autocomplete="off">
   <span id="exposureValue">1.00</span>
-  <button id="btnLayout" onclick="toggleLayout()" title="切换版式（展陈 / 仪器）" aria-label="切换版式"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16"/><path d="M3 9h18"/></svg><span class="lbl">展陈</span></button>
 </div>
 </div>
 <div id="tree"></div>
@@ -761,8 +559,7 @@ let needsRender = true;   // 脏标记：静止场景不再每帧重绘
 let exposure = 1.0;
 let initialView = null;   // 导出时的初始机位，供「重置」还原
 let edgeBuildToken = 0;   // 边线分批构建的取消令牌
-let layout = 'instrument'; // 'instrument' 仪器版 | 'gallery' 展陈版
-let idleTimer = 0;
+let idleTimer = 0;   // 控件淡出计时
 
 
 function init() {
@@ -770,8 +567,6 @@ function init() {
   try {
     const savedTheme = localStorage.getItem('threejs-html-theme');
     if (savedTheme === 'dark' || savedTheme === 'light') isDark = savedTheme === 'dark';
-    const savedLayout = localStorage.getItem('threejs-html-layout');
-    if (savedLayout === 'gallery' || savedLayout === 'instrument') layout = savedLayout;
   } catch (e) { /* 无存储权限，忽略 */ }
   document.body.classList.toggle('dark', isDark);
   document.getElementById('btnEdges').classList.toggle('active', edgesVisible);
@@ -811,7 +606,7 @@ function init() {
 
   window.addEventListener('mousemove', bumpIdle, { passive: true });
   window.addEventListener('touchstart', bumpIdle, { passive: true });
-  applyLayout();
+  bumpIdle();
 
   const expSlider = document.getElementById('exposureSlider');
   if (expSlider) {
@@ -939,33 +734,12 @@ function updateStats() {
   el.textContent = objs + ' 对象 · ' + Math.round(tris).toLocaleString('zh-CN') + ' 三角面';
 }
 
-// 展陈版靠纯排版立身，控件静止即隐去；仪器版不做这层处理
+// 界面靠纯排版立身，控件静止即隐去，画面回到纯作品状态
 function bumpIdle() {
   document.body.classList.remove('idle');
   clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => {
-    if (layout === 'gallery') document.body.classList.add('idle');
-  }, 2600);
+  idleTimer = setTimeout(() => document.body.classList.add('idle'), 2600);
 }
-
-function applyLayout() {
-  document.body.classList.toggle('gallery', layout === 'gallery');
-  const btn = document.getElementById('btnLayout');
-  if (btn) {
-    btn.classList.toggle('active', layout === 'gallery');
-    btn.setAttribute('aria-pressed', String(layout === 'gallery'));
-    const lbl = btn.querySelector('.lbl');
-    if (lbl) lbl.textContent = layout === 'gallery' ? '仪器' : '展陈';
-  }
-  bumpIdle();
-  needsRender = true;
-}
-
-window.toggleLayout = function() {
-  layout = layout === 'gallery' ? 'instrument' : 'gallery';
-  try { localStorage.setItem('threejs-html-layout', layout); } catch (e) { /* 忽略 */ }
-  applyLayout();
-};
 
 window.setExposure = function(value) {
   const v = parseFloat(value);
@@ -1272,8 +1046,6 @@ window.toggleTheme = function() {
 
 window.toggleTree = function() {
   const tree = document.getElementById('tree');
-  const toolbar = document.getElementById('toolbarView');
-  tree.style.top = (toolbar.offsetTop + toolbar.offsetHeight) + 'px';
   tree.style.display = tree.style.display === 'block' ? 'none' : 'block';
   document.getElementById('btnTree').classList.toggle('active', tree.style.display === 'block');
 }
