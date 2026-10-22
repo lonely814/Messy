@@ -982,9 +982,15 @@
       /* 位置直接跟随（画布拖动高频场景，pend 会造成滞后） */
       f._lr={left:r.left,top:r.top,width:r.width,height:r.height};
       
-      if(f.tagIcon||f.aiIcon){var vr=_ltVisibleRect(f.ta);var iy=Math.max(vr.top+4,Math.min(r.bottom-30,vr.bottom-30));var ix=Math.max(4,Math.min(r.right-30,window.innerWidth-30));var ax=Math.max(4,Math.min(r.right-74,window.innerWidth-74));if(f.tagIcon){f.tagIcon.style.left=ix+"px";f.tagIcon.style.top=iy+"px";f.tagIcon.style.display="flex";}if(f.aiIcon){f.aiIcon.style.left=ax+"px";f.aiIcon.style.top=iy+"px";f.aiIcon.style.display="flex";}
+      if(f.tagIcon||f.aiIcon){
+        /* 主提示词输入的两枚按钮上移到工具栏；其余输入框维持贴输入框右下角 */
+        if(f.ta.closest&&f.ta.closest('[data-practice-anchor="gen.prompt"]')&&_ltToolbarDock(f)){}
+        else{
+        var vr=_ltVisibleRect(f.ta);var iy=Math.max(vr.top+4,Math.min(r.bottom-30,vr.bottom-30));var ix=Math.max(4,Math.min(r.right-30,window.innerWidth-30));var ax=Math.max(4,Math.min(r.right-74,window.innerWidth-74));if(f.tagIcon){f.tagIcon.style.left=ix+"px";f.tagIcon.style.top=iy+"px";f.tagIcon.style.display="flex";}if(f.aiIcon){f.aiIcon.style.left=ax+"px";f.aiIcon.style.top=iy+"px";f.aiIcon.style.display="flex";}
         /* 钳制触发时记流水，诊断用 */
-        if((iy>r.bottom-30||ix<r.right-30)&&_ltScanStats.clamps){_ltScanStats.clamps.push("ta.bottom="+Math.round(r.bottom)+" right="+Math.round(r.right)+" panel=["+Math.round(vr.top)+","+Math.round(vr.bottom)+"] vp="+window.innerWidth+"x"+window.innerHeight);if(_ltScanStats.clamps.length>5)_ltScanStats.clamps.shift();}}
+        if((iy>r.bottom-30||ix<r.right-30)&&_ltScanStats.clamps){_ltScanStats.clamps.push("ta.bottom="+Math.round(r.bottom)+" right="+Math.round(r.right)+" panel=["+Math.round(vr.top)+","+Math.round(vr.bottom)+"] vp="+window.innerWidth+"x"+window.innerHeight);if(_ltScanStats.clamps.length>5)_ltScanStats.clamps.shift();}
+        }
+      }
     }
     function _ltHideIcons(f){if(f.tagIcon)f.tagIcon.style.display="none";if(f.aiIcon)f.aiIcon.style.display="none";}
     /* 钳制基准 = 最近滚动祖先可视区 ∩ 视口；否则图标会钉在视口底边而脱离面板内的输入框 */
@@ -1006,6 +1012,8 @@
         }
         _ltSyncOne(f);
       }
+      /* 搜索框并入同一条热路径（scroll/视口/拖动 rAF 全都走这里），拖节点才跟手 */
+      try{_ltFindSync();}catch(e){}
     }
     document.addEventListener("scroll",_ltSyncPositions,true);
     window.addEventListener("resize",_ltSyncPositions);
@@ -2859,26 +2867,47 @@ function _ltSettingsPanel(){
     }
     _ltFind.cnt.textContent=!term?"":(n?(n+" 处"+(canHL?"":"（不支持高亮）")):"无结果");
   }
+  /* 工具栏槽位：三原生按钮（参考/标记/风格）右侧依次排 [提示词AI][标签][搜索] */
+  function _ltToolbarSlots(){
+    var chips=document.querySelector("[data-generator-action-chips]");
+    if(!chips)return null;
+    var r=chips.getBoundingClientRect();
+    var btns=chips.querySelectorAll("button");
+    var last=btns.length?btns[btns.length-1].getBoundingClientRect():r;
+    return {x:last.right+8,y:r.top+Math.round((r.height-26)/2)};
+  }
+  /* 主提示词输入的 标签/AI 两枚按钮上移到工具栏（其余输入框仍贴输入框右下角） */
+  function _ltToolbarDock(f){
+    var s=_ltToolbarSlots();
+    if(!s)return false;
+    [[f.aiIcon,s.x],[f.tagIcon,s.x+36]].forEach(function(p){
+      var el=p[0];
+      if(!el)return;
+      el.classList.add("lt-tb-pill");
+      el.style.left=Math.round(p[1])+"px";
+      el.style.top=Math.round(s.y)+"px";
+      el.style.display="flex";
+      el.style.width="auto";el.style.height="auto";el.style.borderRadius="999px";
+    });
+    return true;
+  }
   function _ltFindSync(){
     if(!_ltFind.el)return;
-    var a=_ltFindAnchor();
-    if(!a||!a.chips){_ltFind.el.style.display="none";return;}
+    var s=_ltToolbarSlots();
+    if(!s){_ltFind.el.style.display="none";return;}
     _ltFind.el.style.display="flex";
-    /* 锚在三个工具按钮（参考/标记/风格）右侧，避开工具栏最右的全屏图标 */
-    var r=a.chips.getBoundingClientRect();
-    var btns=a.chips.querySelectorAll("button");
-    var last=btns.length?btns[btns.length-1].getBoundingClientRect():r;
-    _ltFind.el.style.left=Math.max(8,Math.round(last.right+8))+"px";
-    _ltFind.el.style.top=Math.max(4,Math.round(r.top+(r.height-28)/2))+"px";
+    _ltFind.el.style.left=Math.round(s.x+72)+"px";
+    _ltFind.el.style.top=Math.round(s.y)+"px";
   }
   function _ltFindInit(){
     if(_ltFind.el)return;
     var el=document.createElement("div");
     el.id="lt-find-bar";
+    el.className="lt-tb-pill";
+    el.title="搜提示词（Esc 清空，回车定位）";
     el.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>'
-      +'<input id="lt-find-inp" placeholder="搜提示词…" autocomplete="off">'
-      +'<span id="lt-find-count"></span>'
-      +'<button id="lt-find-clear" title="清空">✕</button>';
+      +'<input id="lt-find-inp" placeholder="搜词" autocomplete="off" maxlength="24">'
+      +'<span id="lt-find-count"></span>';
     document.body.appendChild(el);
     _ltFind.el=el;
     _ltFind.inp=el.querySelector("#lt-find-inp");
@@ -2891,7 +2920,6 @@ function _ltSettingsPanel(){
       if(e.key==="Enter"){e.preventDefault();_ltFindApply(true);}
       else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();_ltFind.inp.value="";_ltFindApply(false);}
     });
-    el.querySelector("#lt-find-clear").onclick=function(){_ltFind.inp.value="";_ltFindApply(false);_ltFind.inp.focus();};
     /* 提示词文本变化 → 重算命中（React 重渲染会换掉文本节点，旧 Range 失效） */
     document.addEventListener("input",function(e){
       if(_ltFind.inp.value.trim()&&e.target&&e.target.nodeType===1&&e.target.getAttribute&&e.target.getAttribute("contenteditable")==="true"){

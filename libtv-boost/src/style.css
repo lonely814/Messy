@@ -617,11 +617,11 @@ header.m_3b16f56b > div.relative:first-child {
 #lt-pet-bubble { position:absolute; left:50%; bottom:calc(100% + 8px); transform:translateX(-50%); background:rgba(20,22,34,0.92); border:1px solid rgba(129,140,248,0.35); color:#e7e9f3; font-size:12px; padding:5px 10px; border-radius:10px; white-space:nowrap; opacity:0; transition:opacity .2s; pointer-events:none; }
 #lt-pet-bubble.show { opacity:1; }
 
-/* ===== 提示词搜索栏（固定浮层，贴在输入面板工具栏右上；高亮走 Custom Highlight API） ===== */
-#lt-find-bar { position:fixed; z-index:100001; display:flex; align-items:center; gap:6px; width:236px; height:28px; padding:0 8px; background:rgba(22,22,34,0.92); border:1px solid rgba(var(--accent-light-rgb),0.28); border-radius:14px; box-shadow:0 6px 18px rgba(0,0,0,0.35); color:rgba(255,255,255,0.55); }
-#lt-find-inp { flex:1; min-width:0; background:transparent; border:none; outline:none; color:#e7e9f3; font-size:12px; }
+/* ===== 工具栏 pill（对齐原生 参考/标记/风格 按钮观感）+ 搜索框 ===== */
+.lt-tb-pill { display:flex; align-items:center; justify-content:center; gap:2px; padding:4px 8px; border-radius:999px; background:rgba(255,255,255,0.05); transition:background .15s; cursor:pointer; color:rgba(255,255,255,0.55); box-sizing:border-box; }
+.lt-tb-pill:hover, .lt-tb-pill:active { background:rgba(255,255,255,0.1); }
+#lt-find-bar { position:fixed; z-index:100001; width:128px; height:26px; justify-content:flex-start; gap:4px; }
+#lt-find-inp { flex:1; min-width:0; background:transparent; border:none; outline:none; color:#e7e9f3; font-size:12px; padding:0; }
 #lt-find-inp::placeholder { color:rgba(255,255,255,0.3); }
-#lt-find-count { font-size:10.5px; color:var(--accent-light); white-space:nowrap; }
-#lt-find-clear { background:transparent; border:none; color:rgba(255,255,255,0.35); cursor:pointer; font-size:11px; padding:2px; line-height:1; }
-#lt-find-clear:hover { color:#fff; }
+#lt-find-count { font-size:10px; color:var(--accent-light); white-space:nowrap; }
 ::highlight(lt-find) { background-color:rgba(255,196,0,0.5); color:#fff; }
