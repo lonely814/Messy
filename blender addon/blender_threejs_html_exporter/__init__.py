@@ -55,24 +55,24 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
   :root { --band-h: 46px; }
 
   body {
-    --canvas:  #cdcac2;
-    --surface: #f5f4f1;
-    --raised:  #e4e2dc;
-    --line:    #d5d3cc;
-    --text:    #191b1e;
-    --dim:     #6e747c;
+    --canvas:  #c3c6c9;
+    --surface: #fbfbfc;
+    --raised:  #e8e9ec;
+    --line:    #9aa1a9;
+    --text:    #16181b;
+    --dim:     #63696f;
     --signal:  #a35f10;
-    --bracket: #c8c5bd;
+    --bracket: #c3c6ca;
   }
   body.dark {
-    --canvas:  #0d0f12;
-    --surface: #15181c;
-    --raised:  #1f242a;
-    --line:    #2c323a;
-    --text:    #ccd2d9;
-    --dim:     #79818d;
-    --signal:  #e0a13b;
-    --bracket: #39414b;
+    --canvas:  #101317;
+    --surface: #1f242a;
+    --raised:  #2c333b;
+    --line:    #3d4650;
+    --text:    #dfe4ea;
+    --dim:     #8b939d;
+    --signal:  #e8a94a;
+    --bracket: #3d4650;
   }
 
   * { box-sizing: border-box; }
@@ -93,26 +93,6 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
   #viewer { position: fixed; inset: 0; }
   #viewer canvas { display: block; }
 
-  /* 四角取景标记：八条 1px 线，用 background 渐变画，不占 DOM */
-  #viewer::before {
-    content: "";
-    position: fixed;
-    top: calc(var(--band-h) + 16px);
-    bottom: calc(var(--band-h) + 16px);
-    left: 16px;
-    right: 16px;
-    z-index: 5;
-    pointer-events: none;
-    background:
-      linear-gradient(var(--bracket), var(--bracket)) left top    / 18px 1px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) left top    / 1px 18px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) right top   / 18px 1px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) right top   / 1px 18px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) left bottom / 18px 1px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) left bottom / 1px 18px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) right bottom / 18px 1px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) right bottom / 1px 18px no-repeat;
-  }
 
   /* ── 窄带 ── */
   .toolbar {
@@ -127,6 +107,7 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     padding: 0 8px;
     background: var(--surface);
     border-bottom: 1px solid var(--line);
+    box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.55);
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
@@ -138,6 +119,7 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     bottom: 0;
     border-bottom: 0;
     border-top: 1px solid var(--line);
+    box-shadow: 0 -6px 16px -12px rgba(0, 0, 0, 0.55);
   }
 
   button {
@@ -409,7 +391,6 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
     #exposureSlider { width: 56px; }
     #stats { display: none; }
     #tree { width: 100%; border-right: 0; }
-    #viewer::before { display: none; }
   }
   /* ══════════════════════════════════════════════════════════════
      展陈版（body.gallery）：没有边框、没有面板、没有按钮形状。
@@ -417,8 +398,6 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
      鼠标静止 2.6 秒后控件淡出，画面回到纯作品状态。 */
 
   body.gallery { --band-h: 0px; }
-
-  body.gallery #viewer::before { display: none; }
 
   /* 标题块 */
   #stageTitle {
@@ -799,7 +778,7 @@ function init() {
   document.getElementById('btnSpin').classList.toggle('active', autoSpin);
   document.getElementById('btnAO').classList.toggle('active', aoOn);
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(isDark ? 0x0d0f12 : 0xcdcac2);
+  scene.background = new THREE.Color(isDark ? 0x101317 : 0xc3c6c9);
 
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100000);
   camera.position.set(5, 4, 5);
@@ -1286,7 +1265,7 @@ window.toggleTheme = function() {
   isDark = !isDark;
   document.body.classList.toggle('dark', isDark);
   try { localStorage.setItem('threejs-html-theme', isDark ? 'dark' : 'light'); } catch (e) { /* 忽略 */ }
-  scene.background = new THREE.Color(isDark ? 0x0d0f12 : 0xcdcac2);
+  scene.background = new THREE.Color(isDark ? 0x101317 : 0xc3c6c9);
   if (model) model.traverse(o => { if (o.userData && o.userData.isEdgeHelper && o.material) o.material.color.setHex(isDark ? 0xd8dee9 : 0x111111); });
   needsRender = true;
 }
