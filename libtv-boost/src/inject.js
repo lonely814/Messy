@@ -1015,16 +1015,30 @@
       /* 搜索框并入同一条热路径（scroll/视口/拖动 rAF 全都走这里），拖节点才跟手 */
       try{_ltFindSync();}catch(e){}
     }
+    _ltSyncAll=_ltSyncPositions; /* 回填给桌宠/搜索等模块共用，保证同帧同基准 */
     document.addEventListener("scroll",_ltSyncPositions,true);
     window.addEventListener("resize",_ltSyncPositions);
     /* 画布平移/缩放同步：React Flow viewport 的 transform 变化 → 实时跟图标 */
     var _ltVpObs=null;
+    /* 缩放/平移是动画过程：transform 变更只在开头触发一次 observer，量到的是中间态；
+       爆发式 rAF 跟随到动画结束，按钮才不会挤作一团再跳回 */
+    var _ltBurstRAF=null,_ltBurstEnd=0;
+    function _ltSyncBurst(){
+      _ltBurstEnd=Date.now()+500;
+      if(_ltBurstRAF)return;
+      function loop(){
+        _ltSyncPositions();
+        if(Date.now()<_ltBurstEnd)_ltBurstRAF=requestAnimationFrame(loop);
+        else _ltBurstRAF=null;
+      }
+      _ltBurstRAF=requestAnimationFrame(loop);
+    }
     function _ltWatchViewport(){
       var vp=document.querySelector(".react-flow__viewport");
       if(!vp){_ltVpObs=null;return;}
       if(_ltVpObs&&_ltVpObs.el===vp)return;
       if(_ltVpObs&&_ltVpObs.obs)_ltVpObs.obs.disconnect();
-      var obs=new MutationObserver(function(){_ltSyncPositions();});
+      var obs=new MutationObserver(function(){_ltSyncBurst();});
       obs.observe(vp,{attributes:true,attributeFilter:["transform","style"]});
       _ltVpObs={el:vp,obs:obs};
     }
@@ -2867,27 +2881,33 @@ function _ltSettingsPanel(){
     }
     _ltFind.cnt.textContent=!term?"":(n?(n+" 处"+(canHL?"":"（不支持高亮）")):"无结果");
   }
-  /* 工具栏槽位：三原生按钮（参考/标记/风格）右侧依次排 [提示词AI][标签][搜索] */
+  var _ltFind={el:null,inp:null,cnt:null,timer:0};
+  var _ltSyncAll=null; /* 由图标扫描闭包回填：图标+搜索框的合并同步，避免两套位置各写各的基准 */
+  /* 工具栏槽位：三原生按钮（参考/标记/风格）右侧依次排 [提示词AI][标签][搜索]；
+     z = 画布缩放比（chips 宽度比 offsetWidth 实测），胶囊随画布一起缩放、间距同步缩放 */
   function _ltToolbarSlots(){
     var chips=document.querySelector("[data-generator-action-chips]");
     if(!chips)return null;
     var r=chips.getBoundingClientRect();
+    var z=(chips.offsetWidth&&r.width?r.width/chips.offsetWidth:1)||1;
     var btns=chips.querySelectorAll("button");
     var last=btns.length?btns[btns.length-1].getBoundingClientRect():r;
-    return {x:last.right+8,y:r.top+Math.round((r.height-26)/2)};
+    return {x:last.right+8,z:z,y:r.top+Math.round((r.height-26*z)/2)};
   }
   /* 主提示词输入的 标签/AI 两枚按钮上移到工具栏（其余输入框仍贴输入框右下角） */
   function _ltToolbarDock(f){
     var s=_ltToolbarSlots();
     if(!s)return false;
-    [[f.aiIcon,s.x],[f.tagIcon,s.x+36]].forEach(function(p){
+    [[f.aiIcon,0],[f.tagIcon,36]].forEach(function(p){
       var el=p[0];
       if(!el)return;
       el.classList.add("lt-tb-pill");
-      el.style.left=Math.round(p[1])+"px";
+      el.style.left=Math.round(s.x+p[1]*s.z)+"px";
       el.style.top=Math.round(s.y)+"px";
       el.style.display="flex";
       el.style.width="auto";el.style.height="auto";el.style.borderRadius="999px";
+      el.style.transform=s.z!==1?"scale("+s.z+")":"";
+      el.style.transformOrigin="left center";
     });
     return true;
   }
@@ -2896,8 +2916,10 @@ function _ltSettingsPanel(){
     var s=_ltToolbarSlots();
     if(!s){_ltFind.el.style.display="none";return;}
     _ltFind.el.style.display="flex";
-    _ltFind.el.style.left=Math.round(s.x+72)+"px";
+    _ltFind.el.style.left=Math.round(s.x+72*s.z)+"px";
     _ltFind.el.style.top=Math.round(s.y)+"px";
+    _ltFind.el.style.transform=s.z!==1?"scale("+s.z+")":"";
+    _ltFind.el.style.transformOrigin="left center";
   }
   function _ltFindInit(){
     if(_ltFind.el)return;
@@ -2932,7 +2954,7 @@ function _ltSettingsPanel(){
     function kick(){
       if(syncBusy)return;
       syncBusy=true;
-      setTimeout(function(){syncBusy=false;_ltFindSync();if(_ltFind.inp.value.trim())_ltFindApply(false);},300);
+      setTimeout(function(){syncBusy=false;(_ltSyncAll||_ltFindSync)();if(_ltFind.inp.value.trim())_ltFindApply(false);},300);
     }
     window.addEventListener("resize",kick);
     document.addEventListener("scroll",kick,true);
