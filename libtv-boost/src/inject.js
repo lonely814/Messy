@@ -2808,4 +2808,107 @@ function _ltSettingsPanel(){
     };
   }
   try{_ltPetRefresh();}catch(e){}
+
+  /* ===== 提示词搜索：工具栏搜索框 + 提示词文本命中高亮（快速排查提示词用词） =====
+     高亮走 CSS Custom Highlight API：只给文本范围上色，不改 contenteditable 内部 DOM，
+     React 重渲染/光标/输入全不受影响（红线：React 面板内禁止注入/改写节点）。
+     不支持 Custom Highlight 的旧浏览器只显示命中数，不高亮。 */
+  var _ltFind={el:null,inp:null,cnt:null,timer:0};
+  function _ltFindAnchor(){
+    var chips=document.querySelector("[data-generator-action-chips]");
+    if(!chips)return null;
+    var ed=null;
+    try{ed=chips.parentNode.querySelector('[data-practice-anchor="gen.prompt"] [contenteditable="true"]');}catch(e){}
+    return {chips:chips,ed:ed};
+  }
+  function _ltFindRanges(ed,term){
+    var out=[];
+    if(!ed||!term)return out;
+    var tl=term.toLowerCase();
+    var w=document.createTreeWalker(ed,NodeFilter.SHOW_TEXT);
+    var n;
+    while((n=w.nextNode())){
+      var s=n.nodeValue||"",l=s.toLowerCase(),i=l.indexOf(tl);
+      while(i>=0){
+        var r=document.createRange();
+        r.setStart(n,i);r.setEnd(n,i+term.length);
+        out.push(r);
+        i=l.indexOf(tl,i+Math.max(1,term.length));
+      }
+    }
+    return out;
+  }
+  function _ltFindApply(scrollFirst){
+    if(!_ltFind.el)return;
+    var term=_ltFind.inp.value.trim();
+    var a=_ltFindAnchor();
+    var ranges=_ltFindRanges(a&&a.ed,term);
+    var n=ranges.length;
+    var canHL=window.CSS&&CSS.highlights&&typeof Highlight!=="undefined";
+    if(canHL){
+      if(n)CSS.highlights.set("lt-find",new Highlight(...ranges));
+      else CSS.highlights.delete("lt-find");
+    }
+    if(scrollFirst&&n&&a&&a.ed){
+      try{
+        var rect=ranges[0].getBoundingClientRect();
+        var box=a.ed.closest(".mantine-ScrollArea-viewport")||a.ed;
+        var br=box.getBoundingClientRect();
+        if(rect.top<br.top+8||rect.bottom>br.bottom-8)box.scrollTop+=rect.top-(br.top+br.height/2);
+      }catch(e){}
+    }
+    _ltFind.cnt.textContent=!term?"":(n?(n+" 处"+(canHL?"":"（不支持高亮）")):"无结果");
+  }
+  function _ltFindSync(){
+    if(!_ltFind.el)return;
+    var a=_ltFindAnchor();
+    if(!a||!a.chips){_ltFind.el.style.display="none";return;}
+    _ltFind.el.style.display="flex";
+    var r=a.chips.getBoundingClientRect();
+    var w=_ltFind.el.offsetWidth||240;
+    _ltFind.el.style.left=Math.max(8,Math.round(r.right-w-2))+"px";
+    _ltFind.el.style.top=Math.max(4,Math.round(r.top+1))+"px";
+    void r;
+  }
+  function _ltFindInit(){
+    if(_ltFind.el)return;
+    var el=document.createElement("div");
+    el.id="lt-find-bar";
+    el.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>'
+      +'<input id="lt-find-inp" placeholder="搜提示词…" autocomplete="off">'
+      +'<span id="lt-find-count"></span>'
+      +'<button id="lt-find-clear" title="清空">✕</button>';
+    document.body.appendChild(el);
+    _ltFind.el=el;
+    _ltFind.inp=el.querySelector("#lt-find-inp");
+    _ltFind.cnt=el.querySelector("#lt-find-count");
+    _ltFind.inp.addEventListener("input",function(){
+      clearTimeout(_ltFind.timer);
+      _ltFind.timer=setTimeout(function(){_ltFindApply(false);},120);
+    });
+    _ltFind.inp.addEventListener("keydown",function(e){
+      if(e.key==="Enter"){e.preventDefault();_ltFindApply(true);}
+      else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();_ltFind.inp.value="";_ltFindApply(false);}
+    });
+    el.querySelector("#lt-find-clear").onclick=function(){_ltFind.inp.value="";_ltFindApply(false);_ltFind.inp.focus();};
+    /* 提示词文本变化 → 重算命中（React 重渲染会换掉文本节点，旧 Range 失效） */
+    document.addEventListener("input",function(e){
+      if(_ltFind.inp.value.trim()&&e.target&&e.target.nodeType===1&&e.target.getAttribute&&e.target.getAttribute("contenteditable")==="true"){
+        clearTimeout(_ltFind.timer);
+        _ltFind.timer=setTimeout(function(){_ltFindApply(false);},200);
+      }
+    },true);
+    var syncBusy=false;
+    /* 限流而非防抖：站点 DOM 变更频繁，防抖会被无限重置饿死 */
+    function kick(){
+      if(syncBusy)return;
+      syncBusy=true;
+      setTimeout(function(){syncBusy=false;_ltFindSync();if(_ltFind.inp.value.trim())_ltFindApply(false);},300);
+    }
+    window.addEventListener("resize",kick);
+    document.addEventListener("scroll",kick,true);
+    try{new MutationObserver(kick).observe(document.body,{childList:true,subtree:true});}catch(e){}
+    _ltFindSync();
+  }
+  try{_ltFindInit();}catch(e){}
 })();
