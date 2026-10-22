@@ -2883,8 +2883,9 @@ function _ltSettingsPanel(){
   }
   var _ltFind={el:null,inp:null,cnt:null,timer:0};
   var _ltSyncAll=null; /* 由图标扫描闭包回填：图标+搜索框的合并同步，避免两套位置各写各的基准 */
-  /* 工具栏槽位：三原生按钮（参考/标记/风格）右侧依次排 [提示词AI][标签][搜索]；
-     z = 画布缩放比（chips 宽度比 offsetWidth 实测），胶囊随画布一起缩放、间距同步缩放 */
+  /* 工具栏槽位：三原生按钮（参考/标记/风格）右侧依次排 [提示词AI][标签][搜索]。
+     对齐以「最后一个原生按钮」的实测 rect 为准：top/高度都取它的值，不再按 chips 行估算（行有 pt-1 内边距，估算必偏）。
+     z = 画布缩放比（chips 宽度比 offsetWidth 实测）；胶囊 transform-origin:left top，任意缩放下与原生按钮重合 */
   function _ltToolbarSlots(){
     var chips=document.querySelector("[data-generator-action-chips]");
     if(!chips)return null;
@@ -2892,7 +2893,8 @@ function _ltSettingsPanel(){
     var z=(chips.offsetWidth&&r.width?r.width/chips.offsetWidth:1)||1;
     var btns=chips.querySelectorAll("button");
     var last=btns.length?btns[btns.length-1].getBoundingClientRect():r;
-    return {x:last.right+8,z:z,y:r.top+Math.round((r.height-26*z)/2)};
+    var nh=(last.height||26)/z;
+    return {x:last.right+8*z,y:last.top,z:z,nh:isFinite(nh)&&nh>0?nh:26};
   }
   /* 主提示词输入的 标签/AI 两枚按钮上移到工具栏（其余输入框仍贴输入框右下角） */
   function _ltToolbarDock(f){
@@ -2902,12 +2904,12 @@ function _ltSettingsPanel(){
       var el=p[0];
       if(!el)return;
       el.classList.add("lt-tb-pill");
-      el.style.left=Math.round(s.x+p[1]*s.z)+"px";
-      el.style.top=Math.round(s.y)+"px";
+      el.style.left=(s.x+p[1]*s.z).toFixed(1)+"px";
+      el.style.top=s.y.toFixed(1)+"px";
       el.style.display="flex";
-      el.style.width="auto";el.style.height="auto";el.style.borderRadius="999px";
+      el.style.width="auto";el.style.height=s.nh.toFixed(1)+"px";el.style.borderRadius="999px";
       el.style.transform=s.z!==1?"scale("+s.z+")":"";
-      el.style.transformOrigin="left center";
+      el.style.transformOrigin="left top";
     });
     return true;
   }
@@ -2916,10 +2918,11 @@ function _ltSettingsPanel(){
     var s=_ltToolbarSlots();
     if(!s){_ltFind.el.style.display="none";return;}
     _ltFind.el.style.display="flex";
-    _ltFind.el.style.left=Math.round(s.x+72*s.z)+"px";
-    _ltFind.el.style.top=Math.round(s.y)+"px";
+    _ltFind.el.style.left=(s.x+72*s.z).toFixed(1)+"px";
+    _ltFind.el.style.top=s.y.toFixed(1)+"px";
+    _ltFind.el.style.height=s.nh.toFixed(1)+"px";
     _ltFind.el.style.transform=s.z!==1?"scale("+s.z+")":"";
-    _ltFind.el.style.transformOrigin="left center";
+    _ltFind.el.style.transformOrigin="left top";
   }
   function _ltFindInit(){
     if(_ltFind.el)return;
