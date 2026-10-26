@@ -7,7 +7,8 @@ const end = src.indexOf('/* __lt_pie_pure_end__ */');
 if (start < 0 || end < 0) { console.error('提取失败'); process.exit(1); }
 const block = src.slice(start, end);
 
-const factory = new Function(block + ';return {sectors:_ltPieSectors,sector:_ltPieSector,deltas:_ltPieDeltas};');
+const factory = new Function(block +
+  ';return {sectors:_ltPieSectors,inner:_ltPieInner,sector:_ltPieSector,deltas:_ltPieDeltas};');
 const api = factory();
 
 let pass = 0, fail = 0;
@@ -25,7 +26,11 @@ function throws(name, fn, msgPart) {
 }
 
 console.log('--- 扇区表 ---');
-eq('8 扇区', api.sectors.length, 8);
+eq('外环 8 扇区', api.sectors.length, 8);
+eq('内环 3 扇区', api.inner.length, 3);
+eq('内环 0=宫格', api.inner[0].action, 'grid');
+eq('内环 1=横排', api.inner[1].action, 'hrow');
+eq('内环 2=竖排', api.inner[2].action, 'vcol');
 eq('0°=顶对齐', api.sectors[0].action, 'top');
 eq('45°=水平等距', api.sectors[1].action, 'distX');
 eq('90°=右对齐', api.sectors[2].action, 'right');
@@ -35,19 +40,23 @@ eq('225°=水平居中', api.sectors[5].action, 'cx');
 eq('270°=左对齐', api.sectors[6].action, 'left');
 eq('315°=垂直居中', api.sectors[7].action, 'cy');
 
-console.log('--- 角度映射（0°=正上顺时针） ---');
-eq('正上', api.sector(0, -100), 0);
-eq('右上', api.sector(100, -100), 1);
-eq('正右', api.sector(100, 0), 2);
-eq('右下', api.sector(100, 100), 3);
-eq('正下', api.sector(0, 100), 4);
-eq('左下', api.sector(-100, 100), 5);
-eq('正左', api.sector(-100, 0), 6);
-eq('左上', api.sector(-100, -100), 7);
-eq('边界 22.5° 归右上', api.sector(Math.sin(Math.PI / 8) * 100, -Math.cos(Math.PI / 8) * 100), 1);
-eq('边界 22.4° 归正上', api.sector(Math.sin(22.4 / 180 * Math.PI) * 100, -Math.cos(22.4 / 180 * Math.PI) * 100), 0);
-eq('48px 死区内', api.sector(30, -30), null);
-eq('恰好 48px 边界外', api.sector(0, -48) === null ? null : api.sector(0, -48), 0);
+console.log('--- 角度映射（0°=正上顺时针；双环半径） ---');
+eq('外环 正上', api.sector(0, -100), { ring: 1, idx: 0 });
+eq('外环 右上', api.sector(100, -100), { ring: 1, idx: 1 });
+eq('外环 正右', api.sector(100, 0), { ring: 1, idx: 2 });
+eq('外环 右下', api.sector(100, 100), { ring: 1, idx: 3 });
+eq('外环 正下', api.sector(0, 100), { ring: 1, idx: 4 });
+eq('外环 左下', api.sector(-100, 100), { ring: 1, idx: 5 });
+eq('外环 正左', api.sector(-100, 0), { ring: 1, idx: 6 });
+eq('外环 左上', api.sector(-100, -100), { ring: 1, idx: 7 });
+eq('内环 正上', api.sector(0, -50), { ring: 0, idx: 0 });
+eq('内环 右下', api.sector(40, 40), { ring: 0, idx: 1 });
+eq('内环 左下', api.sector(-40, 40), { ring: 0, idx: 2 });
+eq('边界 22.5° 归外环右上', api.sector(Math.sin(Math.PI / 8) * 100, -Math.cos(Math.PI / 8) * 100), { ring: 1, idx: 1 });
+eq('边界 22.4° 归外环正上', api.sector(Math.sin(22.4 / 180 * Math.PI) * 100, -Math.cos(22.4 / 180 * Math.PI) * 100), { ring: 1, idx: 0 });
+eq('28px 死区内', api.sector(15, -15), null);
+eq('恰好越死区（r=28）进内环', api.sector(0, -28), { ring: 0, idx: 0 });
+eq('84px 处进外环', api.sector(0, -84), { ring: 1, idx: 0 });
 eq('非法输入', api.sector(NaN, 1), null);
 
 console.log('--- 边对齐 ---');

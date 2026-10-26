@@ -2973,9 +2973,10 @@ function _ltSettingsPanel(){
   try{_ltFindInit();}catch(e){}
 
   /* ===== 节点对齐 pie 菜单（快捷键 A；甩选式 + 点击兜底） =====
-     对齐基准 = 选中节点包围盒（屏幕像素；全体节点共享同一视口变换，屏幕对齐即画布对齐，与缩放无关）。
-     节点位移走合成鼠标拖拽过站点自己的 d3-drag 管线（undo/位置持久化/连线跟随免费得到）；
-     拖拽事件有丢帧（实测 3 步只走 2/3）→ 闭环修正：拖完实测残差再补拖，最多 3 轮。
+     双环：内环 3 = 宫格/水平/垂直排列（直接复用站点原生 onLayoutChange，语义/间距/保存全同原生），
+     外环 8 = 边/中心对齐 + 等距分布（对齐基准 = 选中节点包围盒屏幕坐标，与缩放无关）。
+     位移 = 一次 onNodesChange 批量 position 变更（原子落位，不逐个拖）→ onSelectionDragStop 一次批量保存。
+     批量通道不可用（站点改版）时回退合成拖拽闭环（逐节点，慢但稳）。
      纯函数块（__lt_pie_pure_* 之间）被 test-pie-align.js 抽取做单测，勿在其中引用 DOM。 */
   /* __lt_pie_pure_begin__ */
   var _ltPieSectors=[
@@ -2988,13 +2989,20 @@ function _ltSettingsPanel(){
     {action:"left",  label:"左对齐"},
     {action:"cy",    label:"垂直居中"}
   ];
-  /* 扇区索引 = round(角度/45)%8，0=正上顺时针（同桌宠视线角约定）；48px 死区返回 null */
+  var _ltPieInner=[
+    {action:"grid", label:"宫格"},
+    {action:"hrow",label:"横排"},
+    {action:"vcol",label:"竖排"}
+  ];
+  /* 扇区：0=正上顺时针（同桌宠视线角约定）；r<28 死区返回 null；28≤r<84 内环 3 分（120°/格）；r≥84 外环 8 分（45°/格） */
   function _ltPieSector(dx,dy){
     if(!isFinite(dx)||!isFinite(dy))return null;
-    if(Math.sqrt(dx*dx+dy*dy)<48)return null;
+    var r=Math.sqrt(dx*dx+dy*dy);
+    if(r<28)return null;
     var deg=Math.atan2(dx,-dy)*180/Math.PI;
     var t=((deg%360)+360)%360;
-    return Math.round(t/45)%8;
+    if(r<84)return {ring:0,idx:Math.round(t/120)%3};
+    return {ring:1,idx:Math.round(t/45)%8};
   }
   /* 对齐位移：boxes=[{x,y,w,h}] → [{dx,dy}]。
      边对齐到选区包围盒对应边，中心对齐到包围盒中心线；等距分布 = 首尾不动、等间隙摊开（非等中心距）。 */
@@ -3048,34 +3056,42 @@ function _ltSettingsPanel(){
   }
   /* __lt_pie_pure_end__ */
 
-  var _ltPie={el:null,mode:"flick",sector:null,sel:[]};
+  var _ltPie={el:null,mode:"flick",hover:null,sel:[]};
   var _ltLastMouse={x:0,y:0};
   document.addEventListener("mousemove",function(e){_ltLastMouse.x=e.clientX;_ltLastMouse.y=e.clientY;},true);
-  function _ltPieWedge(i,r0,r1){
+  /* 扇区形：中心角+张角（内环 3×120°、外环 8×45° 共用） */
+  function _ltPieWedge(centerDeg,spanDeg,r0,r1){
     var p=function(a,r){return (r*Math.sin(a)).toFixed(2)+","+(-r*Math.cos(a)).toFixed(2);};
-    var a0=(i*45-22.5)*Math.PI/180,a1=(i*45+22.5)*Math.PI/180;
+    var a0=(centerDeg-spanDeg/2)*Math.PI/180,a1=(centerDeg+spanDeg/2)*Math.PI/180;
     return "M"+p(a0,r0)+"L"+p(a0,r1)+"A"+r1+","+r1+" 0 0 1 "+p(a1,r1)+"L"+p(a1,r0)+"A"+r0+","+r0+" 0 0 0 "+p(a0,r0)+"Z";
   }
   function _ltPieToggle(){
     if(_ltPie.el){_ltPieClose();return;}
     var sel=Array.prototype.slice.call(document.querySelectorAll(".react-flow__node.selected"));
-    if(sel.length<2){_ltToast("选中至少 2 个节点再按 A 对齐");return;}
-    var R=110,R0=48,i,h="";
+    if(sel.length<2){_ltToast("选中至少 2 个节点再按 A");return;}
+    var h="",i,a,tr;
+    /* 内环 r28-84：宫格/横排/竖排（直接调站点原生排列） */
+    for(i=0;i<3;i++){
+      a=i*120;tr=56;
+      h+="<path class=\"lt-pie-w\" data-ring=\"0\" data-i=\""+i+"\" d=\""+_ltPieWedge(a,120,28,84)+"\"/>"+
+         "<text class=\"lt-pie-t\" x=\""+(tr*Math.sin(a*Math.PI/180)).toFixed(1)+"\" y=\""+(-tr*Math.cos(a*Math.PI/180)).toFixed(1)+"\">"+_ltPieInner[i].label+"</text>";
+    }
+    /* 外环 r84-128：8 种对齐/分布 */
     for(i=0;i<8;i++){
       var s=_ltPieSectors[i];
       var off=(s.action==="distX"||s.action==="distY")&&sel.length<3;
-      var a=i*45*Math.PI/180,tr=(R0+R)/2;
-      h+="<path class=\"lt-pie-w"+(off?" lt-pie-off":"")+"\" data-i=\""+i+"\" d=\""+_ltPieWedge(i,R0,R)+"\"/>"+
-         "<text class=\"lt-pie-t"+(off?" lt-pie-off":"")+"\" x=\""+(tr*Math.sin(a)).toFixed(1)+"\" y=\""+(-tr*Math.cos(a)).toFixed(1)+"\">"+s.label+"</text>";
+      a=i*45;tr=106;
+      h+="<path class=\"lt-pie-w"+(off?" lt-pie-off":"")+"\" data-ring=\"1\" data-i=\""+i+"\" d=\""+_ltPieWedge(a,45,84,128)+"\"/>"+
+         "<text class=\"lt-pie-t"+(off?" lt-pie-off":"")+"\" x=\""+(tr*Math.sin(a*Math.PI/180)).toFixed(1)+"\" y=\""+(-tr*Math.cos(a*Math.PI/180)).toFixed(1)+"\">"+s.label+"</text>";
     }
-    h+="<circle class=\"lt-pie-hub\" r=\""+(R0-2)+"\"/>";
+    h+="<circle class=\"lt-pie-hub\" r=\"26\"/>";
     var el=document.createElement("div");
     el.id="lt-pie";
     el.style.left=(_ltLastMouse.x-160)+"px";
     el.style.top=(_ltLastMouse.y-160)+"px";
     el.innerHTML="<svg width=\"320\" height=\"320\" viewBox=\"-160 -160 320 320\">"+h+"</svg>";
     document.body.appendChild(el);
-    _ltPie.el=el;_ltPie.sel=sel;_ltPie.mode="flick";_ltPie.sector=null;
+    _ltPie.el=el;_ltPie.sel=sel;_ltPie.mode="flick";_ltPie.hover=null;
     document.addEventListener("mousemove",_ltPieMove,true);
     document.addEventListener("keyup",_ltPieUp,true);
   }
@@ -3083,17 +3099,21 @@ function _ltSettingsPanel(){
     if(!_ltPie.el)return;
     var r=_ltPie.el.getBoundingClientRect();
     var s=_ltPieSector(e.clientX-(r.left+r.width/2),e.clientY-(r.top+r.height/2));
-    if(s!=null&&(s===1||s===3)&&_ltPie.sel.length<3)s=null;
-    if(s===_ltPie.sector)return;
-    _ltPie.sector=s;
+    if(s&&s.ring===1&&(s.idx===1||s.idx===3)&&_ltPie.sel.length<3)s=null;
+    var key=s?(s.ring+"-"+s.idx):"";
+    var prev=_ltPie.hover?(_ltPie.hover.ring+"-"+_ltPie.hover.idx):"";
+    if(key===prev)return;
+    _ltPie.hover=s;
     var ws=_ltPie.el.querySelectorAll(".lt-pie-w");
-    for(var i=0;i<ws.length;i++)ws[i].classList.toggle("lt-pie-on",i===s);
+    for(var i=0;i<ws.length;i++){
+      ws[i].classList.toggle("lt-pie-on",!!s&&+ws[i].getAttribute("data-ring")===s.ring&&+ws[i].getAttribute("data-i")===s.idx);
+    }
   }
   function _ltPieUp(e){
     if(e.key!=="a"&&e.key!=="A")return;
     document.removeEventListener("keyup",_ltPieUp,true);
     if(!_ltPie.el)return;
-    if(_ltPie.sector!=null){_ltPieExec(_ltPie.sector);return;}
+    if(_ltPie.hover){_ltPieExec(_ltPie.hover.ring,_ltPie.hover.idx);return;}
     /* 松开时停在死区 → 转点击模式 */
     _ltPie.mode="click";
     _ltPie.el.classList.add("lt-pie-click");
@@ -3103,7 +3123,7 @@ function _ltSettingsPanel(){
     if(!_ltPie.el)return;
     if(_ltPie.el.contains(e.target)){
       var w=e.target.closest?e.target.closest(".lt-pie-w"):null;
-      if(w&&!w.classList.contains("lt-pie-off"))_ltPieExec(+w.getAttribute("data-i"));
+      if(w&&!w.classList.contains("lt-pie-off"))_ltPieExec(+w.getAttribute("data-ring"),+w.getAttribute("data-i"));
       return;
     }
     _ltPieClose();
@@ -3113,12 +3133,15 @@ function _ltSettingsPanel(){
     document.removeEventListener("keyup",_ltPieUp,true);
     document.removeEventListener("mousedown",_ltPieDown,true);
     if(_ltPie.el&&_ltPie.el.parentNode)_ltPie.el.parentNode.removeChild(_ltPie.el);
-    _ltPie.el=null;_ltPie.sector=null;_ltPie.mode="flick";
+    _ltPie.el=null;_ltPie.hover=null;_ltPie.mode="flick";
   }
-  function _ltPieExec(idx){
-    var s=_ltPieSectors[idx],sel=_ltPie.sel.slice();
+  function _ltPieExec(ring,idx){
+    var sel=_ltPie.sel.slice();
     _ltPieClose();
-    if(!s||sel.length<2)return;
+    if(sel.length<2)return;
+    if(ring===0){_ltPieArrange(sel,idx);return;}
+    var s=_ltPieSectors[idx];
+    if(!s)return;
     var boxes=[],i;
     for(i=0;i<sel.length;i++){
       var r=sel[i].getBoundingClientRect();
@@ -3126,10 +3149,8 @@ function _ltSettingsPanel(){
     }
     var ds;
     try{ds=_ltPieDeltas(boxes,s.action);}catch(err){_ltToast(err.message);return;}
-    /* 目标写成画布（flow）坐标：屏幕位移/缩放换算，拖拽中途视口平移也不失准 */
-    var vp=document.querySelector(".react-flow__viewport");
-    var zoom=vp?parseFloat((vp.style.transform.match(/scale\(([^)]+)\)/)||[0,1])[1])||1:1;
     var targets=[];
+    var zoom=_ltZoom();
     for(i=0;i<sel.length;i++){
       if(!ds[i].dx&&!ds[i].dy)continue;
       var f=_ltFlowPos(sel[i]);
@@ -3137,14 +3158,88 @@ function _ltSettingsPanel(){
       targets.push({el:sel[i],fx:f.x+ds[i].dx/zoom,fy:f.y+ds[i].dy/zoom});
     }
     if(!targets.length){_ltToast("已经对齐");return;}
+    _ltAlignMove(sel,targets);
+  }
+  /* 画布缩放：屏幕位移/缩放 = 画布位移 */
+  function _ltZoom(){
+    var vp=document.querySelector(".react-flow__viewport");
+    return vp?parseFloat((vp.style.transform.match(/scale\(([^)]+)\)/)||[0,1])[1])||1:1;
+  }
+  /* React Flow 受控通道：从 .react-flow 的 fiber 拿到 nodes 数组 + onNodesChange（官方批量变更入口） */
+  function _ltRfApi(){
+    try{
+      var rf=document.querySelector(".react-flow");
+      if(!rf)return null;
+      var ks=Object.keys(rf),fk=null,i;
+      for(i=0;i<ks.length;i++)if(ks[i].indexOf("__reactFiber$")===0){fk=ks[i];break;}
+      if(!fk)return null;
+      var f=rf[fk],h=0;
+      while(f&&h++<120){
+        var p=f.memoizedProps||{};
+        if(Array.isArray(p.nodes)&&typeof p.onNodesChange==="function")return p;
+        f=f.return;
+      }
+    }catch(e){}
+    return null;
+  }
+  /* 一次批量 position 变更 = 所有节点同帧落位（不逐个拖）；
+     位移取增量写回 position 字段（组内子节点的 position 是父相对坐标，绝对值直写会跳飞）；
+     dragging:false 第二批清标志并触发 ops flush，onSelectionDragStop 走 nodes/batch 一次请求写全部；
+     拿不到通道（站点改版）回退逐节点合成拖拽。 */
+  function _ltAlignMove(sel,targets){
+    var api=_ltRfApi(),i;
+    if(api){
+      var byId={},ch=[],moved=[];
+      for(i=0;i<api.nodes.length;i++)byId[api.nodes[i].id]=api.nodes[i];
+      for(i=0;i<targets.length;i++){
+        var id=targets[i].el.getAttribute("data-id"),n=id&&byId[id];
+        var cur=_ltFlowPos(targets[i].el);
+        if(!n||!cur){ch=null;break;}
+        var pos={x:n.position.x+(targets[i].fx-cur.x),y:n.position.y+(targets[i].fy-cur.y)};
+        ch.push({type:"position",id:id,position:pos,dragging:true});
+        moved.push(Object.assign({},n,{position:pos,dragging:false}));
+      }
+      if(ch){
+        try{
+          api.onNodesChange(ch);
+          api.onNodesChange(moved.map(function(m){return {type:"position",id:m.id,position:m.position,dragging:false};}));
+          try{if(typeof api.onSelectionDragStop==="function")api.onSelectionDragStop(new MouseEvent("mouseup"),moved);}catch(e2){}
+          try{if(_ltSyncAll)for(var s=0;s<8;s++)setTimeout(_ltSyncAll,s*60);}catch(e3){}
+          return;
+        }catch(e4){/* 落到拖拽兑底 */}
+      }
+    }
     _ltSoloSelect(null,function(){
       _ltAlignRun(targets,0,function(){
         for(var j=0;j<sel.length;j++){
-          try{if(sel[j].isConnected&&!sel[j].classList.contains("selected"))_ltCtrlClick(sel[j]);}catch(e2){}
+          try{if(sel[j].isConnected&&!sel[j].classList.contains("selected"))_ltCtrlClick(sel[j]);}catch(e5){}
         }
-        try{if(_ltSyncAll)for(var k=0;k<8;k++)setTimeout(_ltSyncAll,k*60);}catch(e3){}
+        try{if(_ltSyncAll)for(var k=0;k<8;k++)setTimeout(_ltSyncAll,k*60);}catch(e6){}
       });
     });
+  }
+  /* 内环动作：直接调站点原生 onLayoutChange（宫格/横排/竖排的排序、间距、保存全同原生菜单） */
+  function _ltPieArrange(sel,idx){
+    var mode=["grid","horizontal","vertical"][idx];
+    if(!mode)return;
+    var fn=null;
+    try{
+      var rf=document.querySelector(".react-flow");
+      var ks=Object.keys(rf),fk=null,i;
+      for(i=0;i<ks.length;i++)if(ks[i].indexOf("__reactFiber$")===0){fk=ks[i];break;}
+      var root=fk?rf[fk]:null;
+      while(root&&root.return)root=root.return;
+      var q=root?[root]:[],vis=0,f;
+      while(q.length&&vis++<20000){
+        f=q.shift();if(!f)continue;
+        var p=f.memoizedProps||{};
+        if(typeof p.onLayoutChange==="function"){fn=p.onLayoutChange;break;}
+        if(f.child)q.push(f.child);
+        if(f.sibling)q.push(f.sibling);
+      }
+    }catch(e){fn=null;}
+    if(!fn){_ltToast("原生排列不可用（站点结构变更）");return;}
+    try{fn(mode);}catch(e2){_ltToast("排列失败："+e2.message);}
   }
   /* 节点画布坐标 = inline transform 的 translate 值（React Flow 定位机制，勿信屏幕矩形——中途缩放/平移会漂） */
   function _ltFlowPos(el){
