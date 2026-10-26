@@ -279,6 +279,7 @@ MutationObserver 监听 `body`，检测右侧 AI Agent Drawer 的出现。当 dr
 | AI 增强重构     | 预设策略(润色/扩写/缩写/翻译) + 自定义 system prompt + 原文对比结果区 |
 | 积分⇄人民币换算    | `_ltCreditScan()` 在积分数值旁注入 `.lt-rmb` 估值标签（`_ltRate` 默认 15:1） |
 | 桌宠             | 画布桌宠浮层（clip div + 整图 img 位移，无 canvas）；素材包兼容 mayi「Codex 桌宠包」：`pet.json` + `spritesheet.webp\|png`，8 列网格，v1=9 行 / v2=11 行（行 9-10 为 16 向视线），动作表 `_ltPetStrips` 行 0-8；纯函数块在 `__lt_pet_pure_*` 标记间，`test-pet-pack.js` 抽取单测；图集 Blob 存 IndexedDB `pet:<id>`，索引 `_lt_pets`、偏好 `_lt_pet_v1`；AI 状态经 `_ltAIChat` 包装进 `_ltPetNotify` |
+| 节点对齐 pie 菜单 | `A` 键弹 8 扇区 pie（甩选 + 点击兜底），对齐基准=选区包围盒（屏幕像素，与缩放无关）；纯函数块在 `__lt_pie_pure_*` 标记间，`test-pie-align.js` 抽取单测。**节点位移 = 合成鼠标拖拽走站点 d3-drag 管线**（`mousedown.drag` 挂节点、move/up 挂 window；undo/持久化/连线跟随免费）；拖拽事件丢帧 → 目标写画布坐标（`translate()` 解析）闭环补拖 ≤3 轮。**拖前必须隔离选区**：多选下拖任意节点会带动全部选中节点，先点空白 pane 清选再单独点目标节点（React Flow 多选看全局按键状态，`_ltCtrlClick` 需补 `keydown Control`） |
 
 #### 链高亮引擎
 

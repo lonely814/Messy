@@ -1573,7 +1573,8 @@
     if(e.key==="Escape"){
       var _handled=false;
       var _tm=document.getElementById("lt-tag-menu"); if(_tm){_ltCloseTagMenu();_handled=true;}
-      ["libtv-search","libtv-prompt","lt-settings","lt-ai-panel","lt-acc-panel","lt-cp-overlay","lt-diag"].forEach(function(_id){
+      var _pie=document.getElementById("lt-pie"); if(_pie){_ltPieClose();_handled=true;}
+      ["libtv-search","libtv-prompt","lt-settings","lt-ai-panel","lt-acc-panel","lt-cp-overlay","lt-diag","lt-pie"].forEach(function(_id){
         var el=document.getElementById(_id);
         if(el){el.remove();_handled=true;}
       });
@@ -1642,6 +1643,11 @@
       document.body.classList.toggle("libtv-step-edges");
       try{localStorage.setItem("_lt_step",document.body.classList.contains("libtv-step-edges")?"1":"0");}catch(ex){}
       _ltStepApply();
+      return;
+    }
+    if(e.key==="a"||e.key==="A"){
+      e.preventDefault(); e.stopPropagation();
+      if(!e.repeat) _ltPieToggle();
       return;
     }
     if(e.key==="?"||e.key==="/"){
@@ -2965,4 +2971,251 @@ function _ltSettingsPanel(){
     _ltFindSync();
   }
   try{_ltFindInit();}catch(e){}
+
+  /* ===== 节点对齐 pie 菜单（快捷键 A；甩选式 + 点击兜底） =====
+     对齐基准 = 选中节点包围盒（屏幕像素；全体节点共享同一视口变换，屏幕对齐即画布对齐，与缩放无关）。
+     节点位移走合成鼠标拖拽过站点自己的 d3-drag 管线（undo/位置持久化/连线跟随免费得到）；
+     拖拽事件有丢帧（实测 3 步只走 2/3）→ 闭环修正：拖完实测残差再补拖，最多 3 轮。
+     纯函数块（__lt_pie_pure_* 之间）被 test-pie-align.js 抽取做单测，勿在其中引用 DOM。 */
+  /* __lt_pie_pure_begin__ */
+  var _ltPieSectors=[
+    {action:"top",   label:"顶对齐"},
+    {action:"distX", label:"水平等距"},
+    {action:"right", label:"右对齐"},
+    {action:"distY", label:"垂直等距"},
+    {action:"bottom",label:"底对齐"},
+    {action:"cx",    label:"水平居中"},
+    {action:"left",  label:"左对齐"},
+    {action:"cy",    label:"垂直居中"}
+  ];
+  /* 扇区索引 = round(角度/45)%8，0=正上顺时针（同桌宠视线角约定）；48px 死区返回 null */
+  function _ltPieSector(dx,dy){
+    if(!isFinite(dx)||!isFinite(dy))return null;
+    if(Math.sqrt(dx*dx+dy*dy)<48)return null;
+    var deg=Math.atan2(dx,-dy)*180/Math.PI;
+    var t=((deg%360)+360)%360;
+    return Math.round(t/45)%8;
+  }
+  /* 对齐位移：boxes=[{x,y,w,h}] → [{dx,dy}]。
+     边对齐到选区包围盒对应边，中心对齐到包围盒中心线；等距分布 = 首尾不动、等间隙摊开（非等中心距）。 */
+  function _ltPieDeltas(boxes,action){
+    if(!boxes||!boxes.length)throw new Error("没有可对齐的节点");
+    var n=boxes.length,d=[],i,b;
+    for(i=0;i<n;i++){
+      b=boxes[i]||{};
+      if(!(isFinite(b.x)&&isFinite(b.y)&&isFinite(b.w)&&isFinite(b.h))||!(b.w>0)||!(b.h>0))throw new Error("节点盒子数据无效");
+      d.push({dx:0,dy:0});
+    }
+    if(action==="top"||action==="bottom"||action==="cy"){
+      var minY=Infinity,maxY=-Infinity;
+      for(i=0;i<n;i++){b=boxes[i];if(b.y<minY)minY=b.y;if(b.y+b.h>maxY)maxY=b.y+b.h;}
+      for(i=0;i<n;i++){
+        b=boxes[i];
+        if(action==="top")d[i].dy=minY-b.y;
+        else if(action==="bottom")d[i].dy=maxY-(b.y+b.h);
+        else d[i].dy=(minY+maxY)/2-(b.y+b.h/2);
+      }
+      return d;
+    }
+    if(action==="left"||action==="right"||action==="cx"){
+      var minX=Infinity,maxX=-Infinity;
+      for(i=0;i<n;i++){b=boxes[i];if(b.x<minX)minX=b.x;if(b.x+b.w>maxX)maxX=b.x+b.w;}
+      for(i=0;i<n;i++){
+        b=boxes[i];
+        if(action==="left")d[i].dx=minX-b.x;
+        else if(action==="right")d[i].dx=maxX-(b.x+b.w);
+        else d[i].dx=(minX+maxX)/2-(b.x+b.w/2);
+      }
+      return d;
+    }
+    if(action==="distX"||action==="distY"){
+      if(n<3)throw new Error("等距分布至少需要 3 个节点");
+      var horiz=action==="distX",idx=[];
+      for(i=0;i<n;i++)idx.push(i);
+      idx.sort(function(p,q){return horiz?(boxes[p].x-boxes[q].x):(boxes[p].y-boxes[q].y);});
+      var first=boxes[idx[0]],last=boxes[idx[n-1]],sum=0;
+      for(i=0;i<n;i++)sum+=horiz?boxes[idx[i]].w:boxes[idx[i]].h;
+      var span=horiz?((last.x+last.w)-first.x):((last.y+last.h)-first.y);
+      var gap=(span-sum)/(n-1),cur=horiz?first.x:first.y;
+      for(i=0;i<n;i++){
+        var it=boxes[idx[i]],pos=horiz?it.x:it.y;
+        if(horiz)d[idx[i]].dx=cur-pos;else d[idx[i]].dy=cur-pos;
+        cur+=(horiz?it.w:it.h)+gap;
+      }
+      return d;
+    }
+    throw new Error("未知对齐动作 "+action);
+  }
+  /* __lt_pie_pure_end__ */
+
+  var _ltPie={el:null,mode:"flick",sector:null,sel:[]};
+  var _ltLastMouse={x:0,y:0};
+  document.addEventListener("mousemove",function(e){_ltLastMouse.x=e.clientX;_ltLastMouse.y=e.clientY;},true);
+  function _ltPieWedge(i,r0,r1){
+    var p=function(a,r){return (r*Math.sin(a)).toFixed(2)+","+(-r*Math.cos(a)).toFixed(2);};
+    var a0=(i*45-22.5)*Math.PI/180,a1=(i*45+22.5)*Math.PI/180;
+    return "M"+p(a0,r0)+"L"+p(a0,r1)+"A"+r1+","+r1+" 0 0 1 "+p(a1,r1)+"L"+p(a1,r0)+"A"+r0+","+r0+" 0 0 0 "+p(a0,r0)+"Z";
+  }
+  function _ltPieToggle(){
+    if(_ltPie.el){_ltPieClose();return;}
+    var sel=Array.prototype.slice.call(document.querySelectorAll(".react-flow__node.selected"));
+    if(sel.length<2){_ltToast("选中至少 2 个节点再按 A 对齐");return;}
+    var R=110,R0=48,i,h="";
+    for(i=0;i<8;i++){
+      var s=_ltPieSectors[i];
+      var off=(s.action==="distX"||s.action==="distY")&&sel.length<3;
+      var a=i*45*Math.PI/180,tr=(R0+R)/2;
+      h+="<path class=\"lt-pie-w"+(off?" lt-pie-off":"")+"\" data-i=\""+i+"\" d=\""+_ltPieWedge(i,R0,R)+"\"/>"+
+         "<text class=\"lt-pie-t"+(off?" lt-pie-off":"")+"\" x=\""+(tr*Math.sin(a)).toFixed(1)+"\" y=\""+(-tr*Math.cos(a)).toFixed(1)+"\">"+s.label+"</text>";
+    }
+    h+="<circle class=\"lt-pie-hub\" r=\""+(R0-2)+"\"/>";
+    var el=document.createElement("div");
+    el.id="lt-pie";
+    el.style.left=(_ltLastMouse.x-160)+"px";
+    el.style.top=(_ltLastMouse.y-160)+"px";
+    el.innerHTML="<svg width=\"320\" height=\"320\" viewBox=\"-160 -160 320 320\">"+h+"</svg>";
+    document.body.appendChild(el);
+    _ltPie.el=el;_ltPie.sel=sel;_ltPie.mode="flick";_ltPie.sector=null;
+    document.addEventListener("mousemove",_ltPieMove,true);
+    document.addEventListener("keyup",_ltPieUp,true);
+  }
+  function _ltPieMove(e){
+    if(!_ltPie.el)return;
+    var r=_ltPie.el.getBoundingClientRect();
+    var s=_ltPieSector(e.clientX-(r.left+r.width/2),e.clientY-(r.top+r.height/2));
+    if(s!=null&&(s===1||s===3)&&_ltPie.sel.length<3)s=null;
+    if(s===_ltPie.sector)return;
+    _ltPie.sector=s;
+    var ws=_ltPie.el.querySelectorAll(".lt-pie-w");
+    for(var i=0;i<ws.length;i++)ws[i].classList.toggle("lt-pie-on",i===s);
+  }
+  function _ltPieUp(e){
+    if(e.key!=="a"&&e.key!=="A")return;
+    document.removeEventListener("keyup",_ltPieUp,true);
+    if(!_ltPie.el)return;
+    if(_ltPie.sector!=null){_ltPieExec(_ltPie.sector);return;}
+    /* 松开时停在死区 → 转点击模式 */
+    _ltPie.mode="click";
+    _ltPie.el.classList.add("lt-pie-click");
+    document.addEventListener("mousedown",_ltPieDown,true);
+  }
+  function _ltPieDown(e){
+    if(!_ltPie.el)return;
+    if(_ltPie.el.contains(e.target)){
+      var w=e.target.closest?e.target.closest(".lt-pie-w"):null;
+      if(w&&!w.classList.contains("lt-pie-off"))_ltPieExec(+w.getAttribute("data-i"));
+      return;
+    }
+    _ltPieClose();
+  }
+  function _ltPieClose(){
+    document.removeEventListener("mousemove",_ltPieMove,true);
+    document.removeEventListener("keyup",_ltPieUp,true);
+    document.removeEventListener("mousedown",_ltPieDown,true);
+    if(_ltPie.el&&_ltPie.el.parentNode)_ltPie.el.parentNode.removeChild(_ltPie.el);
+    _ltPie.el=null;_ltPie.sector=null;_ltPie.mode="flick";
+  }
+  function _ltPieExec(idx){
+    var s=_ltPieSectors[idx],sel=_ltPie.sel.slice();
+    _ltPieClose();
+    if(!s||sel.length<2)return;
+    var boxes=[],i;
+    for(i=0;i<sel.length;i++){
+      var r=sel[i].getBoundingClientRect();
+      boxes.push({x:r.left,y:r.top,w:r.width,h:r.height});
+    }
+    var ds;
+    try{ds=_ltPieDeltas(boxes,s.action);}catch(err){_ltToast(err.message);return;}
+    /* 目标写成画布（flow）坐标：屏幕位移/缩放换算，拖拽中途视口平移也不失准 */
+    var vp=document.querySelector(".react-flow__viewport");
+    var zoom=vp?parseFloat((vp.style.transform.match(/scale\(([^)]+)\)/)||[0,1])[1])||1:1;
+    var targets=[];
+    for(i=0;i<sel.length;i++){
+      if(!ds[i].dx&&!ds[i].dy)continue;
+      var f=_ltFlowPos(sel[i]);
+      if(!f)continue;
+      targets.push({el:sel[i],fx:f.x+ds[i].dx/zoom,fy:f.y+ds[i].dy/zoom});
+    }
+    if(!targets.length){_ltToast("已经对齐");return;}
+    _ltSoloSelect(null,function(){
+      _ltAlignRun(targets,0,function(){
+        for(var j=0;j<sel.length;j++){
+          try{if(sel[j].isConnected&&!sel[j].classList.contains("selected"))_ltCtrlClick(sel[j]);}catch(e2){}
+        }
+        try{if(_ltSyncAll)for(var k=0;k<8;k++)setTimeout(_ltSyncAll,k*60);}catch(e3){}
+      });
+    });
+  }
+  /* 节点画布坐标 = inline transform 的 translate 值（React Flow 定位机制，勿信屏幕矩形——中途缩放/平移会漂） */
+  function _ltFlowPos(el){
+    var m=(el.style.transform||"").match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+    return m?{x:parseFloat(m[1]),y:parseFloat(m[2])}:null;
+  }
+  /* 选区隔离：多选下拖任意节点会带动全部选中节点，逐节点不同位移必须先把它单独选中。
+     确定性两步：点空白 pane 清选（已实测 sel→0），再普通点 el（只选它自己） */
+  function _ltSoloSelect(el,cb){
+    var pane=document.querySelector(".react-flow__pane");
+    if(pane)pane.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true,view:window,button:0,clientX:0,clientY:0}));
+    if(!el){setTimeout(function(){cb&&cb();},60);return;}
+    var r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+    function mk(t,up){return new MouseEvent(t,{bubbles:true,cancelable:true,view:window,clientX:x,clientY:y,button:0,buttons:up?0:1});}
+    el.dispatchEvent(mk("mousedown"));
+    el.dispatchEvent(mk("mouseup",true));
+    el.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true,view:window,clientX:x,clientY:y,button:0}));
+    setTimeout(function(){cb&&cb();},60);
+  }
+  /* 多轮闭环：每轮逐节点补拖残差（顺带吸收拖拽对旁节点的连带位移），达标或 3 轮封顶。
+     目标/残差均用画布（flow）坐标，拖距=残差×缩放换算成屏幕像素 */
+  function _ltAlignRun(targets,pass,done){
+    if(pass>=3||!targets.length){done&&done();return;}
+    var vp=document.querySelector(".react-flow__viewport");
+    var zoom=vp?parseFloat((vp.style.transform.match(/scale\(([^)]+)\)/)||[0,1])[1])||1:1;
+    var queue=targets.slice(),i=0;
+    (function next(){
+      if(i>=queue.length){
+        setTimeout(function(){
+          var rest=[];
+          for(var j=0;j<queue.length;j++){
+            var f=_ltFlowPos(queue[j].el);
+            if(f&&queue[j].el.isConnected&&(Math.abs(queue[j].fx-f.x)>0.5||Math.abs(queue[j].fy-f.y)>0.5))
+              rest.push(queue[j]);
+          }
+          _ltAlignRun(rest,pass+1,done);
+        },60);
+        return;
+      }
+      var t=queue[i++];
+      if(!t.el.isConnected){next();return;}
+      /* 先把它单独选中再拖：拖动只带 el 自己 */
+      _ltSoloSelect(t.el,function(){
+        if(!t.el.isConnected){next();return;}
+        var f=_ltFlowPos(t.el);
+        if(!f){next();return;}
+        _ltSimDragAsync(t.el,(t.fx-f.x)*zoom,(t.fy-f.y)*zoom,function(){setTimeout(next,30);});
+      });
+    })();
+  }
+  function _ltSimDragAsync(el,dx,dy,done){
+    if(!el.isConnected||(Math.abs(dx)<0.5&&Math.abs(dy)<0.5)){done&&done();return;}
+    var r=el.getBoundingClientRect();
+    var x0=r.left+r.width/2,y0=r.top+r.height/2;
+    function mk(t,x,y,up){return new MouseEvent(t,{bubbles:true,cancelable:true,view:window,clientX:x,clientY:y,button:0,buttons:up?0:1});}
+    el.dispatchEvent(mk("mousedown",x0,y0));
+    var steps=[{x:x0+2,y:y0+2},{x:x0+dx*0.5,y:y0+dy*0.5},{x:x0+dx,y:y0+dy}],i=0;
+    (function next(){
+      if(i<steps.length){window.dispatchEvent(mk("mousemove",steps[i].x,steps[i].y));i++;setTimeout(next,16);}
+      else{window.dispatchEvent(mk("mouseup",x0+dx,y0+dy,true));setTimeout(done,40);}
+    })();
+  }
+  function _ltCtrlClick(el){
+    /* React Flow 多选看全局按键状态（useKeyPress），仅点击事件带 ctrlKey 不够，需补 keydown/keyup */
+    var r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+    function kk(type){document.dispatchEvent(new KeyboardEvent(type,{key:"Control",code:"Control",ctrlKey:true,bubbles:true,cancelable:true}));}
+    function mk(t,up){return new MouseEvent(t,{bubbles:true,cancelable:true,view:window,clientX:x,clientY:y,button:0,buttons:up?0:1,ctrlKey:true});}
+    kk("keydown");
+    el.dispatchEvent(mk("mousedown"));
+    el.dispatchEvent(mk("mouseup",true));
+    el.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true,view:window,clientX:x,clientY:y,button:0,ctrlKey:true}));
+    kk("keyup");
+  }
 })();

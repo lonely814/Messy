@@ -47,7 +47,7 @@
     var helpEl = document.createElement('div');
     helpEl.id = 'libtv-help';
     helpEl.classList.add('libtv-hide');
-    helpEl.textContent = '画布\n  G 网格   T 性能   H 隐藏   L 连线\n  C 全链   R 直角   X 专注\n工具\n  F 搜索   P 提示词   ? 帮助';
+    helpEl.textContent = '画布\n  G 网格   T 性能   H 隐藏   L 连线\n  C 全链   R 直角   X 专注   A 对齐\n工具\n  F 搜索   P 提示词   ? 帮助';
     document.body.appendChild(helpEl);
     function _showHelp(){
         if(!helpEl) return;

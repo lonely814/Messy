@@ -625,3 +625,13 @@ header.m_3b16f56b > div.relative:first-child {
 #lt-find-inp::placeholder { color:rgba(255,255,255,0.3); }
 #lt-find-count { font-size:10px; color:var(--accent-light); white-space:nowrap; }
 ::highlight(lt-find) { background-color:rgba(255,196,0,0.5); color:#fff; }
+
+/* ===== 节点对齐 pie 菜单（快捷键 A） ===== */
+#lt-pie { position:fixed; z-index:2147483600; width:320px; height:320px; pointer-events:none; }
+#lt-pie.lt-pie-click { pointer-events:auto; }
+#lt-pie .lt-pie-w { fill:rgba(22,22,34,0.92); stroke:rgba(255,255,255,0.12); stroke-width:1; }
+#lt-pie .lt-pie-w.lt-pie-on { fill:rgba(var(--accent-rgb),0.85); stroke:rgba(var(--accent-light-rgb),0.9); }
+#lt-pie .lt-pie-w.lt-pie-off { opacity:0.35; }
+#lt-pie .lt-pie-t { fill:#fff; font-size:12px; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
+#lt-pie .lt-pie-t.lt-pie-off { fill:rgba(255,255,255,0.35); }
+#lt-pie .lt-pie-hub { fill:rgba(12,12,20,0.95); stroke:rgba(255,255,255,0.1); }
