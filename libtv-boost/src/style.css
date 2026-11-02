@@ -620,7 +620,8 @@ header.m_3b16f56b > div.relative:first-child {
 /* ===== 工具栏 pill（对齐原生 参考/标记/风格 按钮观感）+ 搜索框 ===== */
 .lt-tb-pill { display:flex; align-items:center; justify-content:center; gap:2px; padding:4px 8px; border-radius:999px; background:rgba(255,255,255,0.05); transition:background .15s; cursor:pointer; color:rgba(255,255,255,0.55); box-sizing:border-box; }
 .lt-tb-pill:hover, .lt-tb-pill:active { background:rgba(255,255,255,0.1); }
-#lt-find-bar { position:fixed; z-index:100001; width:128px; height:26px; justify-content:flex-start; gap:4px; }
+/* z-index 150：高于页面内容、低于站点弹层（Mantine 默认 Modal 200），避免盖住各类菜单/原图查看器 */
+#lt-find-bar { position:fixed; z-index:150; width:128px; height:26px; justify-content:flex-start; gap:4px; }
 #lt-find-inp { flex:1; min-width:0; background:transparent; border:none; outline:none; color:#e7e9f3; font-size:12px; padding:0; }
 #lt-find-inp::placeholder { color:rgba(255,255,255,0.3); }
 #lt-find-count { font-size:10px; color:var(--accent-light); white-space:nowrap; }

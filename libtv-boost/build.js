@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const VERSION = '1.19.0';
+const VERSION = '1.19.1';
 const ROOT = __dirname;
 const SRC = path.join(ROOT, 'src');
 const OUT = path.join(ROOT, 'libtv-boost.user.js');
@@ -42,8 +42,9 @@ function build() {
 
   // 2. Read template and replace markers
   let main = read('main.js');
-  main = main.replace('__INJECT_CSS__', cssLines.join(',\n'));
-  main = main.replace('__INJECT_SCRIPT__', injectLines.join(',\n'));
+  /* 必须用函数形式替换：字符串替换会把注入文本里的 $&/$'/$1 等替换符解释掉（曾把 inject.js 的 "\\$&" 转义静默吞成占位符） */
+  main = main.replace('__INJECT_CSS__', () => cssLines.join(',\n'));
+  main = main.replace('__INJECT_SCRIPT__', () => injectLines.join(',\n'));
   main = main.replace(/__VERSION__/g, VERSION);
 
   // 3. Write output

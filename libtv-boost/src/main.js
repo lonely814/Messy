@@ -11,7 +11,11 @@
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
 // @grant        GM_xmlhttpRequest
-// @connect      *
+// @connect api.deepseek.com
+// @connect localhost
+// @connect 127.0.0.1
+// ↑ 不再放行所有域（@connect *）：页面脚本可借 GM_xmlhttpRequest 免 CORS 请求任意站点。
+//   预授权默认预设的两个域；用户自定义网关首次请求时由油猴弹窗授权（可勾「总是允许」）。
 // ==/UserScript==
 
 (function(){
