@@ -135,6 +135,12 @@
     document.getElementById("lt-search-input").addEventListener("input",function(){
       render(this.value);
     });
+    /* 回车直接跳第一个命中，省一次瞄准点击 */
+    document.getElementById("lt-search-input").addEventListener("keydown",function(e){
+      if(e.key!=="Enter")return;
+      var first=document.querySelector("#lt-search-results [data-id]");
+      if(first)first.click();
+    });
     document.getElementById("lt-search-results").addEventListener("click",function(e){
       var item=e.target.closest("[data-id]");
       if(!item)return;
@@ -219,6 +225,9 @@
   _ltApplyTheme(_ltTheme);
   setTimeout(function(){try{var _e=document.querySelectorAll(".react-flow__renderer,.react-flow");for(var _i=0;_i<_e.length;_i++)_e[_i].style.backgroundColor=_ltTheme.cb;}catch(e){}},500);
   var _ltPActiveTab="templates",_ltPCat="",_ltAISource=null,_ltBodyOrigMinH="";
+  /* AI 请求代际计数（提示词面板 AI tab 与独立 AI 面板共用）：取消/重发即 ++，
+     迟到回包按代际丢弃；放顶层而非各渲染闭包内——面板重挂载换闭包后旧回包才拦得住 */
+  var _ltAIReqGen=0;
   function _ltPromptPanel(anchor){
         if(_ltPActiveTab==="settings")_ltPActiveTab="templates";
     var el=document.getElementById("libtv-prompt");
@@ -320,7 +329,7 @@
           +'<div class="ltp-ai-custom" id="ltp-ai-custom"><textarea id="ltp-ai-sys" class="ltp-ai-sys" placeholder="在此输入自定义 system prompt..." rows="2"></textarea>'
           +'<div style="display:flex;gap:4px;margin-top:6px;"><button class="ltp-ai-preset-btn" id="ltp-ai-save-preset">💾 另存为</button></div>'
           +'<div class="ltp-ai-preset-list" id="ltp-ai-preset-list"></div></div>'
-          +'<div class="ltp-ai-actions"><button class="ltp-btn ltp-btn-primary" id="ltp-ai-go">🚀 执行</button><span id="ltp-ai-model-sel" style="display:inline-flex;align-items:center;"></span><button class="ltp-btn ltp-btn-ghost" id="ltp-ai-fill">从输入框获取</button><button class="ltp-btn ltp-btn-ghost" id="ltp-ai-clear">清空</button></div>'
+          +'<div class="ltp-ai-actions"><button class="ltp-btn ltp-btn-primary" id="ltp-ai-go">🚀 执行</button><button class="ltp-btn ltp-btn-ghost" id="ltp-ai-cancel" style="display:none">取消</button><span id="ltp-ai-model-sel" style="display:inline-flex;align-items:center;"></span><button class="ltp-btn ltp-btn-ghost" id="ltp-ai-fill">从输入框获取</button><button class="ltp-btn ltp-btn-ghost" id="ltp-ai-clear">清空</button></div>'
           +'<div id="ltp-ai-result" class="ltp-ai-result" style="display:none"></div>'
           +'<div class="ltp-status" id="ltp-ai-status">'+(api.url?("已配置 "+_ltEsc(_ltHost(api.url))+(api.model?(" · "+_ltEsc(api.model)):"")):"未配置 API，请在⚙设置中配置")+'</div>';
         /* custom init */
@@ -393,14 +402,19 @@
           var sysPrompt=_ltAICurTask==="custom"?_ltAICustomSys():(_ltAICurTask.indexOf("cp_")===0?function(){var pr=_ltAICustomPresetsGet();for(var _i=0;_i<pr.length;_i++){if(pr[_i].id===_ltAICurTask)return pr[_i].sys;}return "";}():(_ltAIPresets[_ltAICurTask]?_ltAIPresets[_ltAICurTask].sys:""));
           if((_ltAICurTask==="custom"||_ltAICurTask.indexOf("cp_")===0)&&!sysPrompt.trim()){document.getElementById("ltp-ai-status").textContent="❌ 请先填写 system prompt";return;}
           var statusEl=document.getElementById("ltp-ai-status");
+          var cancelBtn=document.getElementById("ltp-ai-cancel");
           btn.textContent="处理中...";btn.disabled=true;
+          if(cancelBtn)cancelBtn.style.display="";
+          var myGen=++_ltAIReqGen;
           _ltAIChat(api.url,api.key,{model:api.model||"deepseek-v4-flash",messages:[{role:"system",content:sysPrompt},{role:"user",content:text}],max_tokens:4096}).then(function(d){
+            if(myGen!==_ltAIReqGen)return; /* 已取消/已重发：迟到回包一律丢弃 */
             var result=_ltMsgText(d)||("\u26a0 \u6a21\u578b\u8fd4\u56de\u7a7a\u5185\u5bb9\uff08\u53ef\u80fd\u601d\u8003\u8fc7\u957f\u88ab max_tokens \u622a\u65ad\uff09\uff0c\u539f\u59cb\u54cd\u5e94: "+(JSON.stringify(d)||"").slice(0,300));
             var resEl=document.getElementById("ltp-ai-result");
             resEl.style.display="block";
             resEl.innerHTML='<div class="ai-sec"><div class="ai-label">原文</div><div class="ai-text ai-orig">'+_ltEsc(text.slice(0,300))+(text.length>300?"...":"")+'</div></div><div class="ai-sep"></div><div class="ai-sec"><div class="ai-label">增强结果</div><div class="ai-text" id="ltp-ai-res-text">'+_ltEsc(result)+'</div></div><div class="ai-res-actions"><button class="ltp-btn ltp-btn-primary ltp-btn-sm" id="ltp-ai-write">写回源输入框</button><button class="ltp-btn ltp-btn-ghost ltp-btn-sm" id="ltp-ai-copy">复制</button></div>';
             statusEl.textContent="✅ 完成";
             btn.textContent="🔄 重新生成";btn.disabled=false;
+            if(cancelBtn)cancelBtn.style.display="none";
             /* write-back */
             document.getElementById("ltp-ai-write").onclick=function(){
               if(!_ltAISource){statusEl.textContent="⚠ 未绑定源输入框，请先点击“从输入框获取”";return;}
@@ -419,14 +433,24 @@
               });
             };
           }).catch(function(err){
+            if(myGen!==_ltAIReqGen)return;
             statusEl.textContent="❌ 请求失败: "+err.message+" | model="+(api.model||"deepseek-v4-flash");
             btn.textContent="🚀 执行";btn.disabled=false;
+            if(cancelBtn)cancelBtn.style.display="none";
           });
         };
         document.getElementById("ltp-ai-go").onclick=function(){
           var text=_ltAIInp.value.trim();
           if(!text)return;
           _ltDoAI(text,this);
+        };
+        document.getElementById("ltp-ai-cancel").onclick=function(){
+          _ltAIReqGen++;
+          var g=document.getElementById("ltp-ai-go");
+          if(g){g.disabled=false;g.textContent="🚀 执行";}
+          this.style.display="none";
+          var s=document.getElementById("ltp-ai-status");
+          if(s)s.textContent="已取消（后台回包将被忽略）";
         };
       }
       else if(_ltPActiveTab==="theme"){
@@ -1215,7 +1239,7 @@
         '<div id="lt-ap-head" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(var(--accent-light-rgb),0.12);flex-shrink:0;cursor:grab;"><span style="font-size:13px;font-weight:600;color:var(--accent-light);">AI \u589e\u5f3a</span><span id="lt-ap-close" style="cursor:pointer;font-size:16px;color:rgba(255,255,255,0.25);line-height:1;">\u2715</span></div>'
         +'<div class="ltp-ai-tasks" id="lt-ap-tasks" style="padding:8px 12px 4px;">'+_ltTaskHTML(curTask)+'</div>'
         +'<div style="padding:0 12px 4px;flex-shrink:0;"><textarea id="lt-ap-input" class="ltp-ai-input" placeholder="\u5728\u6b64\u8f93\u5165\u63d0\u793a\u8bcd..." rows="2" style="width:100%;box-sizing:border-box;"></textarea></div>'
-        +'<div style="padding:4px 12px 6px;display:flex;gap:6px;flex-shrink:0;"><button style="'+_btnP+'" id="lt-ap-go">\u2728 \u6267\u884c</button><span id="lt-ap-model-sel" style="display:inline-flex;align-items:center;"></span><button style="'+_btnG+'" id="lt-ap-fill">\u4ece\u8f93\u5165\u6846\u83b7\u53d6</button><button style="'+_btnG+'" id="lt-ap-clr">\u6e05\u7a7a</button></div>'
+        +'<div style="padding:4px 12px 6px;display:flex;gap:6px;flex-shrink:0;"><button style="'+_btnP+'" id="lt-ap-go">\u2728 \u6267\u884c</button><button style="'+_btnG+'display:none;" id="lt-ap-cancel">取消</button><span id="lt-ap-model-sel" style="display:inline-flex;align-items:center;"></span><button style="'+_btnG+'" id="lt-ap-fill">\u4ece\u8f93\u5165\u6846\u83b7\u53d6</button><button style="'+_btnG+'" id="lt-ap-clr">\u6e05\u7a7a</button></div>'
         +'<div id="lt-ap-result" style="display:none;flex:1;overflow-y:auto;padding:4px 12px 6px;white-space:pre-wrap;word-break:break-word;font-size:12px;"></div>'
         +'<div style="padding:4px 12px 8px;flex-shrink:0;"><span style="font-size:11px;color:rgba(255,255,255,0.3);" id="lt-ap-status">'+(api.url?("\u5df2\u914d\u7f6e "+_ltEsc(_ltHost(api.url))+(api.model?(" · "+_ltEsc(api.model)):"")):"\u672a\u914d\u7f6e API")+'</span></div>';
       document.body.appendChild(div);
@@ -1270,7 +1294,6 @@
         var g=document.getElementById("lt-ap-go");if(g)g.textContent="\u2728 \u6267\u884c";
       };
       /* execute */
-      var _gen=0;
       document.getElementById("lt-ap-go").onclick=function(){
         var text=inp.value.trim();
         if(!text){document.getElementById("lt-ap-status").textContent="\u8bf7\u5148\u8f93\u5165\u63d0\u793a\u8bcd";return;}
@@ -1279,11 +1302,13 @@
         var sys=_ltGetSP(curTask);
         if((curTask==="custom"||curTask.indexOf("cp_")===0)&&!sys.trim()){document.getElementById("lt-ap-status").textContent="\u8bf7\u5148\u586b\u5199 system prompt";return;}
         var statusEl=document.getElementById("lt-ap-status");
+        var cancelBtn=document.getElementById("lt-ap-cancel");
         var btn=this;btn.disabled=true;btn.textContent="\u5904\u7406\u4e2d...";
-        var myGen=++_gen;
+        if(cancelBtn)cancelBtn.style.display="";
+        var myGen=++_ltAIReqGen;
         _ltAIChat(api.url,api.key,{model:api.model||"deepseek-v4-flash",messages:[{role:"system",content:sys},{role:"user",content:text}],max_tokens:4096})
         .then(function(d){
-          if(myGen!==_gen)return;
+          if(myGen!==_ltAIReqGen)return;
           var result=_ltMsgText(d)||("\u26a0 \u6a21\u578b\u8fd4\u56de\u7a7a\u5185\u5bb9\uff08\u53ef\u80fd\u601d\u8003\u8fc7\u957f\u88ab max_tokens \u622a\u65ad\uff09\uff0c\u539f\u59cb\u54cd\u5e94: "+(JSON.stringify(d)||"").slice(0,300));
           var resEl=document.getElementById("lt-ap-result");
           resEl.style.display="block";
@@ -1305,12 +1330,22 @@
           };
           statusEl.textContent="\u2705 \u5b8c\u6210";
           btn.disabled=false;btn.textContent="\ud83d\udd04 \u91cd\u65b0\u751f\u6210";
+          if(cancelBtn)cancelBtn.style.display="none";
         })
         .catch(function(e){
-          if(myGen!==_gen)return;
+          if(myGen!==_ltAIReqGen)return;
           statusEl.textContent="\u8bf7\u6c42\u5931\u8d25: "+e.message+" | model="+(api.model||"deepseek-v4-flash");
           btn.disabled=false;btn.textContent="\u2728 \u6267\u884c";
+          if(cancelBtn)cancelBtn.style.display="none";
         });
+      };
+      document.getElementById("lt-ap-cancel").onclick=function(){
+        _ltAIReqGen++;
+        var g=document.getElementById("lt-ap-go");
+        if(g){g.disabled=false;g.textContent="\u2728 \u6267\u884c";}
+        this.style.display="none";
+        var s=document.getElementById("lt-ap-status");
+        if(s)s.textContent="已取消（后台回包将被忽略）";
       };
       _ltModelSelect(document.getElementById("lt-ap-model-sel"),"ap",function(m){
         api=_ltAPIRead();
