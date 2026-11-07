@@ -1684,8 +1684,10 @@
   /* 安全读取 JSON localStorage（损坏返回默认值；函数声明提升，IIFE 内任意位置可用） */
   function _ltJ(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}}
   function _ltAPIRead(){var a=_ltJ("_lt_prompt_api",{});return a&&typeof a==="object"?a:{}};
-  /* ── 模型列表缓存：按 base+key 维度存 localStorage，换地址/换 Key 自动失效，24h 过期 ── */
-  function _ltModelsCacheKey(base,key){return "_lt_models_cache|"+base+"|"+(key||"");}
+  /* ── 模型列表缓存：按 base+key 维度存 localStorage，换地址/换 Key 自动失效，24h 过期 ──
+     key 不进键名明文（localStorage 键名在 DevTools 一眼可见），改存 djb2 哈希；base 保留便于人工辨识 */
+  function _ltModelsHash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(36);}
+  function _ltModelsCacheKey(base,key){return "_lt_models_cache|"+base+"|"+_ltModelsHash(String(key||""));}
   function _ltModelsCacheGet(base,key){
     var c=_ltJ(_ltModelsCacheKey(base,key),null);
     if(!c||!Array.isArray(c.models)||!c.models.length)return null;
@@ -1693,7 +1695,23 @@
     return c;
   }
   function _ltModelsCacheSet(base,key,list){
-    try{localStorage.setItem(_ltModelsCacheKey(base,key),JSON.stringify({models:list,at:Date.now()}));}catch(e){}
+    try{
+      localStorage.setItem(_ltModelsCacheKey(base,key),JSON.stringify({models:list,at:Date.now()}));
+      /* 淘汰：过期条目直接删；仍超量则按时间删最旧（换预设/换 Key 会累积孤儿键，只过期不清理越长越多）。
+         旧明文键名格式的存量条目读不到新键，也会被本轮过期清扫自然回收 */
+      var del=[],keep=[];
+      for(var i=0;i<localStorage.length;i++){
+        var k=localStorage.key(i);
+        if(!k||k.indexOf("_lt_models_cache|")!==0)continue;
+        var at=0;try{at=JSON.parse(localStorage.getItem(k)).at||0;}catch(e){}
+        if(Date.now()-at>86400000)del.push(k);else keep.push({k:k,at:at});
+      }
+      del.forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
+      if(keep.length>20){
+        keep.sort(function(a,b){return a.at-b.at;});
+        for(var j=0;j<keep.length-20;j++){try{localStorage.removeItem(keep[j].k);}catch(e){}}
+      }
+    }catch(e){}
   }
   function _ltApiBase(u){
     u=(u||"").trim().replace(/\/+$/,"");
