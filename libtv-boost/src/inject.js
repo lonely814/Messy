@@ -1394,12 +1394,18 @@
     }
     function _ltTryWelcome(){if(_ltWelcomePending)return;_ltWelcomePending=true;setTimeout(function(){_ltWelcomePending=false;_ltShowWelcome();},3000)}
     window._ltShowWelcome=_ltShowWelcome; /* 桥接：设置面板「帮助/重新显示引导」在本 IIFE 外裸调用会 ReferenceError */
-    var _obs=new MutationObserver(function(){
-      if(document.querySelector(".react-flow")){_createBtn();_ltTryWelcome();}
+    /* 监听器在命中 .react-flow 后立即 disconnect 退位：body 级 observer 常驻会让站点每次
+       React 提交都唤醒一次全文档 querySelector。退位后按钮生杀交给 2s 轮询（同 _ltWatchViewport
+       模式）：离开画布移除、回来重建。observer 只负责首次出现的即时性 */
+    var _obs=null;
+    function _ltWatchFlow(){
+      if(document.querySelector(".react-flow")){_createBtn();_ltTryWelcome();if(_obs){_obs.disconnect();_obs=null;}}
       else{_removeBtn();}
-    });
+    }
+    _obs=new MutationObserver(_ltWatchFlow);
     _obs.observe(document.body,{childList:true,subtree:true});
-    if(document.querySelector(".react-flow")){_createBtn();_ltTryWelcome();}
+    setInterval(_ltWatchFlow,2000);
+    _ltWatchFlow();
   })();
   /* ===== 电路板连线（避让式直角路由 v2）=====
    * 替代旧版"固定先横后竖"的简单直角折线：
