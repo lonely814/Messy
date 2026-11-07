@@ -942,11 +942,9 @@
                 });
             }
         }
-        var obs = new MutationObserver(function(){
-            if(obs._t) clearTimeout(obs._t);
-            obs._t = setTimeout(adjust, 50);
-        });
-        obs.observe(document.body, { childList: true, subtree: true });
+        /* 常驻 body 级 MutationObserver 会被站点每次 React 提交唤醒，而本适配只需知道抽屉开没开；
+           改 1s 轮询（同 inject 侧 _ltWatchViewport 模式），抽屉出现最多晚 1s 让位，纯装饰性偏移可接受 */
+        setInterval(adjust, 1000);
         window.addEventListener('resize', function(){
             if(drawerEl()) setTimeout(adjust, 50);
         });
