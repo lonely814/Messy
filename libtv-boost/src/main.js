@@ -227,6 +227,8 @@
         }
         function buildFrame(now){
             var nodes=document.querySelectorAll('.react-flow__node.selected');
+            /* 空选早退：无选中且无淡出残留时，免掉每 33ms 一次的全文档扫描 + readAccent 的 getComputedStyle */
+            if(!nodes.length&&!entries.length)return;
             var sel=new Set();
             nodes.forEach(function(n){sel.add(n);});
             var c=readAccent();
