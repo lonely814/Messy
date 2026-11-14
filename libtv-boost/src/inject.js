@@ -1123,15 +1123,20 @@
     function _ltGlowHash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h>>>0;}
     function _ltGlowParams(id){
       var h=_ltGlowHash(String(id||""));
-      var dur=4.5+(h%100)/100*4;                     /* 转速 4.5–8.5s/圈 */
-      var dir=((h>>>7)&1)?"reverse":"normal";        /* 方向逐节点独立 */
-      var ang=((h>>>8)%360);                         /* 起始角 0–359° */
-      var fx=18+((h>>>14)%64),fy=18+((h>>>20)%64);   /* 焦点1 */
-      var sep=120+((h>>>26)%121);                    /* 焦点2 与焦点1 角距 120–240°（Motif 层间分离） */
+      var h2=_ltGlowHash(String(id||"")+"#f");       /* 焦点几何独立取位，避免与运动参数位重叠 */
+      var d1=4.5+(h%100)/100*1.5;                    /* 快层 4.5–6.0s（Motif 区间） */
+      var d2=6.5+((h>>>7)%100)/100*2;                /* 慢层 6.5–8.5s */
+      var dir1=((h>>>14)&1)?"reverse":"normal";      /* 方向逐层独立 */
+      var dir2=((h>>>15)&1)?"reverse":"normal";
+      var ang=((h>>>16)%360);                        /* 起始角 0–359° */
+      var dly2=d2*(0.15+((h>>>25)%100)/100*0.35);    /* 慢层相位偏移 15–50% 周期（负 delay 实现） */
+      var fx=18+((h2>>>3)%64),fy=18+((h2>>>10)%64);  /* 焦点1 */
+      var sep=120+((h2>>>17)%121);                   /* 焦点2 与焦点1 角距 120–240°（Motif 层间分离） */
       var a1=Math.atan2(fx-50,-(fy-50))*180/Math.PI; /* 0°=正上顺时针，同 pie/视线约定 */
       var a2=a1+sep,r=Math.max(14,Math.min(36,Math.hypot(fx-50,fy-50)));
       var f2x=Math.round(50+r*Math.sin(a2*Math.PI/180)),f2y=Math.round(50-r*Math.cos(a2*Math.PI/180));
-      return {dur:dur.toFixed(2)+"s",dir:dir,ang:ang+"deg",
+      return {d1:d1.toFixed(2)+"s",d2:d2.toFixed(2)+"s",dir1:dir1,dir2:dir2,ang:ang+"deg",
+              dly2:"-"+dly2.toFixed(2)+"s",
               f1:fx+"% "+fy+"%",
               f2:Math.max(4,Math.min(96,f2x))+"% "+Math.max(4,Math.min(96,f2y))+"%"};
     }
@@ -1161,8 +1166,10 @@
           if(st!=="gen"&&img&&img.parentElement){
             var p=_ltGlowParams(id),host=img.parentElement;
             try{
-              el.style.setProperty("--lt-gd",p.dur);el.style.setProperty("--lt-gdir",p.dir);
-              el.style.setProperty("--lt-ga",p.ang);el.style.setProperty("--lt-gf1",p.f1);el.style.setProperty("--lt-gf2",p.f2);
+              el.style.setProperty("--lt-gd1",p.d1);el.style.setProperty("--lt-gd2",p.d2);
+              el.style.setProperty("--lt-gdir1",p.dir1);el.style.setProperty("--lt-gdir2",p.dir2);
+              el.style.setProperty("--lt-ga",p.ang);el.style.setProperty("--lt-gdly2",p.dly2);
+              el.style.setProperty("--lt-gf1",p.f1);el.style.setProperty("--lt-gf2",p.f2);
             }catch(e2){}
             host.setAttribute("data-lt-gen-host","");
             host.removeAttribute("data-lt-reveal-host");

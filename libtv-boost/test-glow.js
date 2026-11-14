@@ -28,11 +28,14 @@ ok('结果落在 uint32', api.hash('libtv') >= 0 && api.hash('libtv') <= 4294967
 console.log('--- 参数范围 ---');
 for (const id of ['n-1', 'n-abc123', '节点中文id', 'x', 'n-2']) {
   const p = api.params(id);
-  const dur = parseFloat(p.dur);
-  ok(id + ' 时长 4.5–8.5s', dur >= 4.5 && dur <= 8.5, p.dur);
-  ok(id + ' 方向枚举', p.dir === 'normal' || p.dir === 'reverse', p.dir);
+  const d1 = parseFloat(p.d1), d2 = parseFloat(p.d2);
+  ok(id + ' 快层 4.5–6.0s', d1 >= 4.5 && d1 <= 6.0, p.d1);
+  ok(id + ' 慢层 6.5–8.5s', d2 >= 6.5 && d2 <= 8.5, p.d2);
+  ok(id + ' 方向枚举 ×2', (p.dir1 === 'normal' || p.dir1 === 'reverse') && (p.dir2 === 'normal' || p.dir2 === 'reverse'), p.dir1 + '/' + p.dir2);
   const ang = parseFloat(p.ang);
   ok(id + ' 起始角 0–359°', Number.isInteger(ang) && ang >= 0 && ang < 360, p.ang);
+  const dly = parseFloat(p.dly2);
+  ok(id + ' 慢层相位偏移 15–50% 周期（负 delay）', dly < 0 && -dly >= 0.15 * d2 - 0.01 && -dly <= 0.5 * d2 + 0.01, p.dly2 + ' vs d2=' + p.d2);
   const m1 = p.f1.match(/^(\d+)% (\d+)%$/), m2 = p.f2.match(/^(\d+)% (\d+)%$/);
   ok(id + ' 焦点格式 "x% y%"', !!m1 && !!m2, p.f1 + ' | ' + p.f2);
   if (m1 && m2) {
@@ -49,11 +52,11 @@ for (const id of ['n-1', 'n-abc123', '节点中文id', 'x', 'n-2']) {
 console.log('--- 确定性 / 区分度 ---');
 eq('同 id 两次一致', JSON.stringify(api.params('n-x')), JSON.stringify(api.params('n-x')));
 const combos = new Set();
-for (let i = 0; i < 50; i++) { const p = api.params('n-' + i); combos.add(p.dir + '|' + p.dur + '|' + p.ang); }
+for (let i = 0; i < 50; i++) { const p = api.params('n-' + i); combos.add(p.dir1 + p.dir2 + '|' + p.d1 + '|' + p.d2 + '|' + p.ang); }
 ok('50 个 id 产出 ≥10 种运动组合', combos.size >= 10, '仅 ' + combos.size + ' 种');
 const dirs = new Set();
-for (let i = 0; i < 50; i++) dirs.add(api.params('n-' + i).dir);
-ok('方向两种都出现', dirs.has('normal') && dirs.has('reverse'), [...dirs].join(','));
+for (let i = 0; i < 50; i++) { const p = api.params('n-' + i); dirs.add(p.dir1 + '/' + p.dir2); }
+ok('四向组合至少出现两种', dirs.size >= 2, [...dirs].join(','));
 
 console.log('');
 console.log(pass + ' 通过, ' + fail + ' 失败');
