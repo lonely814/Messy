@@ -636,3 +636,31 @@ header.m_3b16f56b > div.relative:first-child {
 #lt-pie .lt-pie-t { fill:#fff; font-size:12px; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
 #lt-pie .lt-pie-t.lt-pie-off { fill:rgba(255,255,255,0.35); }
 #lt-pie .lt-pie-hub { fill:rgba(12,12,20,0.95); stroke:rgba(255,255,255,0.1); }
+
+/* ===== 生成光效（Motif Generation Overlay 风格） =====
+   站点生成中给节点 img 打内联 blur(24px)（实测 DOM 特征），以此识别生成中。
+   渐变层挂 img 父级的 ::after：树序天然处于 img 之上、站点进度胶囊之下，零 z-index。
+   相位/转速/方向/双焦点由 JS 按 data-id 哈希写 --lt-g*，多节点互不同步。
+   完成时站点摘掉 blur，img 上的 transition 让清晰过程自然展开（站点直接换 img 则无过渡，不受影响） */
+.react-flow__node-image img { transition: filter 1.6s var(--ease-out); }
+[data-lt-gen-host]::after {
+  content:""; position:absolute; inset:-25%; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(closest-side circle at var(--lt-gf1,30% 25%), rgba(96,165,250,0.5), transparent 64%),
+    radial-gradient(closest-side circle at var(--lt-gf2,72% 76%), rgba(167,139,250,0.42), transparent 64%);
+  mix-blend-mode:screen;
+  animation:lt-gen-spin var(--lt-gd,6.2s) linear infinite;
+  animation-direction:var(--lt-gdir,normal);
+  opacity:1;
+  transition:opacity 1.1s var(--ease-out);
+}
+[data-lt-reveal-host]::after { opacity:0; }
+@keyframes lt-gen-spin {
+  from { transform:rotate(var(--lt-ga,0deg)); }
+  to   { transform:rotate(calc(var(--lt-ga,0deg) + 360deg)); }
+}
+body.perf-mode [data-lt-gen-host]::after,
+body.perf-mode [data-lt-reveal-host]::after { display:none; }
+@media (prefers-reduced-motion: reduce) {
+  [data-lt-gen-host]::after { animation:none; }
+}

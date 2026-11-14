@@ -991,6 +991,7 @@
         _ltSyncOne(_ltFloatIcons[_ltFloatIcons.length-1]);
       });
       _ltScanStats.last=Date.now();
+      _ltGenScan();
       _ltSyncPositions();
       /* 诊断：当前浮动图标状态 */
       _ltScanStats.icons=[];
@@ -1111,6 +1112,74 @@
     document.addEventListener("click",function(){_ltTagBurst();},true);
         document.addEventListener("focusin",function(){_ltTagBurst();},true);
         document.addEventListener("keydown",function(){_ltTagSchedule(300);},true);
+    /* ── 生成光效：Motif Generation Overlay 风格 ──
+       站点生成中给节点 img 打内联 blur(24px)（实测 DOM 特征），以此识别生成中；
+       渐变层挂 img 父级 ::after（树序 = img 之上、进度胶囊之下），相位按 data-id 哈希防同步；
+       完成时站点摘 blur → CSS transition 渐清晰，覆盖层同步淡出。
+       状态扫描由 _ltTagScan 带跑（1s 轮询 + burst），零新增 observer/interval */
+    try{if(localStorage.getItem("_lt_gen_glow")===null)localStorage.setItem("_lt_gen_glow","1");}catch(e){}
+    var _ltGenSeen=new Map(); /* data-id -> "gen"|"reveal" */
+    /* __lt_glow_pure_begin__ */
+    function _ltGlowHash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h>>>0;}
+    function _ltGlowParams(id){
+      var h=_ltGlowHash(String(id||""));
+      var dur=4.5+(h%100)/100*4;                     /* 转速 4.5–8.5s/圈 */
+      var dir=((h>>>7)&1)?"reverse":"normal";        /* 方向逐节点独立 */
+      var ang=((h>>>8)%360);                         /* 起始角 0–359° */
+      var fx=18+((h>>>14)%64),fy=18+((h>>>20)%64);   /* 焦点1 */
+      var sep=120+((h>>>26)%121);                    /* 焦点2 与焦点1 角距 120–240°（Motif 层间分离） */
+      var a1=Math.atan2(fx-50,-(fy-50))*180/Math.PI; /* 0°=正上顺时针，同 pie/视线约定 */
+      var a2=a1+sep,r=Math.max(14,Math.min(36,Math.hypot(fx-50,fy-50)));
+      var f2x=Math.round(50+r*Math.sin(a2*Math.PI/180)),f2y=Math.round(50-r*Math.cos(a2*Math.PI/180));
+      return {dur:dur.toFixed(2)+"s",dir:dir,ang:ang+"deg",
+              f1:fx+"% "+fy+"%",
+              f2:Math.max(4,Math.min(96,f2x))+"% "+Math.max(4,Math.min(96,f2y))+"%"};
+    }
+    /* __lt_glow_pure_end__ */
+    function _ltGenScan(){
+      var on=true;
+      try{on=localStorage.getItem("_lt_gen_glow")!=="0";}catch(e){}
+      if(!on){
+        if(_ltGenSeen.size){
+          document.querySelectorAll("[data-lt-gen-host],[data-lt-reveal-host]").forEach(function(h){
+            h.removeAttribute("data-lt-gen-host");h.removeAttribute("data-lt-reveal-host");
+          });
+          _ltGenSeen.clear();
+        }
+        return;
+      }
+      var anyBlur=document.querySelector('.react-flow__node-image img[style*="blur("]');
+      if(!_ltGenSeen.size&&!anyBlur)return; /* 空闲态：每轮只付一次 querySelector */
+      var nodes=document.querySelectorAll(".react-flow__node-image");
+      for(var i=0;i<nodes.length;i++){
+        var el=nodes[i],id=el.getAttribute("data-id")||"";
+        if(!id)continue;
+        var img=el.querySelector("img"),blur=0;
+        if(img){var m=(img.style.filter||"").match(/blur\(([\d.]+)px\)/);if(m)blur=parseFloat(m[1]);}
+        var st=_ltGenSeen.get(id);
+        if(blur>=12){ /* 站点生成中实测 blur(24px)；≥12 兼容更小值，普通图片加载不落此区间 */
+          if(st!=="gen"&&img&&img.parentElement){
+            var p=_ltGlowParams(id),host=img.parentElement;
+            try{
+              el.style.setProperty("--lt-gd",p.dur);el.style.setProperty("--lt-gdir",p.dir);
+              el.style.setProperty("--lt-ga",p.ang);el.style.setProperty("--lt-gf1",p.f1);el.style.setProperty("--lt-gf2",p.f2);
+            }catch(e2){}
+            host.setAttribute("data-lt-gen-host","");
+            host.removeAttribute("data-lt-reveal-host");
+            _ltGenSeen.set(id,"gen");
+          }
+        }else if(st==="gen"){
+          /* 完成：站点已摘 blur（渐清晰交给 CSS transition），覆盖层淡出后摘干净 */
+          var host2=img&&img.parentElement;
+          if(host2){
+            host2.removeAttribute("data-lt-gen-host");
+            host2.setAttribute("data-lt-reveal-host","");
+            (function(h){setTimeout(function(){if(h.isConnected)h.removeAttribute("data-lt-reveal-host");},1500);})(host2);
+          }
+          _ltGenSeen.set(id,"reveal");
+        }
+      }
+    }
     _ltTagScan();
     /* \u52a0\u8f7d\u540e\u4e00\u6b21\u6027\u5ef6\u65f6\u8865\u626b\uff08\u9632\u9762\u677f\u521d\u59cb\u5316\u8f83\u6162\uff09 */
     setTimeout(_ltTagScan,800);setTimeout(_ltTagScan,3000);setTimeout(_ltTagScan,10000);
@@ -2184,6 +2253,7 @@ function _ltSettingsPanel(){
       {k:"grid",l:"\u9690\u85cf\u7f51\u683c"},
       {k:"focus",l:"\u4e13\u6ce8\u6a21\u5f0f"},
       {k:"rmb",l:"\u79ef\u5206\u6362\u7b97"},
+      {k:"gen_glow",l:"\u751f\u6210\u5149\u6548"},
     ];
     h+="<div class=\"lt-settings-sec\ lt-sec-toggles\" data-sec=\"general\"><div class=\"lt-settings-stitle\">\u5f00\u5173</div>";
       toggles.forEach(function(t){
