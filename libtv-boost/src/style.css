@@ -744,6 +744,14 @@ body.perf-mode [data-lt-reveal-host]::after { display:none; }
   display:flex; align-items:center; justify-content:center;
 }
 .lt-msel-ic img { width:16px; height:16px; object-fit:contain; }
+/* 厂商彩色 logo（lobe-icons 内联 SVG data URI）与字母徽标（无 SVG 的品牌兜底） */
+.lt-msel-cic { width:16px; height:16px; object-fit:contain; display:block; }
+.lt-msel-fb {
+  width:16px; height:16px; border-radius:5px; color:#fff; font-size:10px; font-weight:600;
+  display:flex; align-items:center; justify-content:center;
+}
+.lt-msel-rb .lt-msel-cic { width:18px; height:18px; }
+.lt-msel-rb .lt-msel-fb { width:18px; height:18px; border-radius:6px; font-size:11px; }
 .lt-msel-main { flex:1; min-width:0; }
 .lt-msel-l1 { display:flex; align-items:center; gap:6px; min-width:0; }
 .lt-msel-name { font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

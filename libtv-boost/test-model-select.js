@@ -53,11 +53,11 @@ const g1 = api.groups([
   { name: 'Kling 4.0 Flash', icon: 'ic2' },
   { name: 'Style Video', icon: null }
 ]);
-eq('组数 = 3（两图标组 + 其它）', g1.length, 3);
+eq('组数 = 3（两图标组 + 无键组）', g1.length, 3);
 eq('多数派首词 = Minimax（修 H3-Highspeed 归属）', g1[0].label, 'Minimax');
 eq('图标组二 = Kling', g1[1].label, 'Kling');
-eq('无图标进其它', g1[2].label, '其它');
-eq('组顺序按首现', g1.map(g => g.label), ['Minimax', 'Kling', '其它']);
+eq('无键组用自身首词（不再落其它）', g1[2].label, 'Style');
+eq('组顺序按首现', g1.map(g => g.label), ['Minimax', 'Kling', 'Style']);
 eq('组内元素齐全', g1[0].items.length, 3);
 ok('单模型组用自身首词', (() => {
   const g = api.groups([{ name: 'OmniHuman 1.5', icon: 'ic9' }]);
