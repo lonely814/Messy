@@ -2312,6 +2312,7 @@ function _ltSettingsPanel(){
       {k:"focus",l:"\u4e13\u6ce8\u6a21\u5f0f"},
       {k:"rmb",l:"\u79ef\u5206\u6362\u7b97"},
       {k:"gen_glow",l:"\u751f\u6210\u5149\u6548"},
+      {k:"msel",l:"\u6a21\u578b\u9009\u62e9\u589e\u5f3a"},
     ];
     h+="<div class=\"lt-settings-sec\ lt-sec-toggles\" data-sec=\"general\"><div class=\"lt-settings-stitle\">\u5f00\u5173</div>";
       toggles.forEach(function(t){
@@ -3609,4 +3610,239 @@ function _ltSettingsPanel(){
     return "misc";
   }
   /* __lt_msel_pure_end__ */
+  try{if(localStorage.getItem("_lt_msel")===null)localStorage.setItem("_lt_msel","1");}catch(e){}
+  function _ltMselOn(){try{return localStorage.getItem("_lt_msel")!=="0";}catch(e){return true;}}
+  function _ltMselStore(){
+    /* 收藏/最近使用，按列表分表；容错还原形状（旧版本/手改不炸） */
+    var s=_ltJ("_lt_model_sel_v1",null);
+    if(!s||typeof s!=="object")s={};
+    ["video","image","misc"].forEach(function(k){
+      if(!s[k]||typeof s[k]!=="object")s[k]={};
+      if(!Array.isArray(s[k].favs))s[k].favs=[];
+      if(!Array.isArray(s[k].recent))s[k].recent=[];
+    });
+    return s;
+  }
+  function _ltMselSaveStore(s){try{localStorage.setItem("_lt_model_sel_v1",JSON.stringify(s));}catch(e){}}
+  function _ltMselParse(dd){
+    /* 解析失败返回 null → 不接管，原生透出（防御站点改版）。
+       行结构（2026-11 实测）：button[data-selected] > span.text-fg-default 名称 +
+       角标 span（上新/限时X折/首发/版本号）+ 时长胶囊 span（\d+min|\d+s）+ p 描述 + img 图标；
+       容器是 .flex.flex-col.gap-1，分组头/分隔线是站点自己的语义，我们按图标重分组，跳过 */
+    try{
+      var col=dd.querySelector(".flex.flex-col.gap-1")||dd;
+      if(!col.children||!col.children.length)return null;
+      var rows=[],seen={},pills=[];
+      for(var i=0;i<col.children.length;i++){
+        var c=col.children[i];
+        if(c.tagName!=="BUTTON"||!c.hasAttribute("data-selected"))continue;
+        var nameEl=c.querySelector("span.text-fg-default");
+        var name=nameEl?String(nameEl.textContent||"").trim():"";
+        if(!name||seen[name])continue; /* 站点偶现重复行（视频表 a11y 里 Vidu Q2 Pro ×2），按名去重 */
+        seen[name]=1;
+        var dur="",badges=[],spans=c.querySelectorAll("span");
+        for(var j=0;j<spans.length;j++){
+          var t=String(spans[j].textContent||"").trim();
+          if(!t||t===name)continue;
+          if(!dur&&/^\d+(s|min)$/.test(t)){dur=t;continue;}
+          if(badges.indexOf(t)<0)badges.push(t);
+        }
+        if(dur)pills.push(dur);
+        var p=c.querySelector("p"),img=c.querySelector("img");
+        rows.push({name:name,badges:badges,dur:dur,desc:p?String(p.textContent||"").trim():"",
+                   icon:img?String(img.getAttribute("src")||""):"",sel:c.getAttribute("data-selected")==="true",btn:c});
+      }
+      if(!rows.length)return null;
+      return {type:_ltMselClassify(pills),rows:rows};
+    }catch(e){return null;}
+  }
+  var _ltMselOverlays=new Map(); /* 原生下拉元素 -> 覆盖层状态 {root,input,list,cnt,parsed,type,vis,act} */
+  function _ltMselItemHTML(o,it,idx,favs){
+    var fav=favs.indexOf(it.name)>=0;
+    return '<div class="lt-msel-item'+(it.sel?" cur":"")+'" data-i="'+idx+'">'
+      +'<div class="lt-msel-ic">'+(it.icon?'<img src="'+_ltEsc(it.icon)+'" alt="">':'')+'</div>'
+      +'<div class="lt-msel-main"><div class="lt-msel-l1"><span class="lt-msel-name">'+_ltEsc(it.name)+'</span>'
+      +it.badges.map(function(b){return '<span class="lt-msel-badge">'+_ltEsc(b)+'</span>';}).join("")
+      +'<span class="lt-msel-star'+(fav?" on":"")+'" title="收藏">★</span></div>'
+      +(it.desc?'<div class="lt-msel-desc">'+_ltEsc(it.desc)+'</div>':"")
+      +'</div>'
+      +(it.dur?'<span class="lt-msel-dur">'+_ltEsc(it.dur)+'</span>':"")
+      +'</div>';
+  }
+  function _ltMselRender(o){
+    var q=String(o.input&&o.input.value||"").trim();
+    var st=_ltMselStore()[o.type]||{favs:[],recent:[]};
+    var favs=st.favs,recent=st.recent,rows=o.parsed.rows,vis=[],html="";
+    if(q){
+      /* 搜索视图：打分排序平铺（cmdk 式），无分组头 */
+      var scored=[];
+      for(var i=0;i<rows.length;i++){
+        var sc=_ltMselScore(q,{name:rows[i].name,badges:rows[i].badges,desc:rows[i].desc});
+        if(sc>0)scored.push([sc,rows[i]]);
+      }
+      scored.sort(function(a,b){return b[0]-a[0];});
+      for(var v=0;v<scored.length;v++)vis.push(scored[v][1]);
+      if(!vis.length)html='<div class="lt-msel-empty">无匹配模型</div>';
+      for(var v2=0;v2<vis.length;v2++)html+=_ltMselItemHTML(o,vis[v2],v2,favs);
+      o.cnt.textContent=vis.length+" / "+rows.length;
+    }else{
+      /* 默认视图：★ 收藏 / 最近使用 / 厂商分组（收藏与最近是置顶镜像，组内仍在原位） */
+      var byName={},used=[];
+      for(var b=0;b<rows.length;b++)byName[rows[b].name]=rows[b];
+      function pickRows(names,exclude){
+        var a=[];
+        for(var k=0;k<names.length;k++){var r=byName[names[k]];if(r&&exclude.indexOf(names[k])<0){a.push(r);exclude.push(names[k]);}}
+        return a;
+      }
+      var secs=[],vi=0;
+      var favRows=pickRows(favs,used),recRows=pickRows(recent,used);
+      if(favRows.length)secs.push({label:"★ 收藏",items:favRows});
+      if(recRows.length)secs.push({label:"最近使用",items:recRows});
+      var groups=_ltMselGroups(rows);
+      for(var gi=0;gi<groups.length;gi++)secs.push({label:groups[gi].label,items:groups[gi].items});
+      for(var si=0;si<secs.length;si++){
+        html+='<div class="lt-msel-sec">'+_ltEsc(secs[si].label)+'</div>';
+        for(var ii=0;ii<secs[si].items.length;ii++){html+=_ltMselItemHTML(o,secs[si].items[ii],vi,favs);vis.push(secs[si].items[ii]);vi++;}
+      }
+      o.cnt.textContent=String(rows.length);
+    }
+    o.list.innerHTML=html;
+    o.vis=vis;o.act=-1;
+  }
+  function _ltMselMark(o){
+    var items=o.list.querySelectorAll(".lt-msel-item");
+    for(var i=0;i<items.length;i++){
+      var idx=parseInt(items[i].getAttribute("data-i"),10);
+      items[i].classList.toggle("act",idx===o.act);
+      if(idx===o.act&&items[i].scrollIntoView)items[i].scrollIntoView({block:"nearest"});
+    }
+  }
+  function _ltMselPick(o,it){
+    if(!it||!it.btn||!it.btn.isConnected)return;
+    if(it.btn.getAttribute("aria-disabled")==="true")return;
+    /* 先记账再转发：站点选中后会立即卸下拉（Step 0 实测） */
+    try{
+      var s=_ltMselStore(),t=s[o.type];
+      var ri=t.recent.indexOf(it.name);
+      if(ri>=0)t.recent.splice(ri,1);
+      t.recent.unshift(it.name);
+      if(t.recent.length>3)t.recent.length=3;
+      _ltMselSaveStore(s);
+    }catch(e){}
+    it.btn.click(); /* React 响应程序化 click（Step 0 实测两次），选中/关下拉走站点管线 */
+  }
+  function _ltMselToggleFav(o,name){
+    try{
+      var s=_ltMselStore(),t=s[o.type];
+      var i=t.favs.indexOf(name);
+      if(i>=0)t.favs.splice(i,1);else t.favs.push(name);
+      _ltMselSaveStore(s);
+    }catch(e){}
+    var sc=o.list.scrollTop;
+    _ltMselRender(o);
+    o.list.scrollTop=sc;
+  }
+  function _ltMselPlace(o,r){
+    /* 底边对齐原生底边（top-start 展开，上方有余量），向上生长出搜索栏；不够就 clamp 视口顶 8px */
+    var total=r.height+46,top=r.bottom-total;
+    if(top<8)top=8;
+    o.root.style.top=top+"px";
+    o.root.style.maxHeight=(r.bottom-top)+"px";
+  }
+  function _ltMselFollow(o,dd,prev,frames){
+    /* 逐帧跟随直到位置连续两帧一致（Mantine 定稿位置可能晚于我们的 MO 回调：
+       实测首开时下拉还在 (0,0)，一次性 rAF 校正赶不上它的 useEffect 定位） */
+    if(!dd.isConnected)return;
+    if(frames>120)return;
+    var r=dd.getBoundingClientRect();
+    if(!r.width||!r.height){requestAnimationFrame(function(){_ltMselFollow(o,dd,prev,frames+1);});return;}
+    o.root.style.left=r.left+"px";
+    o.root.style.width=Math.max(r.width,380)+"px";
+    _ltMselPlace(o,r);
+    var key=Math.round(r.left)+","+Math.round(r.top)+","+Math.round(r.width)+","+Math.round(r.height);
+    if(prev===key)return;
+    requestAnimationFrame(function(){_ltMselFollow(o,dd,key,frames+1);});
+  }
+  function _ltMselTakeover(dd,frames){
+    if(!_ltMselOn())return;
+    if(_ltMselOverlays.has(dd))return;
+    var parsed=_ltMselParse(dd);
+    if(!parsed)return;
+    var r=dd.getBoundingClientRect();
+    if(!r.width||!r.height){
+      /* Mantine 可能还没定稿尺寸：rAF 内重试（有 isConnected 守卫+上限，卸载即停，
+         否则 detached 节点 getBoundingClientRect 恒 0 会变成每帧空转）；位置滞后交给 _ltMselFollow */
+      if(!dd.isConnected||(frames|0)>20)return;
+      requestAnimationFrame(function(){_ltMselTakeover(dd,frames+1);});
+      return;
+    }
+    var root=document.createElement("div");
+    root.className="lt-msel";
+    root.style.left=r.left+"px";
+    root.style.width=Math.max(r.width,380)+"px";
+    var input=document.createElement("input");
+    input.className="lt-msel-inp";
+    input.placeholder="搜索模型，支持缩写如 k4 / sd25";
+    input.setAttribute("spellcheck","false");
+    var cnt=document.createElement("span");cnt.className="lt-msel-cnt";
+    var searchWrap=document.createElement("div");searchWrap.className="lt-msel-search";
+    searchWrap.appendChild(input);searchWrap.appendChild(cnt);
+    var list=document.createElement("div");list.className="lt-msel-list";
+    root.appendChild(searchWrap);root.appendChild(list);
+    var o={root:root,input:input,list:list,cnt:cnt,parsed:parsed,type:parsed.type,vis:[],act:-1};
+    document.body.appendChild(root);
+    _ltMselOverlays.set(dd,o);
+    /* pointerdown/mousedown/touchstart 拦冒泡：Mantine 外点关闭检测看不到我们，原生下拉保持打开 */
+    root.addEventListener("pointerdown",function(e){e.stopPropagation();});
+    root.addEventListener("mousedown",function(e){e.stopPropagation();});
+    root.addEventListener("touchstart",function(e){e.stopPropagation();},{passive:true});
+    /* 行点击/星标走委托（innerHTML 重渲染不用重绑） */
+    list.addEventListener("click",function(e){
+      var item=e.target&&e.target.closest?e.target.closest(".lt-msel-item"):null;
+      if(!item)return;
+      var idx=parseInt(item.getAttribute("data-i"),10),it=o.vis[idx];
+      if(!it)return;
+      if(e.target.closest&&e.target.closest(".lt-msel-star")){_ltMselToggleFav(o,it.name);return;}
+      _ltMselPick(o,it);
+    });
+    input.addEventListener("input",function(){_ltMselRender(o);});
+    input.addEventListener("keydown",function(e){
+      if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+        e.preventDefault();
+        var n=o.vis.length;if(!n)return;
+        o.act=(o.act+(e.key==="ArrowDown"?1:-1)+n)%n;
+        _ltMselMark(o);
+      }else if(e.key==="Enter"){
+        e.preventDefault();
+        var it=o.vis[o.act>=0?o.act:0];
+        if(it)_ltMselPick(o,it);
+      }
+      /* Escape 不拦：冒泡到 document 由 Mantine 关下拉，卸载清扫分支收覆盖层 */
+    });
+    _ltMselRender(o);
+    input.focus();
+    _ltMselPlace(o,r);
+    var cur=o.list.querySelector(".lt-msel-item.cur");
+    if(cur&&cur.scrollIntoView)cur.scrollIntoView({block:"nearest"});
+    /* 逐帧跟随至 Mantine 定稿位置（见 _ltMselFollow 注释）；首帧先按当前 rect 落位避免闪到 (0,0) */
+    _ltMselFollow(o,dd,undefined,0);
+  }
+  /* 专属观察者：挂载快筛 data-model-select-dropdown（回调零布局读取，命中才接管）；
+     卸载清扫顺带跑（Map ≤2 项，isConnected 检查便宜）。下拉是罕见事件，大子树插入时
+     每个 addedNode 一次 querySelector 兜底，实测量级远低于 _ltTagObs 的全文档扫描 */
+  var _ltMselObs=new MutationObserver(function(muts){
+    for(var i=0;i<muts.length;i++){
+      var add=muts[i].addedNodes;
+      for(var j=0;j<add.length;j++){
+        var n=add[j];
+        if(n.nodeType!==1)continue;
+        var dd=n.hasAttribute&&n.hasAttribute("data-model-select-dropdown")?n:(n.querySelector?n.querySelector("[data-model-select-dropdown]"):null);
+        if(dd)_ltMselTakeover(dd); /* 同步接管：MutationObserver 回调在 paint 前，原生列表零闪烁 */
+      }
+    }
+    _ltMselOverlays.forEach(function(o,dd2){
+      if(!dd2.isConnected){o.root.remove();_ltMselOverlays.delete(dd2);}
+    });
+  });
+  _ltMselObs.observe(document.body,{childList:true,subtree:true});
 })();
