@@ -1121,21 +1121,20 @@
     var _ltGenSeen=new Map(); /* data-id -> "gen"|"reveal" */
     /* __lt_glow_pure_begin__ */
     function _ltGlowHash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h>>>0;}
+    /* 五组对角焦点（照搬 Motif FOCAL_PAIRS，两色永远错开不叠成一团） */
+    var _ltGlowPairs=[["50% 20%","50% 80%"],["30% 30%","70% 70%"],["70% 25%","30% 75%"],["25% 60%","75% 40%"],["50% 75%","50% 25%"]];
     function _ltGlowParams(id){
       var h=_ltGlowHash(String(id||""));
-      var h2=_ltGlowHash(String(id||"")+"#f");       /* 焦点几何独立取位，避免与运动参数位重叠 */
-      var gd=4.5+(h%100)/100*4;                      /* 光斑旋转 4.5–8.5s/圈 */
-      var gb=2.6+((h>>>7)%100)/100*1.6;              /* 呼吸 2.6–4.2s（与旋转不同周期，错拍） */
-      var dir=(((h>>>14)^(h>>>26))&1)?"reverse":"normal"; /* 方向逐节点独立（高低位异或，避免连号 id 位恒定） */
-      var ang=((h>>>16)%360);                        /* 起始角 0–359° */
-      var fx=18+((h2>>>3)%64),fy=18+((h2>>>10)%64);  /* 焦点1 */
-      var sep=120+((h2>>>17)%121);                   /* 焦点2 与焦点1 角距 120–240°（Motif 层间分离） */
-      var a1=Math.atan2(fx-50,-(fy-50))*180/Math.PI; /* 0°=正上顺时针，同 pie/视线约定 */
-      var a2=a1+sep,r=Math.max(14,Math.min(36,Math.hypot(fx-50,fy-50)));
-      var f2x=Math.round(50+r*Math.sin(a2*Math.PI/180)),f2y=Math.round(50-r*Math.cos(a2*Math.PI/180));
-      return {gd:gd.toFixed(2)+"s",gb:gb.toFixed(2)+"s",dir:dir,ang:ang+"deg",
-              f1:fx+"% "+fy+"%",
-              f2:Math.max(4,Math.min(96,f2x))+"% "+Math.max(4,Math.min(96,f2y))+"%"};
+      var gd1=4.5+(h%100)/100*1.5;                   /* 快层 4.5–6.0s（Motif spinA） */
+      var gd2=6.5+((h>>>7)%100)/100*1.5;             /* 慢层 6.5–8.0s（Motif spinB） */
+      var dir=(((h>>>14)^(h>>>26))&1)?"reverse":"normal"; /* 层 A 方向逐节点独立；层 B 恒反向（路径交叉不平行） */
+      var ga=((h>>>16)%360);                         /* 层 A 相位 0–359° */
+      var ga2=(ga+120+((h>>>25)%121))%360;           /* 层 B 相位 = A + 120–240°（Motif 层间分离） */
+      var h2=_ltGlowHash(String(id||"")+"#f");
+      var pair=_ltGlowPairs[h2%_ltGlowPairs.length];
+      return {gd1:gd1.toFixed(2)+"s",gd2:gd2.toFixed(2)+"s",dir:dir,
+              dir2:dir==="normal"?"reverse":"normal", /* 层 B 恒与层 A 相反（Motif flip） */
+              ga:ga+"deg",ga2:ga2+"deg",f1:pair[0],f2:pair[1]};
     }
     /* __lt_glow_pure_end__ */
     function _ltGenScan(){
@@ -1163,8 +1162,9 @@
           if(st!=="gen"&&img&&img.parentElement){
             var p=_ltGlowParams(id),host=img.parentElement;
             try{
-              el.style.setProperty("--lt-gd",p.gd);el.style.setProperty("--lt-gb",p.gb);
-              el.style.setProperty("--lt-gdir",p.dir);el.style.setProperty("--lt-ga",p.ang);
+              el.style.setProperty("--lt-gd1",p.gd1);el.style.setProperty("--lt-gd2",p.gd2);
+              el.style.setProperty("--lt-gdir",p.dir);el.style.setProperty("--lt-gdir2",p.dir2);
+              el.style.setProperty("--lt-ga",p.ga);el.style.setProperty("--lt-ga2",p.ga2);
               el.style.setProperty("--lt-gf1",p.f1);el.style.setProperty("--lt-gf2",p.f2);
             }catch(e2){}
             host.setAttribute("data-lt-gen-host","");
