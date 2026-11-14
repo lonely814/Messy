@@ -661,6 +661,5 @@ header.m_3b16f56b > div.relative:first-child {
 }
 body.perf-mode [data-lt-gen-host]::after,
 body.perf-mode [data-lt-reveal-host]::after { display:none; }
-@media (prefers-reduced-motion: reduce) {
-  [data-lt-gen-host]::after { animation:none; }
-}
+/* 减少动态效果（prefers-reduced-motion）不再关停本动画：光效是用户在设置面板显式开启的功能，
+   实测本机/内嵌浏览器报 reduce，按系统提示静止会被当成"没效果"；perf-mode 仍是硬开关 */
