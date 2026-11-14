@@ -3673,9 +3673,10 @@ function _ltSettingsPanel(){
   function _ltMselRender(o){
     var q=String(o.input&&o.input.value||"").trim();
     var st=_ltMselStore()[o.type]||{favs:[],recent:[]};
-    var favs=st.favs,recent=st.recent,rows=o.parsed.rows,vis=[],html="";
+    var favs=st.favs,rows=o.parsed.rows,vis=[],html="";
+    var secs=_ltMselSecs(o,st,rows);
     if(q){
-      /* 搜索视图：打分排序平铺（cmdk 式），无分组头 */
+      /* 搜索视图：打分排序平铺（cmdk 式），无分组头；索引栏仍显示（镜像默认分区序） */
       var scored=[];
       for(var i=0;i<rows.length;i++){
         var sc=_ltMselScore(q,{name:rows[i].name,badges:rows[i].badges,desc:rows[i].desc});
@@ -3687,28 +3688,17 @@ function _ltSettingsPanel(){
       for(var v2=0;v2<vis.length;v2++)html+=_ltMselItemHTML(o,vis[v2],v2,favs);
       o.cnt.textContent=vis.length+" / "+rows.length;
     }else{
-      /* 默认视图：★ 收藏 / 最近使用 / 厂商分组（收藏与最近是置顶镜像，组内仍在原位） */
-      var byName={},used=[];
-      for(var b=0;b<rows.length;b++)byName[rows[b].name]=rows[b];
-      function pickRows(names,exclude){
-        var a=[];
-        for(var k=0;k<names.length;k++){var r=byName[names[k]];if(r&&exclude.indexOf(names[k])<0){a.push(r);exclude.push(names[k]);}}
-        return a;
-      }
-      var secs=[],vi=0;
-      var favRows=pickRows(favs,used),recRows=pickRows(recent,used);
-      if(favRows.length)secs.push({label:"★ 收藏",items:favRows});
-      if(recRows.length)secs.push({label:"最近使用",items:recRows});
-      var groups=_ltMselGroups(rows);
-      for(var gi=0;gi<groups.length;gi++)secs.push({label:groups[gi].label,items:groups[gi].items});
       for(var si=0;si<secs.length;si++){
         html+='<div class="lt-msel-sec">'+_ltEsc(secs[si].label)+'</div>';
-        for(var ii=0;ii<secs[si].items.length;ii++){html+=_ltMselItemHTML(o,secs[si].items[ii],vi,favs);vis.push(secs[si].items[ii]);vi++;}
+        for(var ii=0;ii<secs[si].items.length;ii++){html+=_ltMselItemHTML(o,secs[si].items[ii],vis.length,favs);vis.push(secs[si].items[ii]);}
       }
       o.cnt.textContent=String(rows.length);
     }
     o.list.innerHTML=html;
     o.vis=vis;o.act=-1;
+    o.secEls=[].slice.call(o.list.querySelectorAll(".lt-msel-sec"));
+    _ltMselRailRender(o,secs.map(function(s){return {label:s.label,icon:s.items.length?s.items[0].icon:""};}));
+    _ltMselSpy(o);
   }
   function _ltMselMark(o){
     var items=o.list.querySelectorAll(".lt-msel-item");
@@ -3744,11 +3734,62 @@ function _ltSettingsPanel(){
     o.list.scrollTop=sc;
   }
   function _ltMselPlace(o,r){
-    /* 底边对齐原生底边（top-start 展开，上方有余量），向上生长出搜索栏；不够就 clamp 视口顶 8px */
+    /* 底边对齐原生底边（top-start 展开，上方有余量），向上生长出搜索栏；不够就 clamp 视口顶 8px。
+       高度显式钉死=原生高度+搜索栏：搜索结果再少面板也不缩，原生列表不会从下面露出来（实测教训） */
     var total=r.height+46,top=r.bottom-total;
     if(top<8)top=8;
     o.root.style.top=top+"px";
+    o.root.style.height=(r.bottom-top)+"px";
     o.root.style.maxHeight=(r.bottom-top)+"px";
+  }
+  function _ltMselChrome(o,dd){
+    /* 复制原生抽层的 computed chrome（背景/边框/圆角/模糊/阴影/文字色），视觉与原生一致且随站点主题走；
+       读取失败退回 CSS 里的玻璃样式兜底。注：行内文字用的白色系透明度在浅色主题下对比度偏弱，
+       当前画布主题恒为深色系（18 套主题全是深色面板），接受此限制 */
+    try{
+      var cs=getComputedStyle(dd),s=o.root.style;
+      if(cs.backgroundColor&&cs.backgroundColor!=="rgba(0, 0, 0, 0)")s.background=cs.backgroundColor;
+      if(cs.backdropFilter&&cs.backdropFilter!=="none")s.backdropFilter=cs.backdropFilter;
+      if(cs.borderRadius&&cs.borderRadius!=="0px")s.borderRadius=cs.borderRadius;
+      if(parseFloat(cs.borderBottomWidth)>0){s.borderColor=cs.borderBottomColor;s.borderWidth=cs.borderBottomWidth;s.borderStyle="solid";}
+      if(cs.boxShadow&&cs.boxShadow!=="none")s.boxShadow=cs.boxShadow;
+      if(cs.color)s.color=cs.color;
+    }catch(e){}
+  }
+  function _ltMselSecs(o,st,rows){
+    /* 默认视图分区：★ 收藏 / 最近使用 / 厂商分组（收藏与最近是置顶镜像，组内仍在原位） */
+    var byName={},used=[];
+    for(var b=0;b<rows.length;b++)byName[rows[b].name]=rows[b];
+    function pickRows(names,exclude){
+      var a=[];
+      for(var k=0;k<names.length;k++){var r=byName[names[k]];if(r&&exclude.indexOf(names[k])<0){a.push(r);exclude.push(names[k]);}}
+      return a;
+    }
+    var favRows=pickRows(st.favs,used),recRows=pickRows(st.recent,used),groups=_ltMselGroups(rows),secs=[];
+    if(favRows.length)secs.push({label:"★ 收藏",items:favRows});
+    if(recRows.length)secs.push({label:"最近使用",items:recRows});
+    for(var gi=0;gi<groups.length;gi++)secs.push({label:groups[gi].label,items:groups[gi].items});
+    return secs;
+  }
+  function _ltMselRailRender(o,secs){
+    /* 左侧索引栏（Motif 同款）：每分区一枚小图标（取组内首行图标，无图标落首字）；
+       搜索视图仍显示（镜像默认分区序），点击 = 退出搜索并滚到分区 */
+    var html="";
+    for(var i=0;i<secs.length;i++){
+      var ic=secs[i].icon||"";
+      var inner=ic?'<img src="'+_ltEsc(ic)+'" alt="">':_ltEsc((secs[i].label||"?").slice(0,1));
+      html+='<button type="button" class="lt-msel-rb" data-sec="'+i+'" title="'+_ltEsc(secs[i].label)+'" aria-label="'+_ltEsc(secs[i].label)+'">'+inner+'</button>';
+    }
+    o.rail.innerHTML=html;
+  }
+  function _ltMselSpy(o){
+    /* scroll-spy：视口顶压着哪个分区头就亮哪个；滚到底强判最后分区（Motif 同款规则） */
+    var els=o.secEls,rbs=o.rail.querySelectorAll(".lt-msel-rb");
+    if(!els.length){for(var j=0;j<rbs.length;j++)rbs[j].classList.remove("on");return;}
+    var st=o.list.scrollTop,cur=0;
+    for(var i=0;i<els.length;i++){if(els[i].offsetTop<=st+4)cur=i;}
+    if(st+o.list.clientHeight>=o.list.scrollHeight-4)cur=els.length-1;
+    for(var k=0;k<rbs.length;k++)rbs[k].classList.toggle("on",parseInt(rbs[k].getAttribute("data-sec"),10)===cur);
   }
   function _ltMselFollow(o,dd,prev,frames){
     /* 逐帧跟随直到位置连续两帧一致（Mantine 定稿位置晚于我们的 MO 回调：
@@ -3814,9 +3855,13 @@ function _ltSettingsPanel(){
     var searchWrap=document.createElement("div");searchWrap.className="lt-msel-search";
     searchWrap.appendChild(input);searchWrap.appendChild(cnt);
     var list=document.createElement("div");list.className="lt-msel-list";
-    root.appendChild(searchWrap);root.appendChild(list);
-    var o={root:root,input:input,list:list,cnt:cnt,parsed:parsed,type:parsed.type,vis:[],act:-1,dd:dd};
+    var rail=document.createElement("div");rail.className="lt-msel-rail";
+    var body=document.createElement("div");body.className="lt-msel-body";
+    body.appendChild(rail);body.appendChild(list);
+    root.appendChild(searchWrap);root.appendChild(body);
+    var o={root:root,input:input,list:list,rail:rail,cnt:cnt,parsed:parsed,type:parsed.type,vis:[],act:-1,dd:dd,secEls:[]};
     document.body.appendChild(root);
+    _ltMselChrome(o,dd);
     _ltMselOverlays.set(dd,o);
     /* pointerdown/mousedown/touchstart 拦冒泡：Mantine 外点关闭检测看不到我们，原生下拉保持打开 */
     root.addEventListener("pointerdown",function(e){e.stopPropagation();});
@@ -3832,6 +3877,22 @@ function _ltSettingsPanel(){
       _ltMselPick(o,it);
     });
     input.addEventListener("input",function(){_ltMselRender(o);});
+    /* 左侧索引栏：点击滚到分区；搜索中点击 = 先退出搜索再滚（Motif 同款语义） */
+    rail.addEventListener("click",function(e){
+      var b=e.target&&e.target.closest?e.target.closest(".lt-msel-rb"):null;
+      if(!b)return;
+      var idx=parseInt(b.getAttribute("data-sec"),10);
+      if(o.input.value){o.input.value="";_ltMselRender(o);}
+      var el=o.secEls&&o.secEls[idx];
+      if(el&&el.scrollIntoView)el.scrollIntoView({block:"start"});
+      _ltMselSpy(o);
+    });
+    /* scroll-spy 用 rAF 合帧，滚动风暴不逐事件重排（M9 同款纪律） */
+    var spyRAF=0;
+    list.addEventListener("scroll",function(){
+      if(spyRAF)return;
+      spyRAF=requestAnimationFrame(function(){spyRAF=0;_ltMselSpy(o);});
+    });
     input.addEventListener("keydown",function(e){
       if(e.key==="ArrowDown"||e.key==="ArrowUp"){
         e.preventDefault();
