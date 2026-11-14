@@ -1118,7 +1118,7 @@
        完成时站点摘 blur → CSS transition 渐清晰，覆盖层同步淡出。
        状态扫描由 _ltTagScan 带跑（1s 轮询 + burst），零新增 observer/interval */
     try{if(localStorage.getItem("_lt_gen_glow")===null)localStorage.setItem("_lt_gen_glow","1");}catch(e){}
-    var _ltGenSeen=new Map(); /* data-id -> "gen"|"reveal" */
+    var _ltGenSeen=new Map(); /* data-id -> {ph:"gen"|"await"|"reveal", src0, tDone} */
     /* __lt_glow_pure_begin__ */
     function _ltGlowHash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h>>>0;}
     /* 五组对角焦点（照搬 Motif FOCAL_PAIRS，两色永远错开不叠成一团） */
@@ -1137,6 +1137,20 @@
               ga:ga+"deg",ga2:ga2+"deg",f1:pair[0],f2:pair[1]};
     }
     /* __lt_glow_pure_end__ */
+    function _ltGenEnsure(el,img,id){
+      /* 挂层 + 写种子参数；站点重挂载节点/宿主后属性可能被换掉，每轮补挂 */
+      var p=_ltGlowParams(id),host=img.parentElement;
+      try{
+        el.style.setProperty("--lt-gd1",p.gd1);el.style.setProperty("--lt-gd2",p.gd2);
+        el.style.setProperty("--lt-gdir",p.dir);el.style.setProperty("--lt-gdir2",p.dir2);
+        el.style.setProperty("--lt-ga",p.ga);el.style.setProperty("--lt-ga2",p.ga2);
+        el.style.setProperty("--lt-gf1",p.f1);el.style.setProperty("--lt-gf2",p.f2);
+      }catch(e2){}
+      if(host.getAttribute("data-lt-gen-host")===null){
+        host.setAttribute("data-lt-gen-host","");
+        host.removeAttribute("data-lt-reveal-host");
+      }
+    }
     function _ltGenScan(){
       var on=true;
       try{on=localStorage.getItem("_lt_gen_glow")!=="0";}catch(e){}
@@ -1158,28 +1172,38 @@
         var img=el.querySelector("img"),blur=0;
         if(img){var m=(img.style.filter||"").match(/blur\(([\d.]+)px\)/);if(m)blur=parseFloat(m[1]);}
         var st=_ltGenSeen.get(id);
+        var src=img?(img.getAttribute("src")||""):"";
+        /* 三态机：gen（生成中，blur≥12）→ await（站点摘了 blur 但新图 src 还没换上——
+           此窗口继续用雾盖住旧图，避免"闪一下旧图"）→ reveal（src 已换/超时兜底，等 decode 后淡出） */
         if(blur>=12){ /* 站点生成中实测 blur(24px)；≥12 兼容更小值，普通图片加载不落此区间 */
-          if(st!=="gen"&&img&&img.parentElement){
-            var p=_ltGlowParams(id),host=img.parentElement;
-            try{
-              el.style.setProperty("--lt-gd1",p.gd1);el.style.setProperty("--lt-gd2",p.gd2);
-              el.style.setProperty("--lt-gdir",p.dir);el.style.setProperty("--lt-gdir2",p.dir2);
-              el.style.setProperty("--lt-ga",p.ga);el.style.setProperty("--lt-ga2",p.ga2);
-              el.style.setProperty("--lt-gf1",p.f1);el.style.setProperty("--lt-gf2",p.f2);
-            }catch(e2){}
-            host.setAttribute("data-lt-gen-host","");
-            host.removeAttribute("data-lt-reveal-host");
-            _ltGenSeen.set(id,"gen");
+          if((!st||st.ph!=="gen"||src!==st.src0)&&img&&img.parentElement){
+            _ltGenEnsure(el,img,id);
+            _ltGenSeen.set(id,{ph:"gen",src0:src,tDone:0});
+          }else if(st&&st.ph==="gen"&&img){ _ltGenEnsure(el,img,id); }
+        }else if(st){
+          if(st.ph==="gen"){ st.ph="await"; st.tDone=Date.now(); } /* 站点先摘 blur：等新图 src 就位或超时 */
+          if(st.ph==="await"){
+            var swapped=!!(src&&st.src0!==src);
+            if(swapped||!img||Date.now()-st.tDone>2500){
+              /* 揭示：等新图可解码再撤雾（decode 1.2s 兜底；超时路径直接撤）。
+                 IIFE 锁定本轮 img——var 循环变量在异步回调里会漂移到最后一次迭代 */
+              st.ph="reveal";
+              (function(imgAtFlip){
+                var flip=function(){
+                  var host=imgAtFlip&&imgAtFlip.parentElement&&imgAtFlip.parentElement.isConnected?imgAtFlip.parentElement:null;
+                  if(host){
+                    host.removeAttribute("data-lt-gen-host");
+                    host.setAttribute("data-lt-reveal-host","");
+                    (function(h){setTimeout(function(){if(h.isConnected)h.removeAttribute("data-lt-reveal-host");},1700);})(host);
+                  }
+                };
+                if(imgAtFlip&&imgAtFlip.decode){ Promise.race([imgAtFlip.decode(),new Promise(function(r){setTimeout(r,1200);})]).then(flip,flip); }
+                else flip();
+              })(img);
+            }
+            else if(img&&img.parentElement){ _ltGenEnsure(el,img,id); } /* await 期间站点重挂载也保持覆盖 */
           }
-        }else if(st==="gen"){
-          /* 完成：站点已摘 blur（渐清晰交给 CSS transition），覆盖层淡出后摘干净 */
-          var host2=img&&img.parentElement;
-          if(host2){
-            host2.removeAttribute("data-lt-gen-host");
-            host2.setAttribute("data-lt-reveal-host","");
-            (function(h){setTimeout(function(){if(h.isConnected)h.removeAttribute("data-lt-reveal-host");},1500);})(host2);
-          }
-          _ltGenSeen.set(id,"reveal");
+          /* ph==="reveal"：淡出清理交给定时器，这里不做任何事 */
         }
       }
     }

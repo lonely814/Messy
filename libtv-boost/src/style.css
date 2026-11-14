@@ -646,7 +646,7 @@ header.m_3b16f56b > div.relative:first-child {
    完成时旧图 0.14→1 与光斑 1→0 同步 1.6s 交叉淡变（img 的 transition 挂在元素上，
    规则退场引发的计算值变化同样会触发过渡） */
 .react-flow__node-image img { transition: filter 1.6s var(--ease-out), opacity 1.6s var(--ease-out); }
-body:not(.perf-mode) [data-lt-gen-host] > img { opacity:0.14; }
+body:not(.perf-mode) [data-lt-gen-host] > img { opacity:0.24; }
 [data-lt-gen-host] ~ .pointer-events-none.absolute,
 [data-lt-reveal-host] ~ .pointer-events-none.absolute { z-index:1; }
 [data-lt-gen-host]::before,
