@@ -786,3 +786,21 @@ body.perf-mode [data-lt-reveal-host]::after { display:none; }
   font-size:11px; color:rgba(255,255,255,0.5); flex-shrink:0;
   background:rgba(255,255,255,0.07); border-radius:99px; padding:2px 8px;
 }
+
+/* ===== 生成占位封面（Motif GradientCover 复刻） =====
+   未生成的图片/视频/音频节点卡片垫一层确定性渐变封面：seed=节点 data-id（FNV-1a+Mulberry32），
+   SVG data URI 写进 --lt-cov-url（_ltCoverScan 每轮补挂，站点重挂载不丢）；封面是 ::before 垫底——
+   isolation:isolate + z-index:-1 让它压在卡片内容之下，站点图标/尝试按钮/连线手柄全部在上；
+   opacity .3 压暗压灰（收敛决策：整画布多节点同时上封面也不吵，卡片深色底透出保图标可读）。
+   文本/视频剪辑/导演台是控制卡不上封面；position:relative 把伪元素的包含块定到卡片自身，
+   连线手柄原本相对 node-shell 定位，两盒几何相同（卡片是 shell 唯一在流子元素）——IAB 实测过手柄位置 */
+[data-lt-cover-host] { position:relative; isolation:isolate; }
+[data-lt-cover-host]::before {
+  content:""; position:absolute; inset:0; z-index:-1;
+  border-radius:var(--lt-cov-rad,12px);
+  background-image:var(--lt-cov-url,none);
+  background-size:cover; background-position:center;
+  opacity:.3; pointer-events:none;
+}
+/* 性能模式整体隐藏（同生成光效的门）；纯静态无动画，reduce-motion 不适用（光效同款决策） */
+body.perf-mode [data-lt-cover-host]::before { display:none; }

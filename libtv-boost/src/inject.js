@@ -1002,6 +1002,7 @@
       });
       _ltScanStats.last=Date.now();
       _ltGenScan();
+      _ltCoverScan();
       _ltSyncPositions();
       /* 诊断：当前浮动图标状态 */
       _ltScanStats.icons=[];
@@ -1133,6 +1134,7 @@
        完成时站点摘 blur → CSS transition 渐清晰，覆盖层同步淡出。
        状态扫描由 _ltTagScan 带跑（1s 轮询 + burst），零新增 observer/interval */
     try{if(localStorage.getItem("_lt_gen_glow")===null)localStorage.setItem("_lt_gen_glow","1");}catch(e){}
+    try{if(localStorage.getItem("_lt_cover")===null)localStorage.setItem("_lt_cover","1");}catch(e){}
     var _ltGenSeen=new Map(); /* data-id -> {ph:"gen"|"await"|"reveal", src0, tDone} */
     /* __lt_glow_pure_begin__ */
     function _ltGlowHash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h>>>0;}
@@ -1302,6 +1304,60 @@
           }
           /* ph==="reveal"：淡出清理交给定时器，这里不做任何事 */
         }
+      }
+    }
+    /* ── 生成占位封面扫描：未生成的图片/视频/音频节点卡片垫一层确定性渐变封面 ──
+       挂层仿 _ltGenEnsure：卡片打 data-lt-cover-host + --lt-cov-url/--lt-cov-rad，本体是 CSS 伪元素
+       （isolation+z-index:-1 垫底，站点图标/尝试按钮/连线手柄全部在上）；退场：卡片内出现 img/video/audio
+       （真图/生成结果落位）或节点内出现 data-lt-gen-host/reveal-host（光效接管）→ 摘封面；
+       文本/视频剪辑/导演台是控制卡，收敛决策不上封面；seed=节点 data-id，同节点永远同一画面；
+       每轮补挂（站点重挂载会丢属性），读写分离：先批量读圆角再批量写 */
+    var _ltCovUriCache=new Map(); /* seed -> data URI（确定性，同 seed 只生成一次） */
+    function _ltCoverScan(){
+      var on=true;
+      try{on=localStorage.getItem("_lt_cover")!=="0";}catch(e){}
+      if(!on){
+        if(document.querySelector("[data-lt-cover-host]")){
+          document.querySelectorAll("[data-lt-cover-host]").forEach(function(h){
+            h.removeAttribute("data-lt-cover-host");
+            h.style.removeProperty("--lt-cov-url");h.style.removeProperty("--lt-cov-rad");
+          });
+        }
+        return;
+      }
+      var nodes=document.querySelectorAll(".react-flow__node-image,.react-flow__node-video,.react-flow__node-audio");
+      var todo=[];
+      for(var i=0;i<nodes.length;i++){
+        var el=nodes[i],id=el.getAttribute("data-id")||"";
+        if(!id)continue;
+        var sh=el.querySelector(".node-shell"),card=null;
+        if(sh){for(var k=0;k<sh.children.length;k++){var cn=sh.children[k].className;if(typeof cn==="string"&&/(^|\s)group(\s|$)/.test(cn)){card=sh.children[k];break;}}}
+        if(!card)continue;
+        var busy=card.querySelector("img,video,audio")||el.querySelector("[data-lt-gen-host],[data-lt-reveal-host]");
+        if(busy){
+          if(card.getAttribute("data-lt-cover-host")!==null){
+            card.removeAttribute("data-lt-cover-host");
+            card.style.removeProperty("--lt-cov-url");card.style.removeProperty("--lt-cov-rad");
+          }
+          continue;
+        }
+        todo.push(card,id);
+      }
+      /* 先批量读圆角（只触样式不触布局），再统一写属性/变量；已挂的卡片本轮跳过写（幂等） */
+      var rads=[];
+      for(var j=0;j<todo.length;j+=2)rads.push(getComputedStyle(todo[j]).borderTopLeftRadius);
+      for(var j2=0;j2<todo.length;j2+=2){
+        var card2=todo[j2],seed=todo[j2+1];
+        if(card2.getAttribute("data-lt-cover-host")!==null)continue;
+        var uri=_ltCovUriCache.get(seed);
+        if(uri===undefined){
+          if(_ltCovUriCache.size>200)_ltCovUriCache.clear(); /* 防长会话节点 id 无限累积 */
+          uri=_ltCovDataUri(seed);
+          _ltCovUriCache.set(seed,uri);
+        }
+        card2.style.setProperty("--lt-cov-url",'url("'+uri+'")');
+        card2.style.setProperty("--lt-cov-rad",rads[j2/2]||"12px");
+        card2.setAttribute("data-lt-cover-host","");
       }
     }
     _ltTagScan();
@@ -2415,6 +2471,7 @@ function _ltSettingsPanel(){
     ];
     var displayToggles=[
       {k:"gen_glow",l:"\u751f\u6210\u5149\u6548",d:"\u751f\u6210\u4e2d\u7684\u56fe\u7247\u76d6\u4e00\u5c42\u6d41\u8f6c\u5149\u96fe\uff08Motif \u98ce\u683c\uff09\uff0c\u5b8c\u6210\u65f6\u6de1\u51fa\u63ed\u793a\u65b0\u56fe"},
+      {k:"cover",l:"生成占位封面",d:"未生成的图片/视频/音频节点垫一层按节点 id 确定性生成的渐变装饰封面（Motif GradientCover 风格），生成时让位光效"},
       {k:"msel",l:"\u6a21\u578b\u9009\u62e9\u589e\u5f3a",d:"\u63a5\u7ba1\u7ad9\u70b9\u7684\u89c6\u9891/\u56fe\u7247\u6a21\u578b\u4e0b\u62c9\uff1a\u641c\u7d22\u3001\u5206\u7ec4\u3001\u6536\u85cf\u3001\u6700\u8fd1\u4f7f\u7528"}
     ];
     function _toggleRows(list){
