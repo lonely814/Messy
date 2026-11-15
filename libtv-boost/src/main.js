@@ -1,6 +1,10 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
 // @version      __VERSION__
+// @homepageURL  https://github.com/lonely814/Messy/tree/main/libtv-boost
+// @supportURL   https://github.com/lonely814/Messy/issues
+// @updateURL    https://raw.githubusercontent.com/lonely814/Messy/main/libtv-boost/libtv-boost.user.js
+// @downloadURL  https://raw.githubusercontent.com/lonely814/Messy/main/libtv-boost/libtv-boost.user.js
 // @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/libtv-boost/libtv-boost-icon.png
 // @license      MIT
 // @author       oocc00

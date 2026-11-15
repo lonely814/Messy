@@ -3746,7 +3746,12 @@ bytedance:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%
     for(var i=0;i<items.length;i++){
       var idx=parseInt(items[i].getAttribute("data-i"),10);
       items[i].classList.toggle("act",idx===o.act);
-      if(idx===o.act&&items[i].scrollIntoView)items[i].scrollIntoView({block:"nearest"});
+      /* 同 rail 点击的教训：scrollIntoView 会连带滚动所有可滚动祖先，这里手写视口内钳制 */
+      if(idx===o.act){
+        var top=items[i].offsetTop-6,bottom=items[i].offsetTop+items[i].offsetHeight+6;
+        if(top<o.list.scrollTop)o.list.scrollTop=Math.max(top,0);
+        else if(bottom>o.list.scrollTop+o.list.clientHeight)o.list.scrollTop=bottom-o.list.clientHeight;
+      }
     }
   }
   function _ltMselPick(o,it){
@@ -3932,9 +3937,9 @@ bytedance:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%
       if(o.input.value){o.input.value="";_ltMselRender(o);}
       var el=o.secEls&&o.secEls[idx];
       if(el){
-        /* 不用 scrollIntoView：它会连带滚动所有可滚动祖先（实测点图标整个列表跳掉），
-           只滚我们自己的列表；smooth 与 spy 的 rAF 合帧天然兼容 */
-        o.list.scrollTo({top:Math.max(el.offsetTop-6,0),behavior:"smooth"});
+        /* 不用 scrollIntoView：它会连带滚动所有可滚动祖先（实测点图标整个列表跳掉）。
+           behavior 用 auto 瞬间落位：smooth 长距离滑行会被感知成"跳"，且用户滚轮动量会打断平滑滚动 */
+        o.list.scrollTo({top:Math.max(el.offsetTop-6,0),behavior:"auto"});
       }
       _ltMselSpy(o);
     });
@@ -3961,7 +3966,7 @@ bytedance:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%
     input.focus();
     _ltMselPlace(o,r);
     var cur=o.list.querySelector(".lt-msel-item.cur");
-    if(cur&&cur.scrollIntoView)cur.scrollIntoView({block:"nearest"});
+    if(cur)o.list.scrollTop=Math.max(cur.offsetTop-6,0);
     /* 逐帧跟随至 Mantine 定稿位置（见 _ltMselFollow 注释）；首帧先按当前 rect 落位避免闪到 (0,0) */
     _ltMselFollow(o,dd,undefined,0);
     _ltMselWatchRows(o,dd);

@@ -1,6 +1,10 @@
 // ==UserScript==
 // @name         LibTV Canvas Boost
-// @version      1.25.2
+// @version      1.25.3
+// @homepageURL  https://github.com/lonely814/Messy/tree/main/libtv-boost
+// @supportURL   https://github.com/lonely814/Messy/issues
+// @updateURL    https://raw.githubusercontent.com/lonely814/Messy/main/libtv-boost/libtv-boost.user.js
+// @downloadURL  https://raw.githubusercontent.com/lonely814/Messy/main/libtv-boost/libtv-boost.user.js
 // @icon         https://raw.githubusercontent.com/lonely814/Messy/refs/heads/main/libtv-boost/libtv-boost-icon.png
 // @license      MIT
 // @author       oocc00
@@ -2101,7 +2105,7 @@
 '      _ltSyncPositions();',
 '      /* 诊断：当前浮动图标状态 */',
 '      _ltScanStats.icons=[];',
-'      _ltScanStats.vp=window.innerWidth+"x"+window.innerHeight+" v"+"1.25.2";',
+'      _ltScanStats.vp=window.innerWidth+"x"+window.innerHeight+" v"+"1.25.3";',
 '      for(var _j=0;_j<_ltFloatIcons.length&&_j<5;_j++){',
 '        var _fi=_ltFloatIcons[_j];',
 '        _ltScanStats.icons.push("ta="+(_fi.ta.isConnected?1:0)+" tag="+(_fi.tagIcon?(_fi.tagIcon.style.display+"/"+((Math.round(parseFloat(_fi.tagIcon.style.left)))||0)+","+((Math.round(parseFloat(_fi.tagIcon.style.top)))||0)):"-")+" ai="+(_fi.aiIcon?(_fi.aiIcon.style.display+"/"+((Math.round(parseFloat(_fi.aiIcon.style.left)))||0)+","+((Math.round(parseFloat(_fi.aiIcon.style.top)))||0)):"-"));',
@@ -3473,7 +3477,7 @@
 '    /* 桌宠 */',
 '    h+=_ltPetSettingsHTML();',
 '    h+="<div class=\\"lt-settings-sec\\ lt-sec-about\\" data-sec=\\"about\\"><div class=\\"lt-settings-stitle\\">\\u5173\\u4e8e</div>"',
-'      +"<div class=\\"lt-settings-about\\"><span class=\\"lt-ver-badge\\"><span class=\\"lt-ver-dot\\"></span>v1.25.2</span><div style=\\"margin-top:8px;font-size:13px;color:rgba(255,255,255,0.55);font-weight:600;\\">LibTV Canvas Boost</div>\\u4e13\\u4e3a liblib.tv \\u753b\\u5e03\\u6253\\u9020\\u7684\\u589e\\u5f3a\\u5de5\\u5177\\u3002\\u4f18\\u5316\\u6e32\\u67d3\\u6027\\u80fd\\uff0c\\u6d41\\u7545\\u64cd\\u4f5c\\u5927\\u753b\\u5e03\\uff1b\\u5185\\u7f6e AI \\u63d0\\u793a\\u8bcd\\u52a9\\u624b\\uff08\\u6da6\\u8272/\\u6269\\u5199/\\u7ffb\\u8bd1\\uff09\\u3001\\u6807\\u7b7e\\u7ba1\\u7406\\u3001\\u63d0\\u793a\\u8bcd\\u6a21\\u677f\\u3001\\u53d8\\u91cf\\u7cfb\\u7edf\\u3001\\u753b\\u5e03\\u4e3b\\u9898\\u914d\\u8272\\u4e0e\\u591a\\u79cd\\u89c6\\u89c9\\u8f85\\u52a9\\uff0c\\u8ba9\\u5de5\\u4f5c\\u6d41\\u66f4\\u9ad8\\u6548\\u3002<div style=\\"margin-top:12px;display:flex;gap:10px;\\"><a href=\\"https://github.com/lonely814/Messy\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"currentColor\\"><path d=\\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z\\"/></svg>GitHub</a><a href=\\"https://greasyfork.org/zh-CN/scripts/586841-libtv-canvas-boost\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\"><path d=\\"M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5\\"/></svg>Greasy Fork</a><a href=\\"https://scriptcat.org/zh-CN/script-show-page/7117\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M12 20h9\\"/><path d=\\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\\"/></svg>ScriptCat</a></div></div>"',
+'      +"<div class=\\"lt-settings-about\\"><span class=\\"lt-ver-badge\\"><span class=\\"lt-ver-dot\\"></span>v1.25.3</span><div style=\\"margin-top:8px;font-size:13px;color:rgba(255,255,255,0.55);font-weight:600;\\">LibTV Canvas Boost</div>\\u4e13\\u4e3a liblib.tv \\u753b\\u5e03\\u6253\\u9020\\u7684\\u589e\\u5f3a\\u5de5\\u5177\\u3002\\u4f18\\u5316\\u6e32\\u67d3\\u6027\\u80fd\\uff0c\\u6d41\\u7545\\u64cd\\u4f5c\\u5927\\u753b\\u5e03\\uff1b\\u5185\\u7f6e AI \\u63d0\\u793a\\u8bcd\\u52a9\\u624b\\uff08\\u6da6\\u8272/\\u6269\\u5199/\\u7ffb\\u8bd1\\uff09\\u3001\\u6807\\u7b7e\\u7ba1\\u7406\\u3001\\u63d0\\u793a\\u8bcd\\u6a21\\u677f\\u3001\\u53d8\\u91cf\\u7cfb\\u7edf\\u3001\\u753b\\u5e03\\u4e3b\\u9898\\u914d\\u8272\\u4e0e\\u591a\\u79cd\\u89c6\\u89c9\\u8f85\\u52a9\\uff0c\\u8ba9\\u5de5\\u4f5c\\u6d41\\u66f4\\u9ad8\\u6548\\u3002<div style=\\"margin-top:12px;display:flex;gap:10px;\\"><a href=\\"https://github.com/lonely814/Messy\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"currentColor\\"><path d=\\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z\\"/></svg>GitHub</a><a href=\\"https://greasyfork.org/zh-CN/scripts/586841-libtv-canvas-boost\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\"><path d=\\"M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5\\"/></svg>Greasy Fork</a><a href=\\"https://scriptcat.org/zh-CN/script-show-page/7117\\" target=\\"_blank\\" style=\\"display:inline-flex;align-items:center;gap:4px;font-size:11px;\\"><svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M12 20h9\\"/><path d=\\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\\"/></svg>ScriptCat</a></div></div>"',
 '      +"<div style=\\"margin-top:12px;display:flex;gap:6px;\\"><button class=\\"lt-settings-btn lt-settings-btn-primary lt-settings-btn-sm\\" id=\\"lt-set-help\\">\\u5e2e\\u52a9 / \\u91cd\\u65b0\\u663e\\u793a\\u5f15\\u5bfc</button></div>"',
 '      +"</div>";',
 '    h+="</div></div>";',
@@ -3711,7 +3715,7 @@
 '    document.getElementById("lt-set-export-all").onclick=function(){',
 '      var data={};',
 '      keys.forEach(function(kv){var v=localStorage.getItem(kv[0]);if(v)data[kv[0]]=v;});',
-'      data._version="1.25.2";',
+'      data._version="1.25.3";',
 '      data._exportedAt=new Date().toISOString();',
 '      var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});',
 '      var url=URL.createObjectURL(blob);',
@@ -4842,7 +4846,12 @@
 '    for(var i=0;i<items.length;i++){',
 '      var idx=parseInt(items[i].getAttribute("data-i"),10);',
 '      items[i].classList.toggle("act",idx===o.act);',
-'      if(idx===o.act&&items[i].scrollIntoView)items[i].scrollIntoView({block:"nearest"});',
+'      /* 同 rail 点击的教训：scrollIntoView 会连带滚动所有可滚动祖先，这里手写视口内钳制 */',
+'      if(idx===o.act){',
+'        var top=items[i].offsetTop-6,bottom=items[i].offsetTop+items[i].offsetHeight+6;',
+'        if(top<o.list.scrollTop)o.list.scrollTop=Math.max(top,0);',
+'        else if(bottom>o.list.scrollTop+o.list.clientHeight)o.list.scrollTop=bottom-o.list.clientHeight;',
+'      }',
 '    }',
 '  }',
 '  function _ltMselPick(o,it){',
@@ -5028,9 +5037,9 @@
 '      if(o.input.value){o.input.value="";_ltMselRender(o);}',
 '      var el=o.secEls&&o.secEls[idx];',
 '      if(el){',
-'        /* 不用 scrollIntoView：它会连带滚动所有可滚动祖先（实测点图标整个列表跳掉），',
-'           只滚我们自己的列表；smooth 与 spy 的 rAF 合帧天然兼容 */',
-'        o.list.scrollTo({top:Math.max(el.offsetTop-6,0),behavior:"smooth"});',
+'        /* 不用 scrollIntoView：它会连带滚动所有可滚动祖先（实测点图标整个列表跳掉）。',
+'           behavior 用 auto 瞬间落位：smooth 长距离滑行会被感知成"跳"，且用户滚轮动量会打断平滑滚动 */',
+'        o.list.scrollTo({top:Math.max(el.offsetTop-6,0),behavior:"auto"});',
 '      }',
 '      _ltMselSpy(o);',
 '    });',
@@ -5057,7 +5066,7 @@
 '    input.focus();',
 '    _ltMselPlace(o,r);',
 '    var cur=o.list.querySelector(".lt-msel-item.cur");',
-'    if(cur&&cur.scrollIntoView)cur.scrollIntoView({block:"nearest"});',
+'    if(cur)o.list.scrollTop=Math.max(cur.offsetTop-6,0);',
 '    /* 逐帧跟随至 Mantine 定稿位置（见 _ltMselFollow 注释）；首帧先按当前 rect 落位避免闪到 (0,0) */',
 '    _ltMselFollow(o,dd,undefined,0);',
 '    _ltMselWatchRows(o,dd);',
