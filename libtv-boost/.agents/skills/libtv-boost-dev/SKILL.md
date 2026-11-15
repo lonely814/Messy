@@ -20,16 +20,20 @@ description: libtv-boost 油猴脚本（liblib.tv/iblib.tv 画布增强）的功
 
 版本号只改 `build.js` 顶部 `VERSION`；产物里的版本经 `__VERSION__`/`__LT_VER__` 占位符在构建时注入，**不要手改产物**。
 
-## 发布清单（一版一 commit）
+## 迭代与发布（两阶段，版本号只随收尾走）
+
+**迭代期（用户未收尾）**：改完 → `node --check` + 对应测试 → `node build.js`（div 平衡自检在这一步）→ IAB 实测。**不动 VERSION、不写 README 日志、不 push**；每个修复可单独 commit 便于逐项归因（信息不带版本号，如 `libtv-boost：修复 xxx（未发布）`）。期间用户油猴仍跑旧版，属预期。
+
+**收尾发布**：用户明确说收尾/可以了/肯定/上线/发版，才走完整清单（把这批迭代累计的改动一次性升版）：
 
 1. `build.js` 顶部 `VERSION` 改为新一版
-2. `README.md` 更新日志加条目（新条目放最上）
+2. `README.md` 更新日志加条目（新条目放最上，汇总本批改动）
 3. `node --check src/inject.js && node --check src/main.js`
 4. `node test-glow.js && node test-model-select.js && node test-pie-align.js && node test-pet-pack.js && node test-step-algo.js`（改哪块至少跑对应的，全跑也不亏）
-5. `node build.js`（div 开闭平衡自检在这一步，不平衡会 exit(1)）
+5. `node build.js`
 6. commit（格式 `libtv-boost X.Y.Z：中文摘要——细节`）→ push
 
-push 即发布：`@updateURL`/`@downloadURL` 指向 raw.githubusercontent main 分支，用户油猴自动检查更新。**改了东西不 push = 用户拿不到**。同日多版是常态，用户每条反馈修完就 bump，不攒批。
+push 即发布：`@updateURL`/`@downloadURL` 指向 raw.githubusercontent main 分支，用户油猴自动检查更新。版本号是稀缺资源：**迭代不升版，收尾才升**——否则用户每条反馈都上线一版，线上版本号虚高（1.25.1–1.25.4 一天四版的教训）。
 
 ## 实现纪律
 
@@ -62,7 +66,7 @@ push 即发布：`@updateURL`/`@downloadURL` 指向 raw.githubusercontent main �
 2. 对照圈选 DOM 确认可解析性。接管型（替代站点交互，如模型选择）找稳定钩子属性（如 `data-model-select-dropdown`）并确认行结构无虚拟滚动；附加型（盖在站点特征上，无站点交互可接管，如生成光效挂在生成中节点的内联 blur）找稳定的附着点特征。
 3. 进 plan mode 出计划；关键决策 AskUserQuestion 拍板（作用范围、默认开关、失败策略），别自作主张。
 4. **Step 0**：写码前把方案里未验证的风险点在真机实测（接管型如点击转发是否被站点管线接受；附加型如附着特征是否稳定出现）。失败即停工汇报，换路线或放弃——这条是用户拍板的纪律。
-5. 实现 → 本地测试 → IAB 实测（按上节）→ 用户反馈逐条迭代 → 发布。
+5. 实现 → 本地测试 → IAB 实测（按上节）→ 用户反馈逐条迭代 → 收尾发布（按发布清单）。
 
 视觉复刻技巧：别硬编码颜色，从站点原生抽层——`getComputedStyle` 逐项复制背景/圆角/边框/模糊/阴影/文字色，随站点主题走。
 
@@ -72,7 +76,7 @@ push 即发布：`@updateURL`/`@downloadURL` 指向 raw.githubusercontent main �
 
 1. 先查 memory 坑位档案（末节）——不少"bug"是站点已知行为或已修项，勿当新 bug 重修（如触发器标签只显示版本段 "2.0" 是站点藏图标行为，不是解析丢了）。
 2. 复现优先：CUA 真实事件重演 + 事件日志器定位是哪个事件关掉了什么；合成事件复现不了不等于没有。
-3. 修 → 本地测试 → IAB 实测 → bump 版本 → README 日志 → commit → push，一反馈一版。
+3. 修 → 本地测试 → IAB 实测 → commit（不升版、不 push）；用户收尾后统一走发布清单升版上线。
 
 ## 事实查询路由（本 skill 不存事实）
 
