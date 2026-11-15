@@ -3622,16 +3622,22 @@ bytedance:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%
     alibaba:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EAlibaba%3C%2Ftitle%3E%3Cpath%20d%3D%22M24%2014.014c-2.8%201.512-5.62%202.896-8.759%203.524-.7.139-1.476.139-2.187.043-.678-.085-1.017-.682-.776-1.31.23-.585.536-1.181.93-1.671.852-1.065%201.814-2.034%202.678-3.088a15.75%2015.75%200%20001.422-2.054c.306-.511.164-1.129-.372-1.384-.897-.437-1.859-.745-2.81-1.075-.11-.043-.274.074-.492.149.273.244.47.425.743.67-2.821.48-5.49%201.16-8.08%202.098-.012.053-.033.095-.023.117.383.585.208%201.032-.35%201.394a2.365%202.365%200%2000-.568.522c1.706.5%203.226.213%204.68-.735-.087-.127-.175-.244-.262-.372.546.096.874.394.918.862.011.107-.054.213-.087.32-.077-.086-.175-.17-.24-.267-.045-.064-.056-.138-.088-.245-1.728%201.15-3.587%201.438-5.632.842%200%20.404-.022.745.011%201.075.022.287-.098.415-.36.564-.591.362-1.204.735-1.696%201.214-.59.585-.371%201.299.427%201.597.907.34%201.859.35%202.81.234%201.126-.139%202.23-.32%203.456-.49-1.433.67-2.844%201.14-4.33%201.33-1.04.14-2.078.214-3.106-.084-1.476-.415-2.133-1.501-1.75-2.96.361-1.363%201.236-2.449%202.176-3.45%203.139-3.332%207.108-5.024%2011.7-5.365%201.072-.074%202.155.064%203.16.511%201.411.639%202.002%201.99%201.313%203.354-.448.905-1.072%201.735-1.695%202.555-.612.809-1.301%201.554-1.946%202.331-.186.234-.361.48-.503.745-.274.5-.088.83.492.778%201.213-.118%202.45-.213%203.62-.511%201.716-.437%203.389-1.054%205.084-1.597.175-.043.339-.107.492-.17z%22%20fill%3D%22%23FF6003%22%20fill-rule%3D%22evenodd%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E",
     qwen:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EQwen%3C%2Ftitle%3E%3Cpath%20d%3D%22M19.713%202.825h-5.907c0-.251-.066-.503-.196-.728L12.819.728A1.46%201.46%200%200%200%2011.559%200h-1.58c-.52%200-1%20.275-1.26.728l-2.42%204.19a1.45%201.45%200%200%200%200%201.453l.791%201.37c.26.448.74.727%201.26.727h11.36c.52%200%201-.275%201.26-.728l.79-1.37a1.45%201.45%200%200%200%200-1.451l-.79-1.37a1.46%201.46%200%200%200-1.26-.728zM.195%209.905l2.951%205.115a1.46%201.46%200%200%200-.531.531l-.791%201.37a1.45%201.45%200%200%200%200%201.452l.79%201.37c.26.448.74.727%201.26.727h4.84c.52%200%201-.275%201.26-.728l.79-1.37a1.45%201.45%200%200%200%200-1.451L5.086%207.083a1.46%201.46%200%200%200-1.26-.728h-1.58c-.52%200-1%20.276-1.26.728l-.79%201.37a1.45%201.45%200%200%200%200%201.452m15.888%2013.367%202.951-5.115c.217.125.469.196.728.196h1.582c.52%200%201-.275%201.26-.728l.79-1.37a1.45%201.45%200%200%200%200-1.451l-2.42-4.191a1.46%201.46%200%200%200-1.259-.728h-1.582c-.52%200-1%20.276-1.259.728l-5.678%209.838a1.45%201.45%200%200%200%200%201.452l.79%201.37c.26.448.74.727%201.26.727h1.582c.52%200%201-.275%201.26-.728z%22%20fill%3D%22%23082dff%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E",
     vidu:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EVidu%3C%2Ftitle%3E%3Cpath%20d%3D%22M20.607%202.247c-2.917-.966-5.426%201.084-6.011%202.96%200%200-2.105%206.76-3.002%209.58-.428%201.346-1.489%203.548-3.487%203.548-1.627%200-2.463-1.527-2.816-2.437L2.865%209.431c-.281-.681.013-2.04%201.14-2.447%201.204-.432%201.978.575%202.178%201.11l3.022%207.74c.72-.928%201.178-2.438%201.476-3.507l-1.984-5.21C7.756%204.686%205.267%203.58%202.962%204.43%201.095%205.118-.702%207.474.275%2010.435l2.504%206.44c.38.976%201.881%204.163%205.275%204.163%204.073%200%205.601-3.473%206.449-6.218.424-1.373%202.749-8.797%202.749-8.797.338-1.109%201.71-1.428%202.568-1.148.605.196%201.698%201.031%201.345%202.325-.066.236-1.92%206.209-2.604%208.026-.357.948-1.262%203.006-3.324%202.72-.628%201.39-1.15%202.199-1.94%202.925%202.572%201.218%206.32-.009%207.898-4.776.586-1.773%202.644-8.166%202.644-8.166.598-1.963-.469-4.768-3.232-5.682z%22%20fill%3D%22url(%23lobe-icons-vidu-_R_0_)%22%3E%3C%2Fpath%3E%3Cdefs%3E%3ClinearGradient%20gradientUnits%3D%22userSpaceOnUse%22%20id%3D%22lobe-icons-vidu-_R_0_%22%20x1%3D%22.759%22%20x2%3D%2226.155%22%20y1%3D%225.637%22%20y2%3D%2217.311%22%3E%3Cstop%20stop-color%3D%22%2340EDD8%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.024%22%20stop-color%3D%22%2338E7E2%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.084%22%20stop-color%3D%22%2328DAF7%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.124%22%20stop-color%3D%22%2322D5FF%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.36%22%20stop-color%3D%22%231ABFFF%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.85%22%20stop-color%3D%22%230786FE%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.909%22%20stop-color%3D%22%23047FFE%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3C%2Fsvg%3E",
-    pixverse:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EPixVerse%3C%2Ftitle%3E%3Cpath%20d%3D%22M10.998%2023.837L5%2021.015V5.569c0-.733.32-1.547.84-2.065l1.386-1.387%206.064%2019.729c.426%201.377-.987%202.605-2.292%201.991z%22%20fill%3D%22url(%23lobe-icons-pix-verse-0-_R_0_)%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M19.36%208.43L12.517.905A2.765%202.765%200%20008.517.81L5.84%203.504c-.511.584-.803%201.198-.803%201.93V20.88l13.699-8.219a2.765%202.765%200%2000.623-4.23%22%20fill%3D%22url(%23lobe-icons-pix-verse-1-_R_0_)%22%3E%3C%2Fpath%3E%3Cdefs%3E%3ClinearGradient%20gradientUnits%3D%22userSpaceOnUse%22%20id%3D%22lobe-icons-pix-verse-0-_R_0_%22%20x1%3D%22-5.894%22%20x2%3D%2213.185%22%20y1%3D%225.53%22%20y2%3D%2223.781%22%3E%3Cstop%20stop-color%3D%22%23FE9E58%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.396%22%20stop-color%3D%22%23E470EC%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23442FBA%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3ClinearGradient%20gradientUnits%3D%22userSpaceOnUse%22%20id%3D%22lobe-icons-pix-verse-1-_R_0_%22%20x1%3D%2215.931%22%20x2%3D%22-3.149%22%20y1%3D%225.396%22%20y2%3D%2223.647%22%3E%3Cstop%20stop-color%3D%22%23FFA052%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.396%22%20stop-color%3D%22%23E36CFA%22%20stop-opacity%3D%22.8%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23442FBA%22%20stop-opacity%3D%22.7%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3C%2Fsvg%3E"
+    pixverse:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EPixVerse%3C%2Ftitle%3E%3Cpath%20d%3D%22M10.998%2023.837L5%2021.015V5.569c0-.733.32-1.547.84-2.065l1.386-1.387%206.064%2019.729c.426%201.377-.987%202.605-2.292%201.991z%22%20fill%3D%22url(%23lobe-icons-pix-verse-0-_R_0_)%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M19.36%208.43L12.517.905A2.765%202.765%200%20008.517.81L5.84%203.504c-.511.584-.803%201.198-.803%201.93V20.88l13.699-8.219a2.765%202.765%200%2000.623-4.23%22%20fill%3D%22url(%23lobe-icons-pix-verse-1-_R_0_)%22%3E%3C%2Fpath%3E%3Cdefs%3E%3ClinearGradient%20gradientUnits%3D%22userSpaceOnUse%22%20id%3D%22lobe-icons-pix-verse-0-_R_0_%22%20x1%3D%22-5.894%22%20x2%3D%2213.185%22%20y1%3D%225.53%22%20y2%3D%2223.781%22%3E%3Cstop%20stop-color%3D%22%23FE9E58%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.396%22%20stop-color%3D%22%23E470EC%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23442FBA%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3ClinearGradient%20gradientUnits%3D%22userSpaceOnUse%22%20id%3D%22lobe-icons-pix-verse-1-_R_0_%22%20x1%3D%2215.931%22%20x2%3D%22-3.149%22%20y1%3D%225.396%22%20y2%3D%2223.647%22%3E%3Cstop%20stop-color%3D%22%23FFA052%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.396%22%20stop-color%3D%22%23E36CFA%22%20stop-opacity%3D%22.8%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23442FBA%22%20stop-opacity%3D%22.7%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3C%2Fsvg%3E",
+    openai:"data:image/svg+xml;charset=utf-8,%3Csvg%20fill%3D%22%2310A37F%22%20fill-rule%3D%22evenodd%22%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EOpenAI%3C%2Ftitle%3E%3Cpath%20d%3D%22M9.205%208.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357%201.356-.523%202.117-.523%202.854%200%204.662%202.212%204.662%204.566%200%20.167%200%20.357-.024.547l-4.71-2.759a.797.797%200%2000-.856%200l-5.97%203.473zm10.609%208.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473%201.95-1.118a.433.433%200%2001.476%200l4.543%202.617c1.309.76%202.189%202.378%202.189%203.948%200%201.808-1.07%203.473-2.76%204.163zM7.802%2012.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545%201.95-4.472%204.591-4.472%201%200%201.927.333%202.712.928L8.23%205.067c-.285.166-.428.404-.428.737v6.898zM12%2015.128l-2.795-1.57v-3.33L12%208.658l2.795%201.57v3.33L12%2015.128zm1.796%207.23c-1%200-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974%201.142c.167.095.238.238.238.428v5.233c0%202.545-1.974%204.472-4.614%204.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482%204.482%200%20014.21%206.327v5.423c0%20.333.143.571.428.738l5.947%203.449-1.95%201.118a.432.432%200%2001-.476%200zm-.262%203.9c-2.688%200-4.662-2.021-4.662-4.519%200-.19.024-.38.047-.57l4.686%202.71c.286.167.571.167.856%200l5.97-3.448v2.26c0%20.19-.07.333-.237.428l-4.543%202.616c-.619.357-1.356.523-2.117.523zm5.899%202.83a5.947%205.947%200%20005.827-4.756C22.287%2018.339%2024%2015.84%2024%2013.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498%200-3.401-2.759-5.947-5.946-5.947-.642%200-1.26.095-1.88.31A5.962%205.962%200%200010.205%200a5.947%205.947%200%2000-5.827%204.757C1.713%205.447%200%207.945%200%2010.49c0%201.666.713%203.283%201.998%204.448-.119.5-.19%201-.19%201.499%200%203.401%202.759%205.946%205.946%205.946.642%200%201.26-.095%201.88-.309a5.96%205.96%200%20004.162%201.713z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E",
+    gemini:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EGemini%3C%2Ftitle%3E%3Cpath%20d%3D%22M20.616%2010.835a14.147%2014.147%200%2001-4.45-3.001%2014.111%2014.111%200%2001-3.678-6.452.503.503%200%2000-.975%200%2014.134%2014.134%200%2001-3.679%206.452%2014.155%2014.155%200%2001-4.45%203.001c-.65.28-1.318.505-2.002.678a.502.502%200%20000%20.975c.684.172%201.35.397%202.002.677a14.147%2014.147%200%20014.45%203.001%2014.112%2014.112%200%20013.679%206.453.502.502%200%2000.975%200c.172-.685.397-1.351.677-2.003a14.145%2014.145%200%20013.001-4.45%2014.113%2014.113%200%20016.453-3.678.503.503%200%20000-.975%2013.245%2013.245%200%2001-2.003-.678z%22%20fill%3D%22%233186FF%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M20.616%2010.835a14.147%2014.147%200%2001-4.45-3.001%2014.111%2014.111%200%2001-3.678-6.452.503.503%200%2000-.975%200%2014.134%2014.134%200%2001-3.679%206.452%2014.155%2014.155%200%2001-4.45%203.001c-.65.28-1.318.505-2.002.678a.502.502%200%20000%20.975c.684.172%201.35.397%202.002.677a14.147%2014.147%200%20014.45%203.001%2014.112%2014.112%200%20013.679%206.453.502.502%200%2000.975%200c.172-.685.397-1.351.677-2.003a14.145%2014.145%200%20013.001-4.45%2014.113%2014.113%200%20016.453-3.678.503.503%200%20000-.975%2013.245%2013.245%200%2001-2.003-.678z%22%20fill%3D%22url(%23lobe-icons-gemini-0-_R_0_)%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M20.616%2010.835a14.147%2014.147%200%2001-4.45-3.001%2014.111%2014.111%200%2001-3.678-6.452.503.503%200%2000-.975%200%2014.134%2014.134%200%2001-3.679%206.452%2014.155%2014.155%200%2001-4.45%203.001c-.65.28-1.318.505-2.002.678a.502.502%200%20000%20.975c.684.172%201.35.397%202.002.677a14.147%2014.147%200%20014.45%203.001%2014.112%2014.112%200%20013.679%206.453.502.502%200%2000.975%200c.172-.685.397-1.351.677-2.003a14.145%2014.145%200%20013.001-4.45%2014.113%2014.113%200%20016.453-3.678.503.503%200%20000-.975%2013.245%2013.245%200%2001-2.003-.678z%22%20fill%3D%22url(%23lobe-icons-gemini-1-_R_0_)%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M20.616%2010.835a14.147%2014.147%200%2001-4.45-3.001%2014.111%2014.111%200%2001-3.678-6.452.503.503%200%2000-.975%200%2014.134%2014.134%200%2001-3.679%206.452%2014.155%2014.155%200%2001-4.45%203.001c-.65.28-1.318.505-2.002.678a.502.502%200%20000%20.975c.684.172%201.35.397%202.002.677a14.147%2014.147%200%20014.45%203.001%2014.112%2014.112%200%20013.679%206.453.502.502%200%2000.975%200c.172-.685.397-1.351.677-2.003a14.145%2014.145%200%20013.001-4.45%2014.113%2014.113%200%20016.453-3.678.503.503%200%20000-.975%2013.245%2013.245%200%2001-2.003-.678z%22%20fill%3D%22url(%23lobe-icons-gemini-2-_R_0_)%22%3E%3C%2Fpath%3E%3Cdefs%3E%3ClinearGradient%20gradientUnits%3D%22userSpaceOnUse%22%20id%3D%22lobe-icons-gemini-0-_R_0_%22%20x1%3D%227%22%20x2%3D%2211%22%20y1%3D%2215.5%22%20y2%3D%2212%22%3E%3Cstop%20stop-color%3D%22%2308B962%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%2308B962%22%20stop-opacity%3D%220%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3ClinearGradient%20gradientUnits%3D%22userSpaceOnUse%22%20id%3D%22lobe-icons-gemini-1-_R_0_%22%20x1%3D%228%22%20x2%3D%2211.5%22%20y1%3D%225.5%22%20y2%3D%2211%22%3E%3Cstop%20stop-color%3D%22%23F94543%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23F94543%22%20stop-opacity%3D%220%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3ClinearGradient%20gradientUnits%3D%22userSpaceOnUse%22%20id%3D%22lobe-icons-gemini-2-_R_0_%22%20x1%3D%223.5%22%20x2%3D%2217.5%22%20y1%3D%2213.5%22%20y2%3D%2212%22%3E%3Cstop%20stop-color%3D%22%23FABC12%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.46%22%20stop-color%3D%22%23FABC12%22%20stop-opacity%3D%220%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3C%2Fsvg%3E"
   };
-  var _ltMselBrandColor={bytedance:"#00C8D2",kling:"#0BF2F9",minimax:"#E2167E",alibaba:"#FF6003",qwen:"#082dff",vidu:"#1ABFFF",pixverse:"#E470EC",liblib:"#4F6BFF"};
+  var _ltMselBrandColor={bytedance:"#00C8D2",kling:"#0BF2F9",minimax:"#E2167E",alibaba:"#FF6003",qwen:"#082dff",vidu:"#1ABFFF",pixverse:"#E470EC",openai:"#10A37F",gemini:"#4285F4",liblib:"#4F6BFF"};
   var _ltMselBrandKeys=["Seedance","Seedream","OmniHuman","Kling","Minimax H3","Minimax H3 Max","H3-Highspeed","Hailuo","Wan","Qwen","Z-image","Happy Horse","Vidu","Pixverse","Lib Image","General image","AutoPic","Genesis"];
-  var _ltMselBrandMap={Seedance:"bytedance",Seedream:"bytedance",OmniHuman:"bytedance",Kling:"kling","Minimax H3":"minimax","Minimax H3 Max":"minimax","H3-Highspeed":"minimax",Hailuo:"minimax",Wan:"alibaba",Qwen:"qwen","Z-image":"alibaba","Happy Horse":"alibaba",Vidu:"vidu",Pixverse:"pixverse","Lib Image":"liblib","General image":"liblib",AutoPic:"liblib",Genesis:"liblib"};
-  var _ltMselRename={"Happy Horse":"Wan"};
+  var _ltMselBrandMap={Seedance:"bytedance",Seedream:"bytedance",OmniHuman:"bytedance",Kling:"kling","Minimax H3":"minimax","Minimax H3 Max":"minimax","H3-Highspeed":"minimax",Hailuo:"minimax",Wan:"alibaba",Qwen:"qwen","Z-image":"alibaba","Happy Horse":"alibaba",Vidu:"vidu",Pixverse:"pixverse","Lib Image":"openai","General image":"gemini",AutoPic:"liblib",Genesis:"liblib"};
+  /* 品牌分组头显示名（多数派首词不够表意时用：GPT/Nano 这种截断读不通） */
+  var _ltMselBrandLabel={openai:"GPT Image 2",gemini:"Nano Banana"};
+  var _ltMselRename={"Happy Horse":"Wan","Lib Image":"GPT Image 2","General image":"Nano Banana"};
   function _ltMselBrandOf(name){
-    var s=String(name||"");
+    /* 大小写不敏感：站点两表拼写不一（视频表 Minimax / 图片表 MiniMax），前缀匹配统一小写比 */
+    var s=String(name||"").toLowerCase();
     for(var i=0;i<_ltMselBrandKeys.length;i++){
-      if(s.indexOf(_ltMselBrandKeys[i])===0)return _ltMselBrandMap[_ltMselBrandKeys[i]]||"";
+      var k=_ltMselBrandKeys[i].toLowerCase();
+      if(s.indexOf(k)===0)return _ltMselBrandMap[_ltMselBrandKeys[i]]||"";
     }
     return "";
   }
@@ -3652,13 +3658,16 @@ bytedance:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%
   try{if(localStorage.getItem("_lt_msel")===null)localStorage.setItem("_lt_msel","1");}catch(e){}
   function _ltMselOn(){try{return localStorage.getItem("_lt_msel")!=="0";}catch(e){return true;}}
   function _ltMselStore(){
-    /* 收藏/最近使用，按列表分表；容错还原形状（旧版本/手改不炸） */
+    /* 收藏/最近使用，按列表分表；容错还原形状（旧版本/手改不炸）。
+       条目名过一遍 _ltMselDName：老版本存的是站点名（马甲名），读取时自动迁移到显示名 */
     var s=_ltJ("_lt_model_sel_v1",null);
     if(!s||typeof s!=="object")s={};
     ["video","image","misc"].forEach(function(k){
       if(!s[k]||typeof s[k]!=="object")s[k]={};
       if(!Array.isArray(s[k].favs))s[k].favs=[];
       if(!Array.isArray(s[k].recent))s[k].recent=[];
+      s[k].favs=s[k].favs.map(function(n){return _ltMselDName(n);});
+      s[k].recent=s[k].recent.map(function(n){return _ltMselDName(n);});
     });
     return s;
   }
@@ -3699,6 +3708,50 @@ bytedance:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%
     }catch(e){return null;}
   }
   var _ltMselOverlays=new Map(); /* 原生下拉元素 -> 覆盖层状态 {root,input,list,cnt,parsed,type,vis,act} */
+  /* ── 指针/焦点事件守卫（脚本加载期注册的 document 捕获单例） ──
+     站点在面板层和弹出层都有自己的外点关闭监听，注册时机不可控；合成 .click() 不带
+     pointer/mousedown/focus 序列所以自动化测不出，真实鼠标一点（点覆盖层任何地方）
+     面板/弹出层就把自己关掉，覆盖层跟着被清扫=「列表消失」（实测复现）。
+     脚本加载期注册的捕获监听必然最先跑，stopImmediatePropagation 把起点在覆盖层内
+     的指针/焦点事件全部吞掉，站点各层什么都看不见；页面其余事件不受影响 */
+  function _ltMselOwner(target){
+    var hit=null;
+    _ltMselOverlays.forEach(function(o){
+      if(!hit&&o.root.contains(target))hit=o;
+    });
+    return hit;
+  }
+  function _ltMselGuard(e){
+    if(_ltMselOwner(e.target))e.stopImmediatePropagation();
+  }
+  ["pointerdown","mousedown","touchstart","focusout","focusin"].forEach(function(ev){
+    document.addEventListener(ev,_ltMselGuard,true);
+  });
+  function _ltMselClickGuard(e){
+    var o=_ltMselOwner(e.target);
+    if(!o)return;
+    e.stopImmediatePropagation(); /* 同上：不让站点各层看到覆盖层内的 click */
+    var rb=e.target.closest?e.target.closest(".lt-msel-rb"):null;
+    if(rb){
+      var idx=parseInt(rb.getAttribute("data-sec"),10);
+      if(o.input.value){o.input.value="";_ltMselRender(o);}
+      var el=o.secEls&&o.secEls[idx];
+      if(el){
+        /* 只滚自己的列表（scrollIntoView 会连带滚动所有可滚动祖先）；瞬间落位 */
+        o.list.scrollTo({top:Math.max(el.offsetTop-6,0),behavior:"auto"});
+      }
+      _ltMselSpy(o);
+      return;
+    }
+    var item=e.target.closest?e.target.closest(".lt-msel-item"):null;
+    if(!item)return;
+    var star=e.target.closest(".lt-msel-star");
+    var idx2=parseInt(item.getAttribute("data-i"),10),it=o.vis[idx2];
+    if(!it)return;
+    if(star){_ltMselToggleFav(o,it.name);return;}
+    _ltMselPick(o,it);
+  }
+  document.addEventListener("click",_ltMselClickGuard,true);
   function _ltMselItemHTML(o,it,idx,favs){
     var fav=favs.indexOf(it.name)>=0;
     return '<div class="lt-msel-item'+(it.sel?" cur":"")+'" data-i="'+idx+'">'
@@ -3814,7 +3867,12 @@ bytedance:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%
     var favRows=pickRows(st.favs,used),recRows=pickRows(st.recent,used),groups=_ltMselGroups(rows),secs=[];
     if(favRows.length)secs.push({label:"★ 收藏",items:favRows});
     if(recRows.length)secs.push({label:"最近使用",items:recRows});
-    for(var gi=0;gi<groups.length;gi++)secs.push({label:groups[gi].label,items:groups[gi].items});
+    for(var gi=0;gi<groups.length;gi++){
+      var it0=groups[gi].items[0]||{},label=groups[gi].label;
+      /* 多数派首词读不通的品牌（GPT/Nano）用品牌全称做组名 */
+      if(it0.brand&&_ltMselBrandLabel[it0.brand])label=_ltMselBrandLabel[it0.brand];
+      secs.push({label:label,items:groups[gi].items});
+    }
     return secs;
   }
   function _ltMselRailRender(o,secs){
@@ -3866,7 +3924,13 @@ bytedance:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%
       var n=dd.querySelectorAll("button[data-selected]").length;
       if(n===o.parsed.rows.length)return;
       var p2=_ltMselParse(dd);
-      if(p2&&p2.rows.length>=n){o.parsed=p2;if(p2.type)o.type=p2.type;if(!o.input.value)_ltMselRender(o);}
+      /* 只在行数增长时重建（收缩多为站点重渲染瞬时态，重建会让列表变短甚至看似消失）；
+         重建前后保持滚动位置，避免用户正在看的位置被拽走 */
+      if(p2&&p2.rows.length>o.parsed.rows.length){
+        var sc=o.list.scrollTop;
+        o.parsed=p2;if(p2.type)o.type=p2.type;
+        if(!o.input.value){_ltMselRender(o);o.list.scrollTop=Math.min(sc,Math.max(o.list.scrollHeight-o.list.clientHeight,0));}
+      }
     });
     o.rowsObs.observe(dd,{childList:true,subtree:true});
   }
@@ -3915,34 +3979,10 @@ bytedance:"data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%
     document.body.appendChild(root);
     _ltMselChrome(o,dd);
     _ltMselOverlays.set(dd,o);
-    /* pointerdown/mousedown/touchstart 拦冒泡：Mantine 外点关闭检测看不到我们，原生下拉保持打开 */
-    root.addEventListener("pointerdown",function(e){e.stopPropagation();});
-    root.addEventListener("mousedown",function(e){e.stopPropagation();});
-    root.addEventListener("touchstart",function(e){e.stopPropagation();},{passive:true});
-    /* 行点击/星标走委托（innerHTML 重渲染不用重绑） */
-    list.addEventListener("click",function(e){
-      var item=e.target&&e.target.closest?e.target.closest(".lt-msel-item"):null;
-      if(!item)return;
-      var idx=parseInt(item.getAttribute("data-i"),10),it=o.vis[idx];
-      if(!it)return;
-      if(e.target.closest&&e.target.closest(".lt-msel-star")){_ltMselToggleFav(o,it.name);return;}
-      _ltMselPick(o,it);
-    });
+    /* 覆盖层内的指针/焦点事件由脚本加载期注册的 _ltMselGuard/_ltMselClickGuard
+       在 document 捕获阶段统一吞掉与路由（真实鼠标点击会让站点各层外点关闭监听
+       把下拉关掉，冒泡拦截来不及——详见 _ltMselOverlays 上方的守卫注释） */
     input.addEventListener("input",function(){_ltMselRender(o);});
-    /* 左侧索引栏：点击滚到分区；搜索中点击 = 先退出搜索再滚（Motif 同款语义） */
-    rail.addEventListener("click",function(e){
-      var b=e.target&&e.target.closest?e.target.closest(".lt-msel-rb"):null;
-      if(!b)return;
-      var idx=parseInt(b.getAttribute("data-sec"),10);
-      if(o.input.value){o.input.value="";_ltMselRender(o);}
-      var el=o.secEls&&o.secEls[idx];
-      if(el){
-        /* 不用 scrollIntoView：它会连带滚动所有可滚动祖先（实测点图标整个列表跳掉）。
-           behavior 用 auto 瞬间落位：smooth 长距离滑行会被感知成"跳"，且用户滚轮动量会打断平滑滚动 */
-        o.list.scrollTo({top:Math.max(el.offsetTop-6,0),behavior:"auto"});
-      }
-      _ltMselSpy(o);
-    });
     /* scroll-spy 用 rAF 合帧，滚动风暴不逐事件重排（M9 同款纪律） */
     var spyRAF=0;
     list.addEventListener("scroll",function(){
