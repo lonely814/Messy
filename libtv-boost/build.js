@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const VERSION = '1.26.0';
+const VERSION = '1.26.1';
 const ROOT = __dirname;
 const SRC = path.join(ROOT, 'src');
 const OUT = path.join(ROOT, 'libtv-boost.user.js');
@@ -40,9 +40,15 @@ function build() {
   const cssLines = toArrayLines(read('style.css'));
   const injectLines = toArrayLines(inject);
 
+  // 1.5 div 开闭平衡自检：HTML 字符串少写闭合会让浏览器解析吞掉后续面板（1.26.1 关于页空白教训）
+  (function(){
+    const o=(inject.match(/<div[\s>]/g)||[]).length, c=(inject.match(/<\/div>/g)||[]).length;
+    if(o!==c){ console.error('✗ inject.js <div> 开闭不平衡: opens '+o+' closes '+c+'——先修平衡再构建'); process.exit(1); }
+  })();
+
   // 2. Read template and replace markers
   let main = read('main.js');
-  /* 必须用函数形式替换：字符串替换会把注入文本里的 $&/$'/$1 等替换符解释掉（曾把 inject.js 的 "\\$&" 转义静默吞成占位符） */
+  /* 必须用函数形式替换：字符串替换会把 inject.js 的 $&/$'/$1 等替换符解释掉（曾把 inject.js 的 "\\$&" 转义静默吞成占位符） */
   main = main.replace('__INJECT_CSS__', () => cssLines.join(',\n'));
   main = main.replace('__INJECT_SCRIPT__', () => injectLines.join(',\n'));
   main = main.replace(/__VERSION__/g, VERSION);
