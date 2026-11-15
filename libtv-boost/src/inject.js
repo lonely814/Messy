@@ -1152,6 +1152,88 @@
               ga:ga+"deg",ga2:ga2+"deg",f1:pair[0],f2:pair[1]};
     }
     /* __lt_glow_pure_end__ */
+    /* ── 生成占位封面：Motif GradientCover 复刻（纯函数块） ──
+       确定性装饰封面：seed（节点 data-id）→ FNV-1a → Mulberry32，同一节点永远同一画面；
+       五个色 circle 共一层 feGaussianBlur，白 hairline 图案经径向渐变 mask 渐隐，feTurbulence 颗粒压印；
+       调色板/图案/几何参数照搬 motif registry 源码（palette 实为 dusk/lagoon/sunset，docs 页 prose 已过时） */
+    /* __lt_cover_pure_begin__ */
+    function _ltCovFnv(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+    function _ltCovMulberry(a){a=a|0;return function(){a=(a+1831565813)|0;var t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+    function _ltCovBt(r,min,max){return min+r*(max-min);}
+    var _ltCovPalettes={
+      dusk:{base:"#8a6cc0",fields:[["#c9bbe8",0.1,0.08],["#b59ad8",0.72,0.4],["#2f1c44",0.66,0.9],["#8d5cc4",0.04,0.92],["#d8bce4",0.95,0.62]]},
+      lagoon:{base:"#4f8aa0",fields:[["#eef2f4",0.45,0.02],["#7fc4ae",0,0.6],["#1f5f7a",0.82,0.76],["#cfe3e8",0.62,0.3],["#3b7d9a",0.3,0.98]]},
+      sunset:{base:"#f4a259",fields:[["#8c9be8",0.1,0.15],["#e9a3d2",0.92,0.08],["#f9a03f",0.78,0.62],["#f6c453",0.48,0.78],["#ef6a5a",0.02,0.98]]}
+    };
+    var _ltCovPalKeys=["dusk","lagoon","sunset"];
+    var _ltCovPatKeys=["plain","waves","dots","petals"];
+    /* Catmull-Rom → 三次贝塞尔平滑（通用算法，视觉与 Motif smooth() 等价） */
+    function _ltCovSmooth(pts){
+      var d="M"+pts[0][0].toFixed(1)+","+pts[0][1].toFixed(1);
+      for(var i=0;i<pts.length-1;i++){
+        var p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
+        d+="C"+(p1[0]+(p2[0]-p0[0])/6).toFixed(1)+","+(p1[1]+(p2[1]-p0[1])/6).toFixed(1)+","
+          +(p2[0]-(p3[0]-p1[0])/6).toFixed(1)+","+(p2[1]-(p3[1]-p1[1])/6).toFixed(1)+","
+          +p2[0].toFixed(1)+","+p2[1].toFixed(1);
+      }
+      return d;
+    }
+    function _ltCovWaves(rnd){
+      var out="";
+      for(var i=0;i<30;i++){ /* 30 条近平行线，摆幅逐条加大（swell=6+i*0.9，双层正弦叠加） */
+        var yB=-20+i*(440/29),sw=6+i*0.9,ph=rnd()*6.2832,ph2=rnd()*6.2832,pts=[];
+        for(var x=-20;x<=420;x+=55)pts.push([x,yB+Math.sin(x/60+ph)*sw+Math.sin(x/23+ph2)*sw*0.4]);
+        out+='<path vector-effect="non-scaling-stroke" d="'+_ltCovSmooth(pts)+'"/>';
+      }
+      return out;
+    }
+    function _ltCovPetals(rnd){
+      var out="";
+      for(var i=0;i<11;i++){ /* 11 片叶形散布，可越界（-0.05~1.05） */
+        var L=_ltCovBt(rnd(),55,120),W=L*_ltCovBt(rnd(),0.35,0.5),rot=(rnd()*360).toFixed(1);
+        var cx=(_ltCovBt(rnd(),-0.05,1.05)*400).toFixed(1),cy=(_ltCovBt(rnd(),-0.05,1.05)*400).toFixed(1);
+        out+='<g transform="translate('+cx+' '+cy+') rotate('+rot+')"><path vector-effect="non-scaling-stroke" d="M0 '+(-L).toFixed(1)+' Q '+W.toFixed(1)+' 0 0 '+L.toFixed(1)+' Q '+(-W).toFixed(1)+' 0 0 '+(-L).toFixed(1)+' Z"/></g>';
+      }
+      return out;
+    }
+    function _ltCovSvg(seed,fpal,fpat){
+      var rnd=_ltCovMulberry(_ltCovFnv(String(seed)));
+      /* palette/pattern 选择固定消耗随机数：即使强制指定也保持后续抖动一致（registry 同语义） */
+      var pal=_ltCovPalKeys[Math.floor(rnd()*_ltCovPalKeys.length)];
+      var pat=_ltCovPatKeys[Math.floor(rnd()*_ltCovPatKeys.length)];
+      if(fpal)pal=fpal;
+      if(fpat)pat=fpat;
+      var spec=_ltCovPalettes[pal]||_ltCovPalettes.dusk;
+      var circles="";
+      for(var i=0;i<spec.fields.length;i++){
+        var f=spec.fields[i];
+        var cx=(f[1]+_ltCovBt(rnd(),-0.12,0.12))*400,cy=(f[2]+_ltCovBt(rnd(),-0.12,0.12))*400,r=_ltCovBt(rnd(),0.32,0.44)*400;
+        circles+='<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="'+f[0]+'"/>';
+      }
+      var mx=_ltCovBt(rnd(),0.3,0.7).toFixed(3),my=_ltCovBt(rnd(),0.3,0.7).toFixed(3);
+      var lines="";
+      if(pat==="waves")lines=_ltCovWaves(rnd);
+      else if(pat==="dots")lines='<rect width="400" height="400" fill="url(#d)" opacity="0.8"/>';
+      else if(pat==="petals")lines=_ltCovPetals(rnd);
+      var defs='<filter id="b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="44"/></filter>'
+        +'<radialGradient id="f" cx="'+mx+'" cy="'+my+'" r="0.75"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0.15"/></radialGradient>'
+        +'<mask id="m"><rect width="400" height="400" fill="url(#f)"/></mask>'
+        +'<filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>'
+        +(pat==="dots"?'<pattern id="d" width="15" height="15" patternUnits="userSpaceOnUse"><circle cx="7.5" cy="7.5" r="1.4" fill="#fff"/></pattern>':'');
+      /* 首个 fill=url(#d) 的 rect 是图案本体；hairline 渐隐：线稿包进径向 mask，中心最实、边缘淡到 0.15 */
+      var svg='<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">'
+        +'<defs>'+defs+'</defs>'
+        +'<rect width="400" height="400" fill="'+spec.base+'"/>'
+        +'<g filter="url(#b)">'+circles+'</g>'
+        +(lines?'<g mask="url(#m)" fill="none" stroke="#fff" stroke-width="0.75" opacity="'+(pat==="petals"?"0.7":"0.5")+'">'+lines+'</g>':'')
+        +'<rect width="400" height="400" filter="url(#g)" opacity="0.45" style="mix-blend-mode:overlay"/>'
+        +'</svg>';
+      return {svg:svg,pal:pal,pat:pat};
+    }
+    function _ltCovDataUri(seed,fpal,fpat){
+      return "data:image/svg+xml,"+encodeURIComponent(_ltCovSvg(seed,fpal,fpat).svg);
+    }
+    /* __lt_cover_pure_end__ */
     function _ltGenEnsure(el,img,id){
       /* 挂层 + 写种子参数；站点重挂载节点/宿主后属性可能被换掉，每轮补挂 */
       var p=_ltGlowParams(id),host=img.parentElement;
