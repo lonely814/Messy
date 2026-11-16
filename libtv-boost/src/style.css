@@ -402,15 +402,17 @@ body.lt-dragging, body.lt-dragging * { cursor:grabbing !important; user-select:n
 .lt-tag-deli { background:none; border:none; color:rgba(239,68,68,0.4); cursor:pointer; font-size:9px; padding:2px 4px; border-radius:3px; }
 .lt-tag-deli:hover { background:rgba(239,68,68,0.12); color:#f87171; }
 .lt-mgr-add-item { margin-top:4px; }
-/* 毛玻璃 - 节点浮动面板 */
-.react-flow__nodes .node-floating-ui > div.bg-panel-background {
+/* 毛玻璃 - 节点浮动面板（站点改版后面板容器 class 由 bg-panel-background 换成 bg-nt-bg-float，两个都挂保旧版兜底） */
+.react-flow__nodes .node-floating-ui > div.bg-panel-background,
+.react-flow__nodes .node-floating-ui > div.bg-nt-bg-float {
   background-color: rgba(38, 38, 38, 0.55) !important;
   backdrop-filter: blur(20px) !important;
   backdrop-filter:blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 /* 毛玻璃 - 全屏输入面板 */
-div[class*="max-h-\[90dvh\]"][class*="max-w-\[90vw\]"] > div.bg-panel-background {
+div[class*="max-h-\[90dvh\]"][class*="max-w-\[90vw\]"] > div.bg-panel-background,
+div[class*="max-h-\[90dvh\]"][class*="max-w-\[90vw\]"] > div.bg-nt-bg-float {
   background-color: rgba(38,38,38,0.55) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
