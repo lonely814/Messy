@@ -1003,6 +1003,7 @@
       _ltScanStats.last=Date.now();
       _ltGenScan();
       _ltCoverScan();
+      _ltCountScan();
       _ltSyncPositions();
       /* 诊断：当前浮动图标状态 */
       _ltScanStats.icons=[];
@@ -1313,6 +1314,41 @@
           }
           /* ph==="reveal"：淡出清理交给定时器，这里不做任何事 */
         }
+      }
+    }
+    /* ── 图片节点字数统计：原生视频节点同款（"总字数 N / 2000" + title 明细） ──
+       站点只给视频节点配了字数行（text-fg-muted flex … justify-end … text-xs tabular-nums），
+       图片节点选中面板的输入框（contenteditable div）外框后没有——照抄原生 class 与位置补一行。
+       挂在 _ltTagScan 热路径，每轮校准（面板 React 重挂会丢），输入事件由 _ltSyncPositions 触发链带跑 */
+    function _ltCountScan(){
+      var nodes=document.querySelectorAll(".react-flow__node-image");
+      for(var i=0;i<nodes.length;i++){
+        var el=nodes[i];
+        var input=el.querySelector("[contenteditable=\"true\"]");
+        var row=el.querySelector("[data-lt-count-row]");
+        if(!input){
+          if(row){row.remove();} /* 面板收起/重挂：清残留 */
+          continue;
+        }
+        var box=input.closest(".mantine-ScrollArea-root"); /* 输入框外框（relative flex-1 overflow-hidden rounded-xl p-2），closest 泛类名会误中参考图行——锚定 ScrollArea 根 */
+        if(!box||!box.parentElement)continue;
+        /* 站点 React 会反复重挂输入框容器，旧行挂在死容器上累积（实测单节点 18 行）——每轮先摘本节点全部旧行再插新行 */
+        var olds=el.querySelectorAll("[data-lt-count-row]");
+        for(var q=0;q<olds.length;q++)olds[q].remove();
+        var nrow=document.createElement("div");
+        nrow.setAttribute("data-lt-count-row","");
+        nrow.className="text-fg-muted flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 px-3 pb-1 text-xs tabular-nums";
+        box.parentElement.insertBefore(nrow,box.nextElementSibling);
+        row=nrow;
+        var span=row.firstElementChild;
+        var len=(input.textContent||"").length;
+        var txt="总字数 "+len+" / 2000";
+        if(!span){
+          span=document.createElement("span");
+          span.title="模型上限 2000 字";
+          row.appendChild(span);
+        }
+        if(span.textContent!==txt)span.textContent=txt;
       }
     }
     /* ── 生成占位封面扫描：未生成的图片/视频/音频节点卡片垫一层确定性渐变封面 ──
