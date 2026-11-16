@@ -1269,23 +1269,25 @@
       for(var i=0;i<nodes.length;i++){
         var el=nodes[i],id=el.getAttribute("data-id")||"";
         if(!id)continue;
-        /* 图片：blur 打在 img 上；视频：生成中 video 未挂载，站点把 blur(24px) 打在 .group 包装 div 上（实测 v-jGMHGUHx2p），
-           完成后 video 出现且无 blur——媒体元素 img||video，video 缺位回退读包装 blur */
-        var img=el.querySelector("img")||el.querySelector("video"),blur=0;
+        /* 图片：blur 打在 img 上（宿主=父级）；视频真实生成态：blur 打在生成层 div（.group 内 relative h-full w-full 层），
+           video 生成完成才挂载。通用读法：节点内 blur≥12 的首个元素即生成特征；挂层宿主一律= blur 元素的父级
+           （blur 元素自身可能是 video/层 div，直接挂会与 reveal flip 撤 imgAtFlip.parentElement 错位——1.27 迭代实测教训） */
+        var img=el.querySelector("img")||el.querySelector("video"),blur=0,host=null;
         if(img){var m=(img.style.filter||"").match(/blur\(([\d.]+)px\)/);if(m)blur=parseFloat(m[1]);}
         if(!blur){
-          var wrap=el.querySelector('[class*=" group "],[class^="group "],.group');
-          if(wrap){var wm=(wrap.style.filter||"").match(/blur\(([\d.]+)px\)/);if(wm)blur=parseFloat(wm[1]);}
+          var bo=el.querySelector('[style*="blur("]');
+          if(bo){var wm=(bo.style.filter||"").match(/blur\(([\d.]+)px\)/);if(wm&&parseFloat(wm[1])>=12){blur=parseFloat(wm[1]);host=bo.parentElement||bo;}}
+          else if(img&&blur<0){/* unreachable */}
         }
+        if(blur>=12&&!host&&img)host=img.parentElement; /* 媒体自带 blur：宿主=父级 */
         var st=_ltGenSeen.get(id);
         var src=img?(img.getAttribute("src")||""):"";
         /* 三态机：gen（生成中，blur≥12）→ await（站点摘了 blur 但新图 src 还没换上——
            此窗口继续用雾盖住旧图，避免"闪一下旧图"）→ reveal（src 已换/超时兜底，等 decode 后淡出） */
         if(blur>=12){ /* 站点生成中实测 blur(24px)；≥12 兼容更小值，普通图片加载不落此区间 */
-          var host=img&&img.parentElement?img.parentElement:wrap; /* 视频：media 缺位，雾挂 .group 包装 */
           if((!st||st.ph!=="gen"||src!==st.src0)&&host){
             _ltGenEnsure(el,host,id);
-            _ltGenSeen.set(id,{ph:"gen",src0:src,tDone:0});
+            _ltGenSeen.set(id,{ph:"gen",src0:src,tDone:0,host:host}); /* host 记入状态：撤层必须撤同一个元素（视频场景 blur 层父级 ≠ 媒体父级，实测教训） */
           }else if(st&&st.ph==="gen"&&host){ _ltGenEnsure(el,host,id); }
         }else if(st){
           if(st.ph==="gen"){ st.ph="await"; st.tDone=Date.now(); } /* 站点先摘 blur：等新图 src 就位或超时 */
@@ -1293,22 +1295,21 @@
             var swapped=!!(src&&st.src0!==src);
             if(swapped||!img||Date.now()-st.tDone>2500){
               /* 揭示：等新图可解码再撤雾（decode 1.2s 兜底；超时路径直接撤）。
-                 IIFE 锁定本轮 img——var 循环变量在异步回调里会漂移到最后一次迭代 */
+                 IIFE 锁定本轮 img 与挂层 host——var 循环变量在异步回调里会漂移到最后一次迭代 */
               st.ph="reveal";
-              (function(imgAtFlip){
+              (function(imgAtFlip,hostAtFlip){
                 var flip=function(){
-                  var host=imgAtFlip&&imgAtFlip.parentElement&&imgAtFlip.parentElement.isConnected?imgAtFlip.parentElement:null;
-                  if(host){
-                    host.removeAttribute("data-lt-gen-host");
-                    host.setAttribute("data-lt-reveal-host","");
-                    (function(h){setTimeout(function(){if(h.isConnected)h.removeAttribute("data-lt-reveal-host");},1700);})(host);
+                  if(hostAtFlip&&hostAtFlip.isConnected){
+                    hostAtFlip.removeAttribute("data-lt-gen-host");
+                    hostAtFlip.setAttribute("data-lt-reveal-host","");
+                    (function(h){setTimeout(function(){if(h.isConnected)h.removeAttribute("data-lt-reveal-host");},1700);})(hostAtFlip);
                   }
                 };
                 if(imgAtFlip&&imgAtFlip.decode){ Promise.race([imgAtFlip.decode(),new Promise(function(r){setTimeout(r,1200);})]).then(flip,flip); }
                 else flip();
-              })(img);
+              })(img,st.host);
             }
-            else if(img&&img.parentElement){ _ltGenEnsure(el,img.parentElement,id); } /* await 期间站点重挂载也保持覆盖 */
+            else if(img&&img.parentElement&&st.host&&st.host.isConnected){ _ltGenEnsure(el,st.host,id); } /* await 期间站点重挂载也保持覆盖（撤层宿主不变） */
           }
           /* ph==="reveal"：淡出清理交给定时器，这里不做任何事 */
         }
