@@ -1342,13 +1342,14 @@
         row=nrow;
         var span=row.firstElementChild;
         var len=(input.textContent||"").length;
-        var txt="总字数 "+len+" / 2000";
+        var txt="总字数 "+len; /* 原生视频节点带 "N / 2000" 上限；用户拍板图片节点只计数不显上限 */
         if(!span){
           span=document.createElement("span");
-          span.title="模型上限 2000 字";
+          span.title="输入框 "+len+" 字";
           row.appendChild(span);
         }
         if(span.textContent!==txt)span.textContent=txt;
+        if(span.getAttribute("title")!==("输入框 "+len+" 字"))span.setAttribute("title","输入框 "+len+" 字");
       }
     }
     /* ── 生成占位封面扫描：未生成的图片/视频/音频节点卡片垫一层确定性渐变封面 ──
