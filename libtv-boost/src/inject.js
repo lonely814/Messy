@@ -3363,17 +3363,24 @@ function _ltSettingsPanel(){
     var btns=chips.querySelectorAll("button");
     var last=btns.length?btns[btns.length-1].getBoundingClientRect():r;
     var nh=(last.height||26)/z;
-    return {x:last.right+8*z,y:last.top,z:z,nh:isFinite(nh)&&nh>0?nh:26};
+    /* 右侧安全边界 = chips 所在容器的右内缘。站点会在这一行追加按钮/自带搜索框/放大键（实测），
+       控件按「最后一个原生按钮右侧」排会一路右溢压住原生控件——超出就整体左移回来 */
+    var box=chips.closest("[data-generator-action-chips]")?chips.parentElement:null;
+    var outer=box?box.getBoundingClientRect():r;
+    return {x:last.right+8*z,y:last.top,z:z,nh:isFinite(nh)&&nh>0?nh:26,maxRight:outer.right-4*z};
   }
   /* 主提示词输入的 标签/AI 两枚按钮上移到工具栏（其余输入框仍贴输入框右下角） */
   function _ltToolbarDock(f){
     var s=_ltToolbarSlots();
     if(!s)return false;
+    /* 右边界钳制：最后一枚按钮右缘 + 两枚 36px 槽位超出容器右内缘时整体左移（站点加按钮导致的右溢） */
+    var need=s.x+72*s.z;
+    var shift=need>s.maxRight?-(need-s.maxRight):0;
     [[f.aiIcon,0],[f.tagIcon,36]].forEach(function(p){
       var el=p[0];
       if(!el)return;
       el.classList.add("lt-tb-pill");
-      el.style.left=(s.x+p[1]*s.z).toFixed(1)+"px";
+      el.style.left=(s.x+p[1]*s.z+shift).toFixed(1)+"px";
       el.style.top=s.y.toFixed(1)+"px";
       el.style.display="flex";
       el.style.width="auto";el.style.height=s.nh.toFixed(1)+"px";el.style.borderRadius="999px";
@@ -3387,11 +3394,28 @@ function _ltSettingsPanel(){
     var s=_ltToolbarSlots();
     if(!s){_ltFind.el.style.display="none";return;}
     _ltFind.el.style.display="flex";
-    _ltFind.el.style.left=(s.x+72*s.z).toFixed(1)+"px";
+    var open=_ltFind.el.classList.contains("open");
+    /* 折叠 26px / 展开 150px（CSS 值）；右缘固定，展开向左生长；与标签/AI 同受右边界钳制 */
+    var pillRight=s.x+72*s.z+26*s.z;
+    var shift=pillRight>s.maxRight?-(pillRight-s.maxRight):0;
+    if(open)pillRight=s.x+72*s.z+150*s.z+shift>s.maxRight?s.maxRight:s.x+72*s.z+150*s.z+shift;
+    var left=pillRight-(open?150:26)*s.z;
+    _ltFind.el.style.left=left.toFixed(1)+"px";
     _ltFind.el.style.top=s.y.toFixed(1)+"px";
     _ltFind.el.style.height=s.nh.toFixed(1)+"px";
     _ltFind.el.style.transform=s.z!==1?"scale("+s.z+")":"";
     _ltFind.el.style.transformOrigin="left top";
+  }
+  function _ltFindOpen(open){
+    if(!_ltFind.el)return;
+    _ltFind.el.classList.toggle("open",open);
+    _ltFindSync();
+    if(open){
+      _ltFind.inp.focus();
+      _ltFind.inp.select();
+    }else{
+      _ltFind.inp.blur();
+    }
   }
   function _ltFindInit(){
     if(_ltFind.el)return;
@@ -3406,13 +3430,22 @@ function _ltSettingsPanel(){
     _ltFind.el=el;
     _ltFind.inp=el.querySelector("#lt-find-inp");
     _ltFind.cnt=el.querySelector("#lt-find-count");
+    /* 折叠态：点图标展开；展开态：点图标以外/失焦且无词时收回（有词保留，避免高亮丢失） */
+    el.addEventListener("click",function(e){
+      if(!el.classList.contains("open")){e.preventDefault();_ltFindOpen(true);}
+    });
+    _ltFind.inp.addEventListener("blur",function(){
+      setTimeout(function(){
+        if(_ltFind.el&&_ltFind.el.classList.contains("open")&&!(_ltFind.inp.value||"").trim())_ltFindOpen(false);
+      },150);
+    });
     _ltFind.inp.addEventListener("input",function(){
       clearTimeout(_ltFind.timer);
       _ltFind.timer=setTimeout(function(){_ltFindApply(false);},120);
     });
     _ltFind.inp.addEventListener("keydown",function(e){
       if(e.key==="Enter"){e.preventDefault();_ltFindApply(true);}
-      else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();_ltFind.inp.value="";_ltFindApply(false);}
+      else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();_ltFind.inp.value="";_ltFindApply(false);_ltFindOpen(false);}
     });
     /* 提示词文本变化 → 重算命中（React 重渲染会换掉文本节点，旧 Range 失效） */
     document.addEventListener("input",function(e){

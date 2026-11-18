@@ -636,10 +636,16 @@ header.m_3b16f56b > div.relative:first-child {
 .lt-tb-pill { display:flex; align-items:center; justify-content:center; gap:2px; padding:4px 8px; border-radius:999px; background:rgba(255,255,255,0.05); transition:background .15s; cursor:pointer; color:rgba(255,255,255,0.55); box-sizing:border-box; }
 .lt-tb-pill:hover, .lt-tb-pill:active { background:rgba(255,255,255,0.1); }
 /* z-index 150：高于页面内容、低于站点弹层（Mantine 默认 Modal 200），避免盖住各类菜单/原图查看器 */
-#lt-find-bar { position:fixed; z-index:150; width:128px; height:26px; justify-content:flex-start; gap:4px; }
-#lt-find-inp { flex:1; min-width:0; background:transparent; border:none; outline:none; color:#e7e9f3; font-size:12px; padding:0; }
+/* 搜词：折叠态只有一枚图标（26px），点开才展开输入框——站点在工具栏加了一排按钮+自带搜索框+放大键，
+   常驻 128px 输入框会被顶到右侧压住原生控件（实测）。展开时右缘固定向左生长，不向右溢 */
+#lt-find-bar { position:fixed; z-index:150; width:26px; height:26px; padding:4px; justify-content:center; gap:0; overflow:hidden; cursor:pointer; transition:width .18s var(--ease-out), gap .18s var(--ease-out), padding .18s var(--ease-out); }
+#lt-find-bar.open { width:150px; padding:4px 8px; justify-content:flex-start; gap:4px; cursor:default; }
+#lt-find-bar > svg { flex-shrink:0; }
+#lt-find-inp { display:none; flex:1; min-width:0; background:transparent; border:none; outline:none; color:#e7e9f3; font-size:12px; padding:0; }
+#lt-find-bar.open #lt-find-inp { display:block; }
 #lt-find-inp::placeholder { color:rgba(255,255,255,0.3); }
-#lt-find-count { font-size:10px; color:var(--accent-light); white-space:nowrap; }
+#lt-find-count { display:none; font-size:10px; color:var(--accent-light); white-space:nowrap; }
+#lt-find-bar.open #lt-find-count { display:inline; }
 ::highlight(lt-find) { background-color:rgba(255,196,0,0.5); color:#fff; }
 
 /* ===== 节点对齐 pie 菜单（快捷键 A） ===== */
