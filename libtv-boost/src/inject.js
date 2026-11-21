@@ -952,7 +952,9 @@
         if(_ce==="false")return false;
         if(el.tagName==="TEXTAREA")return true;
         if(!el.closest("[contenteditable]"))return false;
-        return el.closest("[class*=\"ChatRichInput\"],[class*=\"RichInput\"],[class*=\"chat-rich\"],[class*=\"prompt-editor\"],[class*=\"PromptEditor\"],[class*=\"canvas-prompt\"],[class*=\"text-fg-default\"]")!==null;
+        /* 白名单按编辑器特征 class 匹配。站点 2026-11 改版把富输入编辑器从 ChatRichInput-* 换成
+           Tailwind 流（whitespace-pre-wrap + text-nt-text-*），老特征保留兜底、新特征补挂 */
+        return el.closest("[class*=\"ChatRichInput\"],[class*=\"RichInput\"],[class*=\"chat-rich\"],[class*=\"prompt-editor\"],[class*=\"PromptEditor\"],[class*=\"canvas-prompt\"],[class*=\"text-fg-default\"],[class*=\"whitespace-pre-wrap\"],[class*=\"text-nt-text\"]")!==null;
       }
       var _ltSkipTypes={hidden:1,checkbox:1,radio:1,button:1,submit:1,reset:1,file:1,image:1};
 
@@ -3305,11 +3307,24 @@ function _ltSettingsPanel(){
      React 重渲染/光标/输入全不受影响（红线：React 面板内禁止注入/改写节点）。
      不支持 Custom Highlight 的旧浏览器只显示命中数，不高亮。 */
   var _ltFind={el:null,inp:null,cnt:null,timer:0};
+  /* 工具栏 chips 行（上传/画布参考/特效/运镜/预设提示词）。2026-11 改版后面板里出现两个
+     data-generator-action-chips 根：新增的引导建议行（风格/配色/构图/节奏/相机）在前、工具栏行在后，
+     全局 querySelector 会抓到引导行把锚点算歪。工具栏行的特征是自带横向滚动区
+     generator-prompt-scroll-region，按此挑；都不带时退化取最后一个 */
+  function _ltHeaderChips(){
+    var all=document.querySelectorAll("[data-generator-action-chips]");
+    if(!all.length)return null;
+    for(var i=0;i<all.length;i++){
+      if(all[i].querySelector(".generator-prompt-scroll-region"))return all[i];
+    }
+    return all[all.length-1];
+  }
   function _ltFindAnchor(){
-    var chips=document.querySelector("[data-generator-action-chips]");
+    var chips=_ltHeaderChips();
     if(!chips)return null;
     var ed=null;
-    try{ed=chips.parentNode.querySelector('[data-practice-anchor="gen.prompt"] [contenteditable="true"]');}catch(e){}
+    var root=chips.closest(".node-floating-ui")||chips.parentNode;
+    try{ed=root.querySelector('[data-practice-anchor="gen.prompt"] [contenteditable="true"]');}catch(e){}
     return {chips:chips,ed:ed};
   }
   function _ltFindRanges(ed,term){
@@ -3356,18 +3371,17 @@ function _ltSettingsPanel(){
      对齐以「最后一个原生按钮」的实测 rect 为准：top/高度都取它的值，不再按 chips 行估算（行有 pt-1 内边距，估算必偏）。
      z = 画布缩放比（chips 宽度比 offsetWidth 实测）；胶囊 transform-origin:left top，任意缩放下与原生按钮重合 */
   function _ltToolbarSlots(){
-    var chips=document.querySelector("[data-generator-action-chips]");
+    var chips=_ltHeaderChips();
     if(!chips)return null;
     var r=chips.getBoundingClientRect();
     var z=(chips.offsetWidth&&r.width?r.width/chips.offsetWidth:1)||1;
     var btns=chips.querySelectorAll("button");
     var last=btns.length?btns[btns.length-1].getBoundingClientRect():r;
     var nh=(last.height||26)/z;
-    /* 右侧安全边界 = chips 所在容器的右内缘。站点会在这一行追加按钮/自带搜索框/放大键（实测），
-       控件按「最后一个原生按钮右侧」排会一路右溢压住原生控件——超出就整体左移回来 */
-    var box=chips.closest("[data-generator-action-chips]")?chips.parentElement:null;
-    var outer=box?box.getBoundingClientRect():r;
-    return {x:last.right+8*z,y:last.top,z:z,nh:isFinite(nh)&&nh>0?nh:26,maxRight:outer.right-4*z};
+    /* 右侧安全边界 = chips 根自身右内缘。站点给根挂 margin-right:72px 预留右侧原生图标区
+       （放大键/收起键悬在根外、面板卡内），钳到根内缘就不会压住它们；此前钳到父容器右内缘
+       会把我们的控件推进预留区（2026-11 实测结构） */
+    return {x:last.right+8*z,y:last.top,z:z,nh:isFinite(nh)&&nh>0?nh:26,maxRight:r.right-4*z};
   }
   /* 主提示词输入的 标签/AI 两枚按钮上移到工具栏（其余输入框仍贴输入框右下角） */
   function _ltToolbarDock(f){

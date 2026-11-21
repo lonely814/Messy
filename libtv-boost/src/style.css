@@ -85,6 +85,7 @@ body.perf-mode #libtv-glow { display: none !important; }
 body.perf-mode #libtv-search { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 body.perf-mode #libtv-pbtn.s1,
 body.perf-mode #libtv-pbtn.s3 { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+body.perf-mode .react-flow__nodes .node-floating-ui div[class*="rounded-[20px]"],
 body.perf-mode .react-flow__nodes .node-floating-ui > div.bg-panel-background { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 body.perf-mode div[class*="max-h-\[90dvh\]"][class*="max-w-\[90vw\]"] > div.bg-panel-background,
 body.perf-mode div[class*="b768\:bottom-3"] { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
@@ -402,12 +403,15 @@ body.lt-dragging, body.lt-dragging * { cursor:grabbing !important; user-select:n
 .lt-tag-deli { background:none; border:none; color:rgba(239,68,68,0.4); cursor:pointer; font-size:9px; padding:2px 4px; border-radius:3px; }
 .lt-tag-deli:hover { background:rgba(239,68,68,0.12); color:#f87171; }
 .lt-mgr-add-item { margin-top:4px; }
-/* 毛玻璃 - 节点浮动面板（站点改版后面板容器 class 由 bg-panel-background 换成 bg-nt-bg-float，两个都挂保旧版兜底） */
+/* 毛玻璃 - 节点浮动面板（站点两次改版都换了玻璃卡宿主：最早是直接子层 bg-panel-background，
+   后换 bg-nt-bg-float，2026-11 玻璃卡移进面板内部的 rounded-[20px] 卡（站点自带不透明底+blur(10px)）。
+   新宿主按圆角特征挂（面板内该圆角卡唯一），旧两个选择器保留兜底） */
+.react-flow__nodes .node-floating-ui div[class*="rounded-[20px]"],
 .react-flow__nodes .node-floating-ui > div.bg-panel-background,
 .react-flow__nodes .node-floating-ui > div.bg-nt-bg-float {
   background-color: rgba(38, 38, 38, 0.55) !important;
   backdrop-filter: blur(20px) !important;
-  backdrop-filter:blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 /* 毛玻璃 - 全屏输入面板 */
